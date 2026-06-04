@@ -1,0 +1,27 @@
+# Ядро
+Django==5.1.4
+djangorestframework==3.15.2
+psycopg[binary]==3.2.3          # драйвер PostgreSQL
+redis==5.2.1
+django-redis==5.4.0             # кеш в Redis
+
+# Безопасность
+argon2-cffi==23.1.0             # хеширование паролей Argon2id
+django-cors-headers==4.6.0      # CORS для фронта
+django-ratelimit==4.1.0         # rate-limit на эндпоинты
+
+# API
+drf-spectacular==0.28.0         # автодокументация OpenAPI/Swagger
+django-filter==24.3             # фильтрация в каталогах
+
+# Медиа
+Pillow==11.0.0                  # обработка/ресайз фото
+
+# Очереди (понадобятся для email/уведомлений)
+celery==5.4.0
+
+# Сервер
+gunicorn==23.0.0
+
+# Конфигурация
+python-dotenv==1.0.1

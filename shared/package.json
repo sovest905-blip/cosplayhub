@@ -1,0 +1,7 @@
+{
+  "name": "@cosplayhub/shared",
+  "version": "0.1.0",
+  "description": "Общие типы и API-клиент для web и mobile",
+  "main": "index.ts",
+  "types": "index.ts"
+}

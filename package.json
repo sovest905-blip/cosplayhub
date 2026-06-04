@@ -1,0 +1,14 @@
+{
+  "name": "cosplayhub",
+  "private": true,
+  "version": "0.1.0",
+  "description": "КосплейХаб СНГ — монорепо (backend / web / shared, mobile позже)",
+  "workspaces": [
+    "web",
+    "shared"
+  ],
+  "scripts": {
+    "dev:backend": "cd backend && docker compose up --build",
+    "dev:web": "npm run dev --workspace web"
+  }
+}
