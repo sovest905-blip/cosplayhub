@@ -7,34 +7,51 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function detectKind(val: string): "email" | "phone" | null {
+    if (val.includes("@")) return "email";
+    const digits = val.replace(/\D/g, "");
+    if (digits.length >= 10) return "phone";
+    return null;
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setError(""); setLoading(true);
     const form = new FormData(e.currentTarget);
+    const identifier = (form.get("identifier") as string).trim();
+    const kind = detectKind(identifier);
+
+    if (!kind) {
+      setError("Введите корректный email или номер телефона");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/register/`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            email: form.get("email"),
-            password: form.get("password"),
-            username: form.get("display_name"),
-            phone: form.get("phone") || "",
-          }),
-        }
-      );
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          identifier,
+          username: form.get("username"),
+          password: form.get("password"),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const firstVal = Object.values(data as Record<string, string[]>)[0];
-        const msg = data.detail || data.email?.[0] || data.password?.[0] || data.username?.[0] || (Array.isArray(firstVal) ? firstVal[0] : firstVal) || "Ошибка регистрации";
-        throw new Error(msg);
+        const err = data.identifier?.[0] || data.username?.[0] || data.password?.[0] || data.detail || "Ошибка регистрации";
+        throw new Error(err);
       }
-      const email = form.get("email") as string;
-      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
+
+      if (kind === "email") {
+        router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}`);
+      } else if (data.tg_link) {
+        router.push(`/auth/verify-phone?token=${data.tg_token}&phone=${encodeURIComponent(data.phone)}`);
+      } else {
+        // auto_login (Telegram не настроен, тест-режим)
+        router.push("/cabinet");
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка регистрации");
     } finally {
@@ -45,12 +62,8 @@ export default function RegisterPage() {
   return (
     <div className="wrap" style={{ display: "flex", justifyContent: "center", padding: "60px 28px" }}>
       <div style={{
-        background: "var(--bg-2)",
-        border: "1px solid var(--line)",
-        borderRadius: 20,
-        padding: "32px 36px",
-        width: "100%",
-        maxWidth: 480,
+        background: "var(--bg-2)", border: "1px solid var(--line)",
+        borderRadius: 20, padding: "32px 36px", width: "100%", maxWidth: 480,
       }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -68,17 +81,15 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="field">
-            <label>Ник (отображается публично)</label>
-            <input type="text" name="display_name" placeholder="YourNick" required />
+            <label>Ник (публичное имя)</label>
+            <input type="text" name="username" placeholder="YourNick" required autoComplete="username" />
           </div>
+
           <div className="field">
-            <label>Email</label>
-            <input type="email" name="email" placeholder="you@example.com" required autoComplete="email" />
+            <label>Email или номер телефона</label>
+            <input type="text" name="identifier" placeholder="+7 900 000 00 00 или you@example.com" required autoComplete="email" />
           </div>
-          <div className="field">
-            <label>Номер телефона <span style={{ color: "var(--ink-dim)", fontWeight: 400 }}>(необязательно)</span></label>
-            <input type="tel" name="phone" placeholder="+7 900 000 00 00" autoComplete="tel" />
-          </div>
+
           <div className="field">
             <label>Пароль</label>
             <input type="password" name="password" placeholder="Минимум 10 символов" required minLength={10} autoComplete="new-password" />
@@ -91,25 +102,16 @@ export default function RegisterPage() {
           )}
 
           <div style={{
-            background: "rgba(124,249,255,.06)",
-            border: "1px solid rgba(124,249,255,.2)",
-            borderRadius: 10,
-            padding: "12px 14px",
-            fontSize: 11,
-            color: "var(--ink-dim)",
-            marginBottom: 16,
-            lineHeight: 1.6,
+            background: "rgba(124,249,255,.06)", border: "1px solid rgba(124,249,255,.2)",
+            borderRadius: 10, padding: "12px 14px", fontSize: 11,
+            color: "var(--ink-dim)", marginBottom: 16, lineHeight: 1.6,
           }}>
-            Регистрируясь, ты соглашаешься передавать только публичные данные (ник, город, фото).
-            Никаких реальных платежей в бете нет.
+            При регистрации по email — подтвердишь почту кодом.<br />
+            По номеру телефона — код придёт в Telegram.
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary btn-big"
-            style={{ width: "100%", justifyContent: "center", opacity: loading ? 0.7 : 1 }}
-          >
+          <button type="submit" disabled={loading} className="btn btn-primary btn-big"
+            style={{ width: "100%", justifyContent: "center", opacity: loading ? 0.7 : 1 }}>
             {loading ? "Создаём аккаунт..." : "Создать аккаунт →"}
           </button>
         </form>

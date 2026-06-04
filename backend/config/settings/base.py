@@ -135,6 +135,10 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "КосплейХаб <nore
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
 
+AUTHENTICATION_BACKENDS = [
+    "apps.users.backends.IdentifierBackend",
+]
+
 LANGUAGE_CODE = "ru-ru"
 TIME_ZONE = "Asia/Almaty"
 USE_I18N = True

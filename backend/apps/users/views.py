@@ -1,5 +1,4 @@
 import logging
-import re
 
 from django.conf import settings
 from django.contrib.auth import login, logout
@@ -11,69 +10,82 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from .backends import resolve_user
 from .models import User
 from .otp import send_email_otp, send_reset_otp, verify_email_otp, verify_reset_otp
 from .serializers import RegisterSerializer, UserSerializer
 
-
-def normalize_phone(raw: str) -> str:
-    """Оставляем только цифры, приводим к +7XXXXXXXXXX."""
-    digits = re.sub(r"\D", "", raw)
-    if len(digits) == 11 and digits.startswith("8"):
-        digits = "7" + digits[1:]
-    if len(digits) == 10:
-        digits = "7" + digits
-    return "+" + digits if digits else raw
-
-
-def resolve_identifier(identifier: str) -> User | None:
-    """По email или телефону находит пользователя."""
-    identifier = identifier.strip()
-    if "@" in identifier:
-        return User.objects.filter(email=identifier.lower()).first()
-    phone = normalize_phone(identifier)
-    return User.objects.filter(phone=phone).first()
-
 logger = logging.getLogger(__name__)
 
 
-class RegisterView(generics.CreateAPIView):
-    serializer_class = RegisterSerializer
-    permission_classes = [AllowAny]
-    throttle_scope = "login"
-    throttle_classes = [ScopedRateThrottle]
+# ── Регистрация ───────────────────────────────────────────────────────────────
 
-    def perform_create(self, serializer):
-        user = serializer.save()
-        # Автоматически отправляем OTP после регистрации
-        try:
-            send_email_otp(user.email)
-        except Exception as e:
-            logger.error("Failed to send registration OTP to %s: %s", user.email, e)
-
-
-class LoginView(APIView):
-    """Логин по email/телефону + пароль → сессия в HttpOnly cookie."""
+class RegisterView(APIView):
     permission_classes = [AllowAny]
     throttle_scope = "login"
     throttle_classes = [ScopedRateThrottle]
 
     def post(self, request):
-        from django.contrib.auth import authenticate
-        identifier = (request.data.get("identifier") or request.data.get("email") or "").strip()
+        serializer = RegisterSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = serializer.save()
+        kind = serializer.validated_data["_kind"]
+
+        if kind == "email":
+            # Отправляем OTP на email — фронт перекинет на /auth/verify-email
+            try:
+                send_email_otp(user.email)
+            except Exception as e:
+                logger.error("OTP send failed for %s: %s", user.email, e)
+            return Response(
+                {"id": user.id, "kind": "email", "email": user.email},
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            # Телефон: OTP через Telegram если настроен, иначе авто-логин для теста
+            if getattr(settings, "TELEGRAM_BOT_TOKEN", ""):
+                from .tgbot import create_telegram_session
+                token = create_telegram_session(user.phone, id_type="phone")
+                bot = getattr(settings, "TELEGRAM_BOT_USERNAME", "")
+                link = f"https://t.me/{bot}?start={token}"
+                return Response(
+                    {"id": user.id, "kind": "phone", "phone": user.phone,
+                     "tg_link": link, "tg_token": token},
+                    status=status.HTTP_201_CREATED,
+                )
+            else:
+                # Telegram не настроен — логиним без верификации (только для теста)
+                user.is_phone_verified = True
+                user.save(update_fields=["is_phone_verified"])
+                login(request, user)
+                return Response(
+                    {"id": user.id, "kind": "phone", "phone": user.phone, "auto_login": True},
+                    status=status.HTTP_201_CREATED,
+                )
+
+
+# ── Вход ──────────────────────────────────────────────────────────────────────
+
+class LoginView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "login"
+    throttle_classes = [ScopedRateThrottle]
+
+    def post(self, request):
+        identifier = (request.data.get("identifier") or "").strip()
         password = request.data.get("password", "")
 
-        user = resolve_identifier(identifier)
+        from django.contrib.auth import authenticate
+        user = authenticate(request, username=identifier, password=password)
         if user is None:
-            return Response({"detail": "Пользователь не найден"},
-                            status=status.HTTP_401_UNAUTHORIZED)
-
-        auth_user = authenticate(request, username=user.email, password=password)
-        if auth_user is None:
-            return Response({"detail": "Неверный пароль"},
-                            status=status.HTTP_401_UNAUTHORIZED)
-        login(request, auth_user)
-        return Response(UserSerializer(auth_user).data)
+            return Response(
+                {"detail": "Неверные данные для входа"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        login(request, user)
+        return Response(UserSerializer(user).data)
 
 
 class LogoutView(APIView):
@@ -93,7 +105,6 @@ class MeView(generics.RetrieveUpdateAPIView):
 # ── Email OTP ─────────────────────────────────────────────────────────────────
 
 class SendEmailOTPView(APIView):
-    """Отправить (или переслать) OTP-код на email."""
     permission_classes = [AllowAny]
     throttle_scope = "otp"
     throttle_classes = [ScopedRateThrottle]
@@ -102,9 +113,8 @@ class SendEmailOTPView(APIView):
         email = (request.data.get("email") or "").strip().lower()
         if not email:
             return Response({"detail": "Укажите email"}, status=400)
-        try:
-            User.objects.get(email=email)
-        except User.DoesNotExist:
+        user = User.objects.filter(email=email).first()
+        if not user:
             return Response({"detail": "Пользователь не найден"}, status=404)
         try:
             send_email_otp(email)
@@ -115,7 +125,6 @@ class SendEmailOTPView(APIView):
 
 
 class VerifyEmailOTPView(APIView):
-    """Проверить email OTP-код → залогинить."""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -123,67 +132,39 @@ class VerifyEmailOTPView(APIView):
         code = (request.data.get("code") or "").strip()
         if not verify_email_otp(email, code):
             return Response({"detail": "Неверный или устаревший код"}, status=400)
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        user = User.objects.filter(email=email).first()
+        if not user:
             return Response({"detail": "Пользователь не найден"}, status=404)
-        user.is_verified = True
-        user.save(update_fields=["is_verified"])
+        user.is_email_verified = True
+        user.save(update_fields=["is_email_verified"])
         login(request, user)
         return Response(UserSerializer(user).data)
-
-
-# ── Telegram OTP ──────────────────────────────────────────────────────────────
-
-class SendTelegramOTPView(APIView):
-    """Создать Telegram-сессию → вернуть deep-link на бота."""
-    permission_classes = [AllowAny]
-    throttle_scope = "otp"
-    throttle_classes = [ScopedRateThrottle]
-
-    def post(self, request):
-        if not getattr(settings, "TELEGRAM_BOT_TOKEN", ""):
-            return Response({"detail": "Telegram auth не настроен"}, status=503)
-
-        identifier = (request.data.get("identifier") or request.data.get("email") or "").strip()
-        if not identifier:
-            return Response({"detail": "Укажите email или телефон"}, status=400)
-
-        user = resolve_identifier(identifier)
-        if user is None:
-            return Response({"detail": "Пользователь не найден"}, status=404)
-
-        from .tgbot import create_telegram_session
-        token = create_telegram_session(user.email)
-        bot_username = getattr(settings, "TELEGRAM_BOT_USERNAME", "")
-        link = f"https://t.me/{bot_username}?start={token}"
-        return Response({"link": link, "token": token, "email": user.email})
 
 
 # ── Восстановление пароля ─────────────────────────────────────────────────────
 
 class ForgotPasswordView(APIView):
-    """Шаг 1: отправить OTP для сброса пароля."""
     permission_classes = [AllowAny]
     throttle_scope = "otp"
     throttle_classes = [ScopedRateThrottle]
 
     def post(self, request):
-        identifier = (request.data.get("identifier") or request.data.get("email") or "").strip()
-        user = resolve_identifier(identifier)
-        if user is None:
-            # Не раскрываем — одинаковый ответ
-            return Response({"detail": "Если аккаунт существует, код отправлен"})
-        try:
-            send_reset_otp(user.email)
-        except Exception as e:
-            logger.error("send_reset_otp failed for %s: %s", user.email, e)
-            return Response({"detail": "Не удалось отправить письмо"}, status=502)
-        return Response({"detail": "Если аккаунт существует, код отправлен", "email": user.email})
+        identifier = (request.data.get("identifier") or "").strip()
+        user = resolve_user(identifier)
+        # Не раскрываем существование аккаунта
+        if user and user.email:
+            try:
+                send_reset_otp(user.email)
+            except Exception as e:
+                logger.error("send_reset_otp failed: %s", e)
+                return Response({"detail": "Не удалось отправить письмо"}, status=502)
+        return Response({
+            "detail": "Если аккаунт существует, код отправлен",
+            "email": user.email if user else "",
+        })
 
 
 class ResetPasswordView(APIView):
-    """Шаг 2: проверить OTP и установить новый пароль."""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -194,9 +175,8 @@ class ResetPasswordView(APIView):
         if not verify_reset_otp(email, code):
             return Response({"detail": "Неверный или устаревший код"}, status=400)
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        user = User.objects.filter(email=email).first()
+        if not user:
             return Response({"detail": "Пользователь не найден"}, status=404)
 
         try:
@@ -210,8 +190,37 @@ class ResetPasswordView(APIView):
         return Response(UserSerializer(user).data)
 
 
+# ── Telegram OTP ──────────────────────────────────────────────────────────────
+
+class SendTelegramOTPView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "otp"
+    throttle_classes = [ScopedRateThrottle]
+
+    def post(self, request):
+        if not getattr(settings, "TELEGRAM_BOT_TOKEN", ""):
+            return Response({"detail": "Telegram auth не настроен"}, status=503)
+
+        identifier = (request.data.get("identifier") or "").strip()
+        if not identifier:
+            return Response({"detail": "Укажите email или телефон"}, status=400)
+
+        user = resolve_user(identifier)
+        if not user:
+            return Response({"detail": "Пользователь не найден"}, status=404)
+
+        from .tgbot import create_telegram_session
+        # Передаём email если есть, иначе телефон
+        session_id = user.email or user.phone
+        token = create_telegram_session(session_id)
+        bot = getattr(settings, "TELEGRAM_BOT_USERNAME", "")
+        return Response({
+            "link": f"https://t.me/{bot}?start={token}",
+            "token": token,
+        })
+
+
 class VerifyTelegramOTPView(APIView):
-    """Проверить Telegram OTP-код → залогинить."""
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -221,16 +230,21 @@ class VerifyTelegramOTPView(APIView):
             return Response({"detail": "Укажите token и code"}, status=400)
 
         from .tgbot import verify_telegram_session
-        email = verify_telegram_session(token, code)
-        if not email:
+        session_id = verify_telegram_session(token, code)
+        if not session_id:
             return Response({"detail": "Неверный или устаревший код"}, status=400)
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        # session_id — это email или телефон
+        user = resolve_user(session_id)
+        if not user:
             return Response({"detail": "Пользователь не найден"}, status=404)
 
-        user.is_verified = True
-        user.save(update_fields=["is_verified"])
+        if "@" in session_id:
+            user.is_email_verified = True
+            user.save(update_fields=["is_email_verified"])
+        else:
+            user.is_phone_verified = True
+            user.save(update_fields=["is_phone_verified"])
+
         login(request, user)
         return Response(UserSerializer(user).data)
