@@ -7,7 +7,7 @@ function VerifyPhoneInner() {
   const params = useSearchParams();
   const token = params.get("token") || "";
   const phone = params.get("phone") || "";
-  const tgLink = `https://t.me/${process.env.NEXT_PUBLIC_TG_BOT_USERNAME}?start=${token}`;
+  const tgLink = `https://t.me/cosplayhub_auth_bot?start=${token}`;
 
   const [code, setCode] = useState("");
   const [error, setError] = useState("");

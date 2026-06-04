@@ -3,12 +3,16 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 type Step = "identifier" | "code" | "password";
+type Method = "email" | "telegram";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("identifier");
   const [identifier, setIdentifier] = useState("");
-  const [email, setEmail] = useState(""); // resolved email from backend
+  const [method, setMethod] = useState<Method>("email");
+  const [email, setEmail] = useState("");
+  const [tgLink, setTgLink] = useState("");
+  const [tgToken, setTgToken] = useState("");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [newPassword, setNewPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -16,7 +20,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // ── Шаг 1: отправить OTP ──────────────────────────────────────────────────
+  // ── Шаг 1: запросить код ──────────────────────────────────────────────────
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
     setError(""); setLoading(true);
@@ -29,7 +33,15 @@ export default function ForgotPasswordPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Ошибка");
-      setEmail(data.email || identifier);
+
+      if (data.method === "telegram") {
+        setMethod("telegram");
+        setTgLink(data.tg_link);
+        setTgToken(data.tg_token);
+      } else {
+        setMethod("email");
+        setEmail(data.email || identifier);
+      }
       setStep("code");
       setTimeout(() => inputs.current[0]?.focus(), 100);
     } catch (err: unknown) {
@@ -51,11 +63,9 @@ export default function ForgotPasswordPage() {
     if (text.length === 6) { setCode(text.split("")); inputs.current[5]?.focus(); }
   }
 
-  async function handleVerifyCode(e: React.FormEvent) {
+  function handleVerifyCode(e: React.FormEvent) {
     e.preventDefault();
-    const fullCode = code.join("");
-    if (fullCode.length < 6) return;
-    // Просто переходим к шагу пароля (сервер проверит код при сбросе)
+    if (code.join("").length < 6) return;
     setStep("password");
   }
 
@@ -66,23 +76,33 @@ export default function ForgotPasswordPage() {
     if (newPassword !== confirm) { setError("Пароли не совпадают"); return; }
     setLoading(true);
     try {
+      const body = method === "telegram"
+        ? { tg_token: tgToken, code: code.join(""), new_password: newPassword }
+        : { email, code: code.join(""), new_password: newPassword };
       const res = await fetch(`/api/v1/auth/reset-password/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, code: code.join(""), new_password: newPassword }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || "Ошибка");
       router.push("/cabinet");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Ошибка");
-      if ((err as Error).message?.includes("код")) {
+      const msg = err instanceof Error ? err.message : "Ошибка";
+      setError(msg);
+      if (msg.includes("код")) {
         setStep("code");
         setCode(["", "", "", "", "", ""]);
       }
     } finally { setLoading(false); }
   }
+
+  const TgIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L7.4 13.9l-2.97-.924c-.643-.204-.657-.643.136-.953l11.57-4.46c.537-.194 1.006.13.758.658z"/>
+    </svg>
+  );
 
   return (
     <div className="wrap" style={{ display: "flex", justifyContent: "center", padding: "60px 28px" }}>
@@ -94,7 +114,6 @@ export default function ForgotPasswordPage() {
             <span style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 900, fontSize: 17 }}>КОСПЛЕЙ.ХАБ</span>
           </a>
 
-          {/* Прогресс */}
           <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 20 }}>
             {(["identifier", "code", "password"] as Step[]).map((s, i) => (
               <div key={s} style={{
@@ -113,7 +132,8 @@ export default function ForgotPasswordPage() {
           </h1>
           <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>
             {step === "identifier" && "Введи email или телефон от аккаунта"}
-            {step === "code" && <>Код отправлен на <strong style={{ color: "var(--ink)" }}>{email}</strong></>}
+            {step === "code" && method === "email" && <>Код отправлен на <strong style={{ color: "var(--ink)" }}>{email}</strong></>}
+            {step === "code" && method === "telegram" && "Получи код в Telegram и введи ниже"}
             {step === "password" && "Придумай новый пароль"}
           </p>
         </div>
@@ -142,6 +162,12 @@ export default function ForgotPasswordPage() {
         {/* Шаг 2 */}
         {step === "code" && (
           <form onSubmit={handleVerifyCode}>
+            {method === "telegram" && (
+              <a href={tgLink} target="_blank" rel="noopener noreferrer" className="btn btn-big"
+                style={{ display: "flex", width: "100%", justifyContent: "center", background: "#2AABEE", color: "#fff", marginBottom: 16, gap: 8 }}>
+                <TgIcon /> Получить код в Telegram →
+              </a>
+            )}
             <div style={{ display: "flex", gap: 8, justifyContent: "center", marginBottom: 20 }}>
               {code.map((digit, i) => (
                 <input key={i} ref={el => { inputs.current[i] = el; }}

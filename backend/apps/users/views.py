@@ -47,7 +47,7 @@ class RegisterView(APIView):
             # Телефон: OTP через Telegram если настроен, иначе авто-логин для теста
             if getattr(settings, "TELEGRAM_BOT_TOKEN", ""):
                 from .tgbot import create_telegram_session
-                token = create_telegram_session(user.phone, id_type="phone")
+                token = create_telegram_session(user.phone)
                 bot = getattr(settings, "TELEGRAM_BOT_USERNAME", "")
                 link = f"https://t.me/{bot}?start={token}"
                 return Response(
@@ -151,31 +151,59 @@ class ForgotPasswordView(APIView):
     def post(self, request):
         identifier = (request.data.get("identifier") or "").strip()
         user = resolve_user(identifier)
-        # Не раскрываем существование аккаунта
+
+        # Email-аккаунт → код на почту
         if user and user.email:
             try:
                 send_reset_otp(user.email)
             except Exception as e:
                 logger.error("send_reset_otp failed: %s", e)
                 return Response({"detail": "Не удалось отправить письмо"}, status=502)
-        return Response({
-            "detail": "Если аккаунт существует, код отправлен",
-            "email": user.email if user else "",
-        })
+            return Response({"method": "email", "email": user.email,
+                             "detail": "Код отправлен на почту"})
+
+        # Телефонный аккаунт → код в Telegram
+        if user and user.phone:
+            if not getattr(settings, "TELEGRAM_BOT_TOKEN", ""):
+                return Response({"detail": "Восстановление по телефону пока недоступно"}, status=503)
+            from .tgbot import create_telegram_session
+            token = create_telegram_session(user.phone)
+            bot = getattr(settings, "TELEGRAM_BOT_USERNAME", "")
+            return Response({
+                "method": "telegram",
+                "tg_link": f"https://t.me/{bot}?start={token}",
+                "tg_token": token,
+                "detail": "Получите код в Telegram",
+            })
+
+        # Аккаунт не найден — не раскрываем
+        return Response({"method": "email", "email": "",
+                         "detail": "Если аккаунт существует, код отправлен"})
 
 
 class ResetPasswordView(APIView):
+    """Сброс пароля по email-коду ИЛИ по Telegram-токену."""
     permission_classes = [AllowAny]
 
     def post(self, request):
-        email = (request.data.get("email") or "").strip().lower()
-        code = (request.data.get("code") or "").strip()
         new_password = request.data.get("new_password", "")
+        tg_token = (request.data.get("tg_token") or "").strip()
+        code = (request.data.get("code") or "").strip()
 
-        if not verify_reset_otp(email, code):
-            return Response({"detail": "Неверный или устаревший код"}, status=400)
+        # Ветка Telegram (телефонный аккаунт)
+        if tg_token:
+            from .tgbot import verify_telegram_session
+            identifier = verify_telegram_session(tg_token, code)
+            if not identifier:
+                return Response({"detail": "Неверный или устаревший код"}, status=400)
+            user = resolve_user(identifier)
+        # Ветка email
+        else:
+            email = (request.data.get("email") or "").strip().lower()
+            if not verify_reset_otp(email, code):
+                return Response({"detail": "Неверный или устаревший код"}, status=400)
+            user = User.objects.filter(email=email).first()
 
-        user = User.objects.filter(email=email).first()
         if not user:
             return Response({"detail": "Пользователь не найден"}, status=404)
 

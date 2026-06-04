@@ -59,17 +59,17 @@ def get_updates(offset: int) -> list:
 
 # ── Session helpers (вызываются из views) ─────────────────────────────────────
 
-def create_telegram_session(email: str) -> str:
-    """Создаёт OTP-сессию, возвращает token для deep-link."""
+def create_telegram_session(identifier: str) -> str:
+    """Создаёт OTP-сессию для email или телефона, возвращает token для deep-link."""
     token = secrets.token_urlsafe(16)
     code = generate_otp()
-    cache.set(tg_session_key(token), {"email": email, "code": code}, timeout=TG_SESSION_TTL)
+    cache.set(tg_session_key(token), {"identifier": identifier, "code": code}, timeout=TG_SESSION_TTL)
     return token
 
 
 def verify_telegram_session(token: str, code: str) -> str | None:
     """
-    Проверяет код. Возвращает email если OK, None если нет.
+    Проверяет код. Возвращает identifier (email или телефон) если OK, иначе None.
     Побочный эффект: сохраняет telegram_id в User если chat_id уже известен.
     """
     session = cache.get(tg_session_key(token))
@@ -79,21 +79,21 @@ def verify_telegram_session(token: str, code: str) -> str | None:
         return None
     cache.delete(tg_session_key(token))
 
-    email = session["email"]
+    identifier = session["identifier"]
     chat_id = cache.get(tg_chat_key(token))
     if chat_id:
         cache.delete(tg_chat_key(token))
         # Сохраняем telegram_id если ещё не привязан
         try:
-            from .models import User
-            user = User.objects.get(email=email)
-            if not user.telegram_id:
+            from .backends import resolve_user
+            user = resolve_user(identifier)
+            if user and not user.telegram_id:
                 user.telegram_id = str(chat_id)
                 user.save(update_fields=["telegram_id"])
         except Exception:
             pass
 
-    return email
+    return identifier
 
 
 # ── Long-polling loop (вызывается из management command) ─────────────────────
