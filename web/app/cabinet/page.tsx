@@ -21,27 +21,33 @@ const NAV_ITEMS = [
 export default function CabinetPage() {
   const router = useRouter();
   const [me, setMe] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [authed, setAuthed] = useState(false);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me/`, { credentials: "include" })
+    let cancelled = false;
+    fetch(`/api/v1/auth/me/`, { credentials: "include" })
       .then((r) => {
-        if (r.status === 401) { router.push("/auth/login"); return null; }
+        if (!r.ok) { router.replace("/auth/login"); return null; }
         return r.json();
       })
-      .then((data) => { if (data) setMe(data); })
-      .catch(() => router.push("/auth/login"))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (cancelled || !data) return;
+        setMe(data);
+        setAuthed(true);
+      })
+      .catch(() => router.replace("/auth/login"));
+    return () => { cancelled = true; };
   }, [router]);
 
-  if (loading) return (
+  // Пока не подтвердили авторизацию — не показываем кабинет (иначе мелькает мок)
+  if (!authed) return (
     <div className="wrap" style={{ paddingTop: 60, textAlign: "center", color: "var(--ink-dim)" }}>
       Загрузка...
     </div>
   );
 
-  const user = me ? {
-    display_name: me.display_name || me.email?.split("@")[0] || "Пользователь",
+  const user = {
+    display_name: me.username || me.email?.split("@")[0] || me.phone || "Пользователь",
     photo: me.avatar || MOCK_ME.photo,
     is_pro: me.is_pro ?? false,
     city: me.city || "—",
@@ -50,7 +56,7 @@ export default function CabinetPage() {
     followers: me.followers ?? 0,
     looks: me.looks ?? 0,
     id: me.id,
-  } : MOCK_ME;
+  };
 
   return (
     <div className="wrap" style={{ paddingTop: 24, paddingBottom: 60 }}>
@@ -76,10 +82,10 @@ export default function CabinetPage() {
               flexShrink: 0, border: "2px solid var(--accent)",
             }} />
             <div>
-              <div style={{ fontFamily: "'Unbounded',sans-serif", fontWeight: 700, fontSize: 13 }}>
+              <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 700, fontSize: 13 }}>
                 {user.display_name}
               </div>
-              <div style={{ fontSize: 10, color: "var(--ink-dim)", fontFamily: "'JetBrains Mono',monospace" }}>
+              <div style={{ fontSize: 10, color: "var(--ink-dim)", fontFamily: "var(--font-mono),monospace" }}>
                 {user.is_pro ? "PRO · " : ""}{user.city}
               </div>
             </div>
@@ -98,7 +104,7 @@ export default function CabinetPage() {
             <a href="/" style={{ fontSize: 12, color: "var(--ink-dim)" }}>← На сайт</a>
             <button
               onClick={() => {
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout/`, { method: "POST", credentials: "include" })
+                fetch(`/api/v1/auth/logout/`, { method: "POST", credentials: "include" })
                   .finally(() => router.push("/"));
               }}
               style={{ fontSize: 12, color: "var(--ink-dim)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
@@ -113,10 +119,10 @@ export default function CabinetPage() {
           <div className="acc-card" style={{ background: "linear-gradient(135deg,rgba(255,45,111,.12),rgba(124,249,255,.06))", border: "1px solid rgba(255,45,111,.3)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", flexWrap: "wrap", gap: 16 }}>
               <div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "var(--accent-2)", textTransform: "uppercase", letterSpacing: ".15em", marginBottom: 6 }}>
+                <div style={{ fontFamily: "var(--font-mono),monospace", fontSize: 10, color: "var(--accent-2)", textTransform: "uppercase", letterSpacing: ".15em", marginBottom: 6 }}>
                   Добро пожаловать
                 </div>
-                <h2 style={{ fontFamily: "'Unbounded',sans-serif", fontWeight: 800, fontSize: 24, margin: "0 0 6px", letterSpacing: "-.02em" }}>
+                <h2 style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 24, margin: "0 0 6px", letterSpacing: "-.02em" }}>
                   {user.display_name} ✓
                 </h2>
                 <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>
@@ -136,8 +142,8 @@ export default function CabinetPage() {
                 { val: "0", label: "Откликов" },
               ].map((s) => (
                 <div key={s.label} style={{ background: "rgba(0,0,0,.25)", borderRadius: 10, padding: "12px 14px" }}>
-                  <div style={{ fontFamily: "'Unbounded',sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: "-.03em" }}>{s.val}</div>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", marginTop: 3 }}>{s.label}</div>
+                  <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: "-.03em" }}>{s.val}</div>
+                  <div style={{ fontFamily: "var(--font-mono),monospace", fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", marginTop: 3 }}>{s.label}</div>
                 </div>
               ))}
             </div>

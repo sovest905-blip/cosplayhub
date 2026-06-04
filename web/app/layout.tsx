@@ -1,6 +1,27 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
+import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import "./globals.css";
+
+// Самохостинг шрифтов: скачиваются при сборке, без зависимости от CDN в рантайме
+const unbounded = Unbounded({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "600", "800", "900"],
+  variable: "--font-display",
+  display: "swap",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "600"],
+  variable: "--font-mono",
+  display: "swap",
+});
+const manrope = Manrope({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "КОСПЛЕЙ.ХАБ — экосистема косплея СНГ",
@@ -9,16 +30,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ru">
-      <head>
-        {/* Preconnect чтобы шрифты грузились без задержки */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800;900&family=JetBrains+Mono:wght@400;600&family=Manrope:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="ru" className={`${unbounded.variable} ${jetbrainsMono.variable} ${manrope.variable}`}>
       <body>
         <nav className="top">
           <div className="nav-inner">

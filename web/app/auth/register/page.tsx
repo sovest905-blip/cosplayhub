@@ -94,10 +94,10 @@ export default function RegisterPage() {
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
             <div className="logo-mark" />
-            <span style={{ fontFamily: "'Unbounded',sans-serif", fontWeight: 900, fontSize: 17 }}>КОСПЛЕЙ.ХАБ</span>
+            <span style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 900, fontSize: 17 }}>КОСПЛЕЙ.ХАБ</span>
           </a>
           <div className="eyebrow" style={{ justifyContent: "center" }}>закрытая бета · по инвайту</div>
-          <h1 style={{ fontFamily: "'Unbounded',sans-serif", fontSize: 24, fontWeight: 800, margin: "0 0 6px" }}>
+          <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 24, fontWeight: 800, margin: "0 0 6px" }}>
             Регистрация
           </h1>
           <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>

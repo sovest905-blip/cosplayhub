@@ -39,11 +39,11 @@ function VerifyPhoneInner() {
       }}>
         <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
           <div className="logo-mark" />
-          <span style={{ fontFamily: "'Unbounded',sans-serif", fontWeight: 900, fontSize: 17 }}>КОСПЛЕЙ.ХАБ</span>
+          <span style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 900, fontSize: 17 }}>КОСПЛЕЙ.ХАБ</span>
         </a>
 
         <div style={{ fontSize: 40, marginBottom: 12 }}>📱</div>
-        <h1 style={{ fontFamily: "'Unbounded',sans-serif", fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>
+        <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 22, fontWeight: 800, margin: "0 0 8px" }}>
           Подтверди телефон
         </h1>
         <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: "0 0 24px" }}>

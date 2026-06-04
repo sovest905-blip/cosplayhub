@@ -72,7 +72,7 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
             {SERVICES.map((s, i) => (
               <div key={i} className="info-row">
                 <span style={{ color: "var(--ink)", fontSize: 13 }}>{s.name}</span>
-                <b style={{ color: "var(--accent-3)", fontFamily: "'Unbounded',sans-serif", fontSize: 13 }}>
+                <b style={{ color: "var(--accent-3)", fontFamily: "var(--font-display),sans-serif", fontSize: 13 }}>
                   от {s.price.toLocaleString()} ₸
                 </b>
               </div>
