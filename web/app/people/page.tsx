@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { PEOPLE } from "../../lib/mock";
 
 async function fetchProfiles() {

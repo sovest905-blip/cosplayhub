@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { WORKSHOPS } from "../../lib/mock";
 
 async function fetchWorkshops() {
