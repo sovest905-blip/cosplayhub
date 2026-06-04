@@ -47,7 +47,13 @@ services:
 
   tgbot:
     build: .
-    command: python manage.py tgbot
+    command: >
+      sh -c "if [ -z \"$$TELEGRAM_BOT_TOKEN\" ]; then
+               echo 'TELEGRAM_BOT_TOKEN not set, bot disabled. Sleeping.';
+               exec sleep infinity;
+             else
+               exec python manage.py tgbot;
+             fi"
     env_file: .env
     restart: unless-stopped
     depends_on:
