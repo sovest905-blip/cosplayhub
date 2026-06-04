@@ -34,7 +34,9 @@ services:
       - redis
 
   frontend:
-    build: ../web
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
     environment:
       - NEXT_PUBLIC_API_URL=/api/v1
       - API_URL=http://web:8000/api/v1

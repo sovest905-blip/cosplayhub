@@ -1,0 +1,7 @@
+﻿web/node_modules
+web/.next
+shared/node_modules
+node_modules
+backend/__pycache__
+backend/.env
+*.log
