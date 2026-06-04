@@ -23,6 +23,7 @@ export default function RegisterPage() {
             email: form.get("email"),
             password: form.get("password"),
             username: form.get("display_name"),
+            phone: form.get("phone") || "",
           }),
         }
       );
@@ -72,11 +73,15 @@ export default function RegisterPage() {
           </div>
           <div className="field">
             <label>Email</label>
-            <input type="email" name="email" placeholder="you@example.com" required />
+            <input type="email" name="email" placeholder="you@example.com" required autoComplete="email" />
+          </div>
+          <div className="field">
+            <label>Номер телефона <span style={{ color: "var(--ink-dim)", fontWeight: 400 }}>(необязательно)</span></label>
+            <input type="tel" name="phone" placeholder="+7 900 000 00 00" autoComplete="tel" />
           </div>
           <div className="field">
             <label>Пароль</label>
-            <input type="password" name="password" placeholder="Минимум 10 символов" required minLength={10} />
+            <input type="password" name="password" placeholder="Минимум 10 символов" required minLength={10} autoComplete="new-password" />
           </div>
 
           {error && (

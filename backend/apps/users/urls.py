@@ -1,10 +1,12 @@
 from django.urls import path
 
 from .views import (
+    ForgotPasswordView,
     LoginView,
     LogoutView,
     MeView,
     RegisterView,
+    ResetPasswordView,
     SendEmailOTPView,
     SendTelegramOTPView,
     VerifyEmailOTPView,
@@ -19,6 +21,9 @@ urlpatterns = [
     # Email OTP
     path("send-otp/", SendEmailOTPView.as_view(), name="send-email-otp"),
     path("verify-otp/", VerifyEmailOTPView.as_view(), name="verify-email-otp"),
+    # Восстановление пароля
+    path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
+    path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     # Telegram OTP
     path("send-telegram-otp/", SendTelegramOTPView.as_view(), name="send-telegram-otp"),
     path("verify-telegram-otp/", VerifyTelegramOTPView.as_view(), name="verify-telegram-otp"),
