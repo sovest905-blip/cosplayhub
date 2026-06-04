@@ -22,13 +22,13 @@ export default function RegisterPage() {
           body: JSON.stringify({
             email: form.get("email"),
             password: form.get("password"),
-            display_name: form.get("display_name"),
+            username: form.get("display_name"),
           }),
         }
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = data.detail || data.email?.[0] || data.password?.[0] || "Ошибка регистрации";
+        const msg = data.detail || data.email?.[0] || data.password?.[0] || data.username?.[0] || Object.values(data)[0]?.[0] || "Ошибка регистрации";
         throw new Error(msg);
       }
       router.push("/cabinet");
@@ -74,7 +74,7 @@ export default function RegisterPage() {
           </div>
           <div className="field">
             <label>Пароль</label>
-            <input type="password" name="password" placeholder="Минимум 8 символов" required minLength={8} />
+            <input type="password" name="password" placeholder="Минимум 10 символов" required minLength={10} />
           </div>
 
           {error && (
