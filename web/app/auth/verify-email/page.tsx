@@ -47,7 +47,7 @@ function VerifyEmailInner() {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-otp/`, {
+      const res = await fetch(`/api/v1/auth/verify-otp/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -71,7 +71,7 @@ function VerifyEmailInner() {
     setResending(true);
     setResent(false);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/send-otp/`, {
+      await fetch(`/api/v1/auth/send-otp/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

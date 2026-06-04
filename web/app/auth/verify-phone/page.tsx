@@ -17,7 +17,7 @@ function VerifyPhoneInner() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/verify-telegram-otp/`, {
+      const res = await fetch(`/api/v1/auth/verify-telegram-otp/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

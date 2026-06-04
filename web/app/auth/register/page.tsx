@@ -2,21 +2,37 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+const API = "/api/v1";
+
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  );
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState("");
+  const [takenType, setTakenType] = useState<"phone" | "email" | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   function detectKind(val: string): "email" | "phone" | null {
     if (val.includes("@")) return "email";
-    const digits = val.replace(/\D/g, "");
-    if (digits.length >= 10) return "phone";
+    if (val.replace(/\D/g, "").length >= 10) return "phone";
     return null;
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(""); setLoading(true);
+    setError(""); setTakenType(null); setLoading(true);
     const form = new FormData(e.currentTarget);
     const identifier = (form.get("identifier") as string).trim();
     const kind = detectKind(identifier);
@@ -28,7 +44,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register/`, {
+      const res = await fetch(`${API}/auth/register/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -39,9 +55,20 @@ export default function RegisterPage() {
         }),
       });
       const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const err = data.identifier?.[0] || data.username?.[0] || data.password?.[0] || data.detail || "Ошибка регистрации";
-        throw new Error(err);
+        const msg =
+          data.identifier?.[0] ||
+          data.username?.[0] ||
+          data.password?.[0] ||
+          data.detail ||
+          "Ошибка регистрации";
+
+        // Номер/email занят — предлагаем восстановление
+        if (msg.includes("занят") || msg.includes("зарегистрирован")) {
+          setTakenType(kind);
+        }
+        throw new Error(msg);
       }
 
       if (kind === "email") {
@@ -49,7 +76,6 @@ export default function RegisterPage() {
       } else if (data.tg_link) {
         router.push(`/auth/verify-phone?token=${data.tg_token}&phone=${encodeURIComponent(data.phone)}`);
       } else {
-        // auto_login (Telegram не настроен, тест-режим)
         router.push("/cabinet");
       }
     } catch (err: unknown) {
@@ -92,22 +118,53 @@ export default function RegisterPage() {
 
           <div className="field">
             <label>Пароль</label>
-            <input type="password" name="password" placeholder="Минимум 10 символов" required minLength={10} autoComplete="new-password" />
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPass ? "text" : "password"}
+                name="password"
+                placeholder="Минимум 10 символов"
+                required minLength={10}
+                autoComplete="new-password"
+                style={{ paddingRight: 44 }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(v => !v)}
+                style={{
+                  position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--ink-dim)", padding: 0, display: "flex",
+                }}
+              >
+                <EyeIcon open={showPass} />
+              </button>
+            </div>
           </div>
 
           {error && (
-            <div style={{ color: "var(--accent)", fontSize: 13, marginBottom: 12, padding: "8px 12px", background: "rgba(255,45,111,.1)", borderRadius: 8 }}>
-              {error}
+            <div style={{ fontSize: 13, marginBottom: 12, padding: "10px 14px", background: "rgba(255,45,111,.1)", borderRadius: 8, border: "1px solid rgba(255,45,111,.2)" }}>
+              <span style={{ color: "var(--accent)" }}>{error}</span>
+              {takenType && (
+                <div style={{ marginTop: 8 }}>
+                  <a href="/auth/forgot-password" style={{ color: "var(--accent-2)", fontSize: 12 }}>
+                    → Восстановить пароль
+                  </a>
+                  <span style={{ color: "var(--ink-dim)", fontSize: 12 }}> или </span>
+                  <a href="/auth/login" style={{ color: "var(--accent-2)", fontSize: 12 }}>
+                    Войти
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
           <div style={{
             background: "rgba(124,249,255,.06)", border: "1px solid rgba(124,249,255,.2)",
-            borderRadius: 10, padding: "12px 14px", fontSize: 11,
+            borderRadius: 10, padding: "10px 14px", fontSize: 11,
             color: "var(--ink-dim)", marginBottom: 16, lineHeight: 1.6,
           }}>
-            При регистрации по email — подтвердишь почту кодом.<br />
-            По номеру телефона — код придёт в Telegram.
+            Email → подтверждение кодом на почту.<br />
+            Телефон → код придёт в Telegram.
           </div>
 
           <button type="submit" disabled={loading} className="btn btn-primary btn-big"

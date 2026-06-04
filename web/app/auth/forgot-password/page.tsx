@@ -21,7 +21,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/forgot-password/`, {
+      const res = await fetch(`/api/v1/auth/forgot-password/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
     if (newPassword !== confirm) { setError("Пароли не совпадают"); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/reset-password/`, {
+      const res = await fetch(`/api/v1/auth/reset-password/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
