@@ -111,7 +111,7 @@ REST_FRAMEWORK = {
         "anon": "60/min",
         "user": "240/min",
         "login": "10/min",
-        "otp": "5/5min",        # не более 5 OTP-запросов за 5 минут
+        "otp": "5/m",           # не более 5 OTP-запросов в минуту
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
