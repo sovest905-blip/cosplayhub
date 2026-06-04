@@ -45,6 +45,15 @@ services:
     depends_on:
       - web
 
+  tgbot:
+    build: .
+    command: python manage.py tgbot
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - web
+
   nginx:
     image: nginx:alpine
     ports:

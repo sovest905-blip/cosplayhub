@@ -32,7 +32,8 @@ export default function RegisterPage() {
         const msg = data.detail || data.email?.[0] || data.password?.[0] || data.username?.[0] || (Array.isArray(firstVal) ? firstVal[0] : firstVal) || "Ошибка регистрации";
         throw new Error(msg);
       }
-      router.push("/cabinet");
+      const email = form.get("email") as string;
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка регистрации");
     } finally {

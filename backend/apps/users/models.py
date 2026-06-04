@@ -7,6 +7,7 @@ class User(AbstractUser):
     email = models.EmailField("email", unique=True)
     phone = models.CharField("телефон", max_length=20, blank=True)
     city = models.CharField("город", max_length=80, blank=True)
+    telegram_id = models.CharField("telegram chat_id", max_length=32, blank=True, db_index=True)
     is_verified = models.BooleanField("верифицирован", default=False)  # синяя галочка
     created_at = models.DateTimeField(auto_now_add=True)
 
