@@ -131,7 +131,7 @@ export default function ForgotPasswordPage() {
             {step === "password" && "Новый пароль"}
           </h1>
           <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>
-            {step === "identifier" && "Введи email или телефон от аккаунта"}
+            {step === "identifier" && "Введи email от аккаунта"}
             {step === "code" && method === "email" && <>Код отправлен на <strong style={{ color: "var(--ink)" }}>{email}</strong></>}
             {step === "code" && method === "telegram" && "Получи код в Telegram и введи ниже"}
             {step === "password" && "Придумай новый пароль"}
@@ -148,9 +148,9 @@ export default function ForgotPasswordPage() {
         {step === "identifier" && (
           <form onSubmit={handleSendOtp}>
             <div className="field">
-              <label>Email или номер телефона</label>
-              <input type="text" value={identifier} onChange={e => setIdentifier(e.target.value)}
-                placeholder="+7 900 000 00 00 или you@example.com" required autoFocus />
+              <label>Email</label>
+              <input type="email" value={identifier} onChange={e => setIdentifier(e.target.value)}
+                placeholder="you@example.com" required autoFocus />
             </div>
             <button type="submit" disabled={loading || !identifier} className="btn btn-primary btn-big"
               style={{ width: "100%", justifyContent: "center", opacity: (loading || !identifier) ? 0.6 : 1 }}>

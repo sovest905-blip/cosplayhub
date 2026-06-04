@@ -20,25 +20,18 @@ function EyeIcon({ open }: { open: boolean }) {
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState("");
-  const [takenType, setTakenType] = useState<"phone" | "email" | null>(null);
+  const [taken, setTaken] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
 
-  function detectKind(val: string): "email" | "phone" | null {
-    if (val.includes("@")) return "email";
-    if (val.replace(/\D/g, "").length >= 10) return "phone";
-    return null;
-  }
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(""); setTakenType(null); setLoading(true);
+    setError(""); setTaken(false); setLoading(true);
     const form = new FormData(e.currentTarget);
     const identifier = (form.get("identifier") as string).trim();
-    const kind = detectKind(identifier);
 
-    if (!kind) {
-      setError("Введите корректный email или номер телефона");
+    if (!identifier.includes("@")) {
+      setError("Введите корректный email");
       setLoading(false);
       return;
     }
@@ -63,21 +56,11 @@ export default function RegisterPage() {
           data.password?.[0] ||
           data.detail ||
           "Ошибка регистрации";
-
-        // Номер/email занят — предлагаем восстановление
-        if (msg.includes("занят") || msg.includes("зарегистрирован")) {
-          setTakenType(kind);
-        }
+        if (msg.includes("занят") || msg.includes("зарегистрирован")) setTaken(true);
         throw new Error(msg);
       }
 
-      if (kind === "email") {
-        router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}`);
-      } else if (data.tg_link) {
-        router.push(`/auth/verify-phone?token=${data.tg_token}&phone=${encodeURIComponent(data.phone)}`);
-      } else {
-        router.push("/cabinet");
-      }
+      router.push(`/auth/verify-email?email=${encodeURIComponent(data.email)}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка регистрации");
     } finally {
@@ -112,8 +95,8 @@ export default function RegisterPage() {
           </div>
 
           <div className="field">
-            <label>Email или номер телефона</label>
-            <input type="text" name="identifier" placeholder="+7 900 000 00 00 или you@example.com" required autoComplete="email" />
+            <label>Email</label>
+            <input type="email" name="identifier" placeholder="you@example.com" required autoComplete="email" />
           </div>
 
           <div className="field">
@@ -144,7 +127,7 @@ export default function RegisterPage() {
           {error && (
             <div style={{ fontSize: 13, marginBottom: 12, padding: "10px 14px", background: "rgba(255,45,111,.1)", borderRadius: 8, border: "1px solid rgba(255,45,111,.2)" }}>
               <span style={{ color: "var(--accent)" }}>{error}</span>
-              {takenType && (
+              {taken && (
                 <div style={{ marginTop: 8 }}>
                   <a href="/auth/forgot-password" style={{ color: "var(--accent-2)", fontSize: 12 }}>
                     → Восстановить пароль
@@ -163,8 +146,7 @@ export default function RegisterPage() {
             borderRadius: 10, padding: "10px 14px", fontSize: 11,
             color: "var(--ink-dim)", marginBottom: 16, lineHeight: 1.6,
           }}>
-            Email → подтверждение кодом на почту.<br />
-            Телефон → код придёт в Telegram.
+            После регистрации придёт код на почту — подтверди email и войдёшь.
           </div>
 
           <button type="submit" disabled={loading} className="btn btn-primary btn-big"
