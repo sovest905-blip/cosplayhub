@@ -4,7 +4,7 @@ from .base import *  # noqa
 DEBUG = False
 
 # === ИБ: всё через HTTPS ===
-SECURE_SSL_REDIRECT = True
+SECURE_SSL_REDIRECT = False  # nginx handles SSL termination
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
@@ -23,13 +23,9 @@ CORS_ALLOWED_ORIGINS = [os.getenv("FRONTEND_ORIGIN")]
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [os.getenv("FRONTEND_ORIGIN")]
 
-# Логирование ошибок в файл (для аудита)
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"file": {
-        "class": "logging.FileHandler",
-        "filename": "/app/logs/django.log",
-    }},
-    "root": {"handlers": ["file"], "level": "WARNING"},
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
 }
