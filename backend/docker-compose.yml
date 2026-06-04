@@ -45,6 +45,13 @@ services:
     depends_on:
       - web
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"   # веб-интерфейс: http://109.235.118.28:8025
+    expose:
+      - "1025"        # SMTP (только внутри Docker-сети)
+
   tgbot:
     build: .
     command: >
