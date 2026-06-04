@@ -1,20 +1,32 @@
 import { PEOPLE } from "../../lib/mock";
 
-// Заглушка: когда придут реальные данные из API — заменить на fetch
-const people = PEOPLE;
+async function fetchProfiles() {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.results as typeof PEOPLE;
+  } catch {
+    return null;
+  }
+}
 
-export default function PeoplePage() {
+export default async function PeoplePage() {
+  const apiPeople = await fetchProfiles();
+  const people = apiPeople && apiPeople.length > 0 ? apiPeople : PEOPLE;
+
   return (
     <div className="wrap">
       <section className="hero" style={{ paddingBottom: 0 }}>
-        <div className="eyebrow">каталог · 1 248 анкет</div>
+        <div className="eyebrow">каталог · {people.length} анкет</div>
         <h1 className="huge" style={{ fontSize: "clamp(32px,5vw,64px)" }}>
           Косплееры <span className="accent">СНГ.</span>
         </h1>
       </section>
 
       <section style={{ paddingTop: 32 }}>
-        {/* Filters */}
         <div className="filter-bar">
           <button className="chip on">Все</button>
           <button className="chip">Свободны</button>
@@ -40,28 +52,28 @@ export default function PeoplePage() {
             <a key={p.id} href={`/people/${p.id}`} className="person" style={{ color: "inherit" }}>
               <div
                 className="person-img"
-                style={{ backgroundImage: `url('${p.photo}')` }}
+                style={{ backgroundImage: `url('${(p as any).photo || (p as any).avatar || ""}')` }}
               >
-                {p.available_for_work
+                {(p as any).available_for_work
                   ? <div className="person-avail">Свободен</div>
-                  : p.is_pro
+                  : (p as any).is_pro
                   ? <div className="person-badge pro">PRO</div>
                   : null}
               </div>
               <div className="person-info">
                 <div className="person-name">
-                  {p.display_name}
-                  {p.is_verified && <span className="verified-mini">✓</span>}
+                  {(p as any).display_name}
+                  {(p as any).is_verified && <span className="verified-mini">✓</span>}
                 </div>
                 <div className="person-meta">
-                  <span>{p.specialization}</span>
-                  <span>{p.city}</span>
+                  <span>{(p as any).specialization || ((p as any).roles?.[0] ?? "Косплеер")}</span>
+                  <span>{(p as any).city || "—"}</span>
                 </div>
               </div>
               <div className="person-stats">
-                <span>♥ {(p.followers / 1000).toFixed(1)}k</span>
-                <span>✧ {p.looks} образов</span>
-                <span>{p.experience}</span>
+                <span>♥ {((p as any).followers ? ((p as any).followers / 1000).toFixed(1) + "k" : "0")}</span>
+                <span>✧ {(p as any).looks ?? 0} образов</span>
+                <span>{(p as any).experience ?? ""}</span>
               </div>
             </a>
           ))}

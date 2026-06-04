@@ -1,4 +1,44 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
 export default function RegisterPage() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/register/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            email: form.get("email"),
+            password: form.get("password"),
+            display_name: form.get("display_name"),
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = data.detail || data.email?.[0] || data.password?.[0] || "Ошибка регистрации";
+        throw new Error(msg);
+      }
+      router.push("/cabinet");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Ошибка регистрации");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="wrap" style={{ display: "flex", justifyContent: "center", padding: "60px 28px" }}>
       <div style={{
@@ -23,7 +63,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form action="/api/v1/auth/register/" method="POST">
+        <form onSubmit={handleSubmit}>
           <div className="field">
             <label>Ник (отображается публично)</label>
             <input type="text" name="display_name" placeholder="YourNick" required />
@@ -34,20 +74,14 @@ export default function RegisterPage() {
           </div>
           <div className="field">
             <label>Пароль</label>
-            <input type="password" name="password" placeholder="Минимум 8 символов" required />
+            <input type="password" name="password" placeholder="Минимум 8 символов" required minLength={8} />
           </div>
-          <div className="field">
-            <label>Город</label>
-            <select name="city">
-              <option value="">Выбрать...</option>
-              <option>Алматы</option>
-              <option>Астана</option>
-              <option>Бишкек</option>
-              <option>Ташкент</option>
-              <option>Алматинская область</option>
-              <option>Другой</option>
-            </select>
-          </div>
+
+          {error && (
+            <div style={{ color: "var(--accent)", fontSize: 13, marginBottom: 12, padding: "8px 12px", background: "rgba(255,45,111,.1)", borderRadius: 8 }}>
+              {error}
+            </div>
+          )}
 
           <div style={{
             background: "rgba(124,249,255,.06)",
@@ -65,10 +99,11 @@ export default function RegisterPage() {
 
           <button
             type="submit"
+            disabled={loading}
             className="btn btn-primary btn-big"
-            style={{ width: "100%", justifyContent: "center" }}
+            style={{ width: "100%", justifyContent: "center", opacity: loading ? 0.7 : 1 }}
           >
-            Создать аккаунт →
+            {loading ? "Создаём аккаунт..." : "Создать аккаунт →"}
           </button>
         </form>
 

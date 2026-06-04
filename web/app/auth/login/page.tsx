@@ -1,4 +1,42 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
 export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/login/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            email: form.get("email"),
+            password: form.get("password"),
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || data.non_field_errors?.[0] || "Неверный email или пароль");
+      }
+      router.push("/cabinet");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Ошибка входа");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="wrap" style={{ display: "flex", justifyContent: "center", padding: "60px 28px" }}>
       <div style={{
@@ -20,7 +58,7 @@ export default function LoginPage() {
           <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>Бета-доступ по инвайту</p>
         </div>
 
-        <form action="/api/v1/auth/login/" method="POST">
+        <form onSubmit={handleSubmit}>
           <div className="field">
             <label>Email</label>
             <input type="email" name="email" placeholder="you@example.com" required />
@@ -30,12 +68,19 @@ export default function LoginPage() {
             <input type="password" name="password" placeholder="••••••••" required />
           </div>
 
+          {error && (
+            <div style={{ color: "var(--accent)", fontSize: 13, marginBottom: 12, padding: "8px 12px", background: "rgba(255,45,111,.1)", borderRadius: 8 }}>
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
+            disabled={loading}
             className="btn btn-primary btn-big"
-            style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
+            style={{ width: "100%", justifyContent: "center", marginTop: 8, opacity: loading ? 0.7 : 1 }}
           >
-            Войти →
+            {loading ? "Входим..." : "Войти →"}
           </button>
         </form>
 
