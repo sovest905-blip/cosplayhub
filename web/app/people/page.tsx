@@ -1,8 +1,9 @@
 import { PEOPLE } from "../../lib/mock";
 
 async function fetchProfiles() {
+  const base = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profiles/`, {
+    const res = await fetch(`${base}/profiles/`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return null;

@@ -26,4 +26,5 @@ jobs:
             cd backend
             docker compose up -d --build
             docker compose exec -T web python manage.py migrate --noinput
-            echo "Deploy done!"
+            docker compose exec -T web python manage.py collectstatic --noinput
+            echo "Deploy done! Site: http://109.235.118.28"

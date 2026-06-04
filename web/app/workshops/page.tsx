@@ -1,8 +1,9 @@
 import { WORKSHOPS } from "../../lib/mock";
 
 async function fetchWorkshops() {
+  const base = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/workshops/`, {
+    const res = await fetch(`${base}/workshops/`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return null;
