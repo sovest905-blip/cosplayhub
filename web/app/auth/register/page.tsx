@@ -28,7 +28,8 @@ export default function RegisterPage() {
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        const msg = data.detail || data.email?.[0] || data.password?.[0] || data.username?.[0] || Object.values(data)[0]?.[0] || "Ошибка регистрации";
+        const firstVal = Object.values(data as Record<string, string[]>)[0];
+        const msg = data.detail || data.email?.[0] || data.password?.[0] || data.username?.[0] || (Array.isArray(firstVal) ? firstVal[0] : firstVal) || "Ошибка регистрации";
         throw new Error(msg);
       }
       router.push("/cabinet");
