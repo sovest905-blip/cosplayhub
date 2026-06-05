@@ -28,6 +28,9 @@ export default function CabinetPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveErr, setSaveErr] = useState("");
+  const [roles, setRoles] = useState<string[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [rolesSaved, setRolesSaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +48,7 @@ export default function CabinetPage() {
           experience: data.experience || "",
           bio: data.bio || "",
         });
+        setRoles(data.roles || []);
         setAuthed(true);
       })
       .catch(() => router.replace("/auth/login"));
@@ -71,6 +75,25 @@ export default function CabinetPage() {
       setSaveErr(e instanceof Error ? e.message : "Ошибка");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function toggleRole(slug: string) {
+    const next = roles.includes(slug) ? roles.filter((r) => r !== slug) : [...roles, slug];
+    setRoles(next);
+    setRolesLoading(true);
+    setRolesSaved(false);
+    try {
+      await fetch(`/api/v1/auth/me/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ roles: next }),
+      });
+      setRolesSaved(true);
+      setTimeout(() => setRolesSaved(false), 2000);
+    } finally {
+      setRolesLoading(false);
     }
   }
 
@@ -241,23 +264,35 @@ export default function CabinetPage() {
           </div>
 
           <div className="acc-card">
-            <h3>Роли</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ margin: 0 }}>Роли</h3>
+              <span style={{ fontSize: 12, color: rolesLoading ? "var(--ink-dim)" : "var(--green)", opacity: rolesLoading || rolesSaved ? 1 : 0, transition: "opacity .3s" }}>
+                {rolesLoading ? "Сохраняем..." : "✓ Сохранено"}
+              </span>
+            </div>
             <div className="role-pick">
               {[
-                { icon: "◉", name: "Косплеер",   desc: "Создаёшь образы",   on: true  },
-                { icon: "◐", name: "Фотограф",   desc: "Снимаешь",          on: false },
-                { icon: "◆", name: "Мастерская", desc: "Шьёшь, печатаешь", on: false },
-                { icon: "⌂", name: "Магазин",    desc: "Продаёшь товары",   on: false },
-                { icon: "⌖", name: "Локация",    desc: "Сдаёшь студию",     on: false },
-                { icon: "♥", name: "Фанат",      desc: "Смотришь",          on: false },
+                { slug: "cosplayer",    icon: "◉", name: "Косплеер",   desc: "Создаёшь образы"   },
+                { slug: "photographer", icon: "◐", name: "Фотограф",   desc: "Снимаешь"           },
+                { slug: "workshop",     icon: "◆", name: "Мастерская", desc: "Шьёшь, печатаешь"  },
+                { slug: "shop",         icon: "⌂", name: "Магазин",    desc: "Продаёшь товары"   },
+                { slug: "location",     icon: "⌖", name: "Локация",    desc: "Сдаёшь студию"     },
+                { slug: "fan",          icon: "♥", name: "Фанат",      desc: "Смотришь"           },
               ].map((r) => (
-                <div key={r.name} className={`role-pick-card${r.on ? " on" : ""}`}>
+                <div key={r.slug}
+                  className={`role-pick-card${roles.includes(r.slug) ? " on" : ""}`}
+                  onClick={() => toggleRole(r.slug)}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className="role-pick-ic">{r.icon}</div>
                   <div className="role-pick-name">{r.name}</div>
                   <div className="role-pick-d">{r.desc}</div>
                 </div>
               ))}
             </div>
+            <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "12px 0 0" }}>
+              Роли влияют на статистику сайта и видимость в каталогах
+            </p>
           </div>
 
           <div className="acc-card">
