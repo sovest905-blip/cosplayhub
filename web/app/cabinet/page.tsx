@@ -236,7 +236,7 @@ export default function CabinetPage() {
     city: me.city || "—",
     specialization: roles.length > 0 ? roles.map((r) => ROLE_MAP[r] || r).join(" · ") : "Фанат",
     experience: me.experience || "—",
-    id: me.id,
+    profile_id: me.profile_id ?? null,
   };
 
   const newIncoming = incomingOrders.filter((o) => o.status === "request").length;
@@ -586,7 +586,10 @@ export default function CabinetPage() {
                   </p>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <a href={`/people/${user.id}`} className="btn btn-ghost btn-sm">Мой профиль →</a>
+                  {user.profile_id
+                    ? <a href={`/people/${user.profile_id}`} className="btn btn-ghost btn-sm">Мой профиль →</a>
+                    : <a href="/cabinet?tab=profile" className="btn btn-ghost btn-sm" onClick={(e) => { e.preventDefault(); goTab("profile"); }}>Заполнить профиль →</a>
+                  }
                 </div>
               </div>
 
