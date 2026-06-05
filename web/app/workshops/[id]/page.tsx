@@ -1,18 +1,23 @@
 import { WORKSHOPS } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
+import { getWorkshop, type Shop } from "../../../lib/api";
 
-const SERVICES = [
-  { name: "Базовая деталь (до 20 см)", price: 3500 },
-  { name: "Средняя деталь (20–40 см)", price: 7000 },
-  { name: "Большая деталь (40+ см)", price: 14000 },
-  { name: "Оружие полноразмер", price: 25000 },
-  { name: "Полный комплект брони", price: 80000 },
+export const dynamic = "force-dynamic";
+
+const FALLBACK_SERVICES = [
+  { id: 1, name: "Базовая деталь (до 20 см)", description: "", price_from: 3500 },
+  { id: 2, name: "Средняя деталь (20–40 см)", description: "", price_from: 7000 },
+  { id: 3, name: "Большая деталь (40+ см)", description: "", price_from: 14000 },
+  { id: 4, name: "Оружие полноразмер", description: "", price_from: 25000 },
+  { id: 5, name: "Полный комплект брони", description: "", price_from: 80000 },
 ];
 
 export default async function WorkshopPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const w = WORKSHOPS.find((x) => x.id === Number(id));
+  const apiWorkshop = await getWorkshop(id);
+  const mockWorkshop = WORKSHOPS.find((x) => x.id === Number(id));
+  const w = (apiWorkshop || (mockWorkshop as unknown as Shop)) as Shop;
   if (!w) notFound();
 
   return (
@@ -70,11 +75,11 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
           </div>
           <div className="about">
             <h3>Прайс-лист</h3>
-            {SERVICES.map((s, i) => (
-              <div key={i} className="info-row">
+            {(w.services && w.services.length > 0 ? w.services : FALLBACK_SERVICES).map((s) => (
+              <div key={s.id} className="info-row">
                 <span style={{ color: "var(--ink)", fontSize: 13 }}>{s.name}</span>
                 <b style={{ color: "var(--accent-3)", fontFamily: "var(--font-display),sans-serif", fontSize: 13 }}>
-                  от {s.price.toLocaleString()} ₸
+                  от {s.price_from.toLocaleString()} ₸
                 </b>
               </div>
             ))}
