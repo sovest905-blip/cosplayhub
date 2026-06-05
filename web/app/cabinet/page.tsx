@@ -1,9 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PEOPLE } from "../../lib/mock";
-
-const MOCK_ME = PEOPLE[0];
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -242,7 +239,7 @@ export default function CabinetPage() {
 
   const user = {
     display_name: me.username || me.email?.split("@")[0] || me.phone || "Пользователь",
-    photo: avatarUrl || MOCK_ME.photo,
+    photo: avatarUrl || null,
     is_pro: me.is_pro ?? false,
     city: me.city || "—",
     specialization: roles.length > 0 ? roles.map((r) => ROLE_MAP[r] || r).join(" · ") : "Фанат",
@@ -303,8 +300,7 @@ export default function CabinetPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 <div style={{
                   width: 80, height: 80, borderRadius: 16, flexShrink: 0,
-                  backgroundImage: `url('${user.photo}')`,
-                  backgroundSize: "cover", backgroundPosition: "center",
+                  background: user.photo ? `url('${user.photo}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
                   border: "2px solid var(--line)",
                 }} />
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
@@ -698,8 +694,7 @@ export default function CabinetPage() {
           }}>
             <div style={{
               width: 40, height: 40, borderRadius: 11,
-              backgroundImage: `url('${user.photo}')`,
-              backgroundSize: "cover", backgroundPosition: "center",
+              background: user.photo ? `url('${user.photo}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
               flexShrink: 0, border: "2px solid var(--accent)",
             }} />
             <div>

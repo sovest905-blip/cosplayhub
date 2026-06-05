@@ -30,8 +30,10 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
         <span className="cur">{w.name}</span>
       </div>
 
-      <div className="profile-hero">
-        <img src={w.cover} alt={w.name} />
+      <div className="profile-hero" style={{
+        backgroundImage: w.cover ? `url('${w.cover}')` : undefined,
+        backgroundSize: "cover", backgroundPosition: "center",
+      }}>
         {w.is_pro && (
           <div className="avail-pill" style={{ background: "rgba(255,210,74,.2)", color: "var(--accent-3)", border: "1px solid rgba(255,210,74,.4)" }}>
             PRO-мастерская
