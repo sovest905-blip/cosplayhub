@@ -218,6 +218,17 @@ export default function CabinetPage() {
     }
   }
 
+  async function deletePhoto(kind: "avatar" | "cover") {
+    setPhotoUploading(kind);
+    try {
+      await fetch(`/api/v1/auth/${kind}/`, { method: "DELETE", credentials: "include" });
+      if (kind === "avatar") setAvatarUrl(null);
+      else setCoverUrl(null);
+    } finally {
+      setPhotoUploading(null);
+    }
+  }
+
   async function deleteListing(id: number) {
     const res = await fetch(`/api/v1/listings/${id}/`, { method: "DELETE", credentials: "include" });
     if (res.ok) setListings((prev) => prev.filter((l) => l.id !== id));
@@ -261,43 +272,60 @@ export default function CabinetPage() {
         return (
           <div className="acc-card">
             {/* Обложка */}
-            <div style={{ position: "relative", marginBottom: 44 }}>
-              <div
-                style={{
-                  height: 130, borderRadius: 12, overflow: "hidden", cursor: "pointer",
-                  background: coverUrl ? `url('${coverUrl}') center/cover` : "linear-gradient(135deg,rgba(255,45,111,.2),rgba(124,249,255,.1))",
-                  border: "1px solid var(--line)", position: "relative",
-                }}
-                onClick={() => (document.getElementById("cover-input") as HTMLInputElement)?.click()}
-              >
-                <div
-                  className="photo-overlay"
-                  style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.45)", opacity: 0, transition: "opacity .2s", fontSize: 13, color: "#fff", gap: 6 }}
-                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
-                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0")}
-                >
-                  {photoUploading === "cover" ? "Загружаем..." : "◈ Изменить обложку"}
-                </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", display: "block", marginBottom: 8 }}>Обложка профиля</label>
+              <div style={{
+                height: 130, borderRadius: 12, marginBottom: 8,
+                background: coverUrl ? `url('${coverUrl}') center/cover no-repeat` : "linear-gradient(135deg,rgba(255,45,111,.15),rgba(124,249,255,.08))",
+                border: "1px solid var(--line)",
+              }} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost btn-sm" disabled={photoUploading === "cover"}
+                  onClick={() => (document.getElementById("cover-input") as HTMLInputElement)?.click()}
+                  style={{ flex: 1 }}>
+                  {photoUploading === "cover" ? "Загружаем..." : "⬆ Загрузить обложку"}
+                </button>
+                {coverUrl && (
+                  <button className="btn btn-sm" disabled={photoUploading === "cover"}
+                    onClick={() => deletePhoto("cover")}
+                    style={{ background: "rgba(255,45,111,.12)", border: "1px solid rgba(255,45,111,.25)", color: "var(--accent)" }}>
+                    ✕ Удалить
+                  </button>
+                )}
               </div>
-              {/* Аватар поверх */}
-              <div
-                style={{ position: "absolute", bottom: -30, left: 20, width: 64, height: 64, borderRadius: 14, backgroundImage: `url('${user.photo}')`, backgroundSize: "cover", backgroundPosition: "center", border: "3px solid var(--bg)", cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,.5)", overflow: "hidden" }}
-                onClick={() => (document.getElementById("avatar-input") as HTMLInputElement)?.click()}
-                title="Изменить аватар"
-              >
-                <div
-                  style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.55)", opacity: 0, transition: "opacity .2s", fontSize: 18 }}
-                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
-                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0")}
-                >
-                  {photoUploading === "avatar" ? "⏳" : "◉"}
+              <input id="cover-input" type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto("cover", f); e.target.value = ""; }} />
+            </div>
+
+            {/* Аватар */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 11, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", display: "block", marginBottom: 8 }}>Аватар</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                <div style={{
+                  width: 80, height: 80, borderRadius: 16, flexShrink: 0,
+                  backgroundImage: `url('${user.photo}')`,
+                  backgroundSize: "cover", backgroundPosition: "center",
+                  border: "2px solid var(--line)",
+                }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+                  <button className="btn btn-ghost btn-sm" disabled={photoUploading === "avatar"}
+                    onClick={() => (document.getElementById("avatar-input") as HTMLInputElement)?.click()}>
+                    {photoUploading === "avatar" ? "Загружаем..." : "⬆ Загрузить фото"}
+                  </button>
+                  {avatarUrl && (
+                    <button className="btn btn-sm" disabled={photoUploading === "avatar"}
+                      onClick={() => deletePhoto("avatar")}
+                      style={{ background: "rgba(255,45,111,.12)", border: "1px solid rgba(255,45,111,.25)", color: "var(--accent)" }}>
+                      ✕ Удалить фото
+                    </button>
+                  )}
+                  <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: 0 }}>JPG, PNG или WebP · до 5 МБ</p>
                 </div>
               </div>
               <input id="avatar-input" type="file" accept="image/*" style={{ display: "none" }}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto("avatar", f); e.target.value = ""; }} />
-              <input id="cover-input" type="file" accept="image/*" style={{ display: "none" }}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto("cover", f); e.target.value = ""; }} />
             </div>
+
             <h3>Базовые данные</h3>
             <div className="field">
               <label>Ник</label>

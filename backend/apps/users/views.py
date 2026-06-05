@@ -316,6 +316,20 @@ class _PhotoUploadBase(APIView):
 class AvatarUploadView(_PhotoUploadBase):
     field_name = "avatar"
 
+    def delete(self, request):
+        from apps.profiles.models import Profile
+        prof = getattr(request.user, "profile", None)
+        if prof and prof.avatar:
+            prof.avatar.delete(save=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class CoverUploadView(_PhotoUploadBase):
     field_name = "cover"
+
+    def delete(self, request):
+        from apps.profiles.models import Profile
+        prof = getattr(request.user, "profile", None)
+        if prof and prof.cover:
+            prof.cover.delete(save=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
