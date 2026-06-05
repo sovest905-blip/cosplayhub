@@ -94,6 +94,8 @@ class MeSerializer(serializers.ModelSerializer):
         data["roles"] = prof.roles if prof else []
         data["available_for_work"] = prof.available_for_work if prof else False
         data["accept_messages"] = prof.accept_messages if prof else True
+        data["avatar"] = prof.avatar.url if prof and prof.avatar else None
+        data["cover"] = prof.cover.url if prof and prof.cover else None
         return data
 
     def update(self, instance, validated_data):

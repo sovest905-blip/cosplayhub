@@ -61,6 +61,9 @@ export default function CabinetPage() {
   const [listingForm, setListingForm] = useState({ title: "", type: "job", city: "", description: "", price: "" });
   const [showListingForm, setShowListingForm] = useState(false);
   const [listingSaving, setListingSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState<"avatar" | "cover" | null>(null);
 
   useEffect(() => {
     setTab(new URLSearchParams(window.location.search).get("tab") || "dashboard");
@@ -78,6 +81,8 @@ export default function CabinetPage() {
         setRoles(data.roles || []);
         setAvailForWork(!!data.available_for_work);
         setAcceptMessages(data.accept_messages !== false);
+        setAvatarUrl(data.avatar || null);
+        setCoverUrl(data.cover || null);
         setAuthed(true);
       })
       .catch(() => router.replace("/auth/login"));
@@ -195,6 +200,24 @@ export default function CabinetPage() {
     }
   }
 
+  async function uploadPhoto(kind: "avatar" | "cover", file: File) {
+    setPhotoUploading(kind);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/v1/auth/${kind}/`, {
+        method: "POST", credentials: "include", body: fd,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (kind === "avatar") setAvatarUrl(data.url);
+        else setCoverUrl(data.url);
+      }
+    } finally {
+      setPhotoUploading(null);
+    }
+  }
+
   async function deleteListing(id: number) {
     const res = await fetch(`/api/v1/listings/${id}/`, { method: "DELETE", credentials: "include" });
     if (res.ok) setListings((prev) => prev.filter((l) => l.id !== id));
@@ -208,7 +231,7 @@ export default function CabinetPage() {
 
   const user = {
     display_name: me.username || me.email?.split("@")[0] || me.phone || "Пользователь",
-    photo: me.avatar || MOCK_ME.photo,
+    photo: avatarUrl || MOCK_ME.photo,
     is_pro: me.is_pro ?? false,
     city: me.city || "—",
     specialization: roles.length > 0 ? roles.map((r) => ROLE_MAP[r] || r).join(" · ") : "Фанат",
@@ -237,6 +260,44 @@ export default function CabinetPage() {
       case "profile":
         return (
           <div className="acc-card">
+            {/* Обложка */}
+            <div style={{ position: "relative", marginBottom: 44 }}>
+              <div
+                style={{
+                  height: 130, borderRadius: 12, overflow: "hidden", cursor: "pointer",
+                  background: coverUrl ? `url('${coverUrl}') center/cover` : "linear-gradient(135deg,rgba(255,45,111,.2),rgba(124,249,255,.1))",
+                  border: "1px solid var(--line)", position: "relative",
+                }}
+                onClick={() => (document.getElementById("cover-input") as HTMLInputElement)?.click()}
+              >
+                <div
+                  className="photo-overlay"
+                  style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.45)", opacity: 0, transition: "opacity .2s", fontSize: 13, color: "#fff", gap: 6 }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0")}
+                >
+                  {photoUploading === "cover" ? "Загружаем..." : "◈ Изменить обложку"}
+                </div>
+              </div>
+              {/* Аватар поверх */}
+              <div
+                style={{ position: "absolute", bottom: -30, left: 20, width: 64, height: 64, borderRadius: 14, backgroundImage: `url('${user.photo}')`, backgroundSize: "cover", backgroundPosition: "center", border: "3px solid var(--bg)", cursor: "pointer", boxShadow: "0 2px 12px rgba(0,0,0,.5)", overflow: "hidden" }}
+                onClick={() => (document.getElementById("avatar-input") as HTMLInputElement)?.click()}
+                title="Изменить аватар"
+              >
+                <div
+                  style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,.55)", opacity: 0, transition: "opacity .2s", fontSize: 18 }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "1")}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0")}
+                >
+                  {photoUploading === "avatar" ? "⏳" : "◉"}
+                </div>
+              </div>
+              <input id="avatar-input" type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto("avatar", f); e.target.value = ""; }} />
+              <input id="cover-input" type="file" accept="image/*" style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadPhoto("cover", f); e.target.value = ""; }} />
+            </div>
             <h3>Базовые данные</h3>
             <div className="field">
               <label>Ник</label>

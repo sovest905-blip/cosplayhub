@@ -282,3 +282,40 @@ class VerifyTelegramOTPView(APIView):
 
         login(request, user)
         return Response(UserSerializer(user).data)
+
+
+# ── Загрузка фото профиля ─────────────────────────────────────────────────────
+
+class _PhotoUploadBase(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+    field_name: str
+    max_size = 5 * 1024 * 1024  # 5 МБ
+
+    def post(self, request):
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)
+        if not file.content_type.startswith("image/"):
+            return Response({"detail": "Только изображения (jpg/png/webp)"}, status=status.HTTP_400_BAD_REQUEST)
+        if file.size > self.max_size:
+            return Response({"detail": "Максимальный размер — 5 МБ"}, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.profiles.models import Profile
+        prof, _ = Profile.objects.get_or_create(
+            user=request.user,
+            defaults={"display_name": request.user.username or request.user.email or "user"},
+        )
+        old = getattr(prof, self.field_name)
+        if old:
+            old.delete(save=False)
+        getattr(prof, self.field_name).save(file.name, file, save=True)
+        return Response({"url": getattr(prof, self.field_name).url})
+
+
+class AvatarUploadView(_PhotoUploadBase):
+    field_name = "avatar"
+
+
+class CoverUploadView(_PhotoUploadBase):
+    field_name = "cover"
