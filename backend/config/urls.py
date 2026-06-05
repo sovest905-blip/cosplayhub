@@ -5,7 +5,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from common.views import StatsView
+
 api_v1 = [
+    path("stats/", StatsView.as_view(), name="stats"),
     path("auth/", include("apps.users.urls")),
     path("", include("apps.profiles.urls")),
     path("", include("apps.workshops.urls")),

@@ -1,6 +1,20 @@
 import { PEOPLE, WORKSHOPS, EVENTS } from "../lib/mock";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+type Stats = { cosplayers: number; workshops: number; shops: number; photographers: number; cities: number };
+
+async function fetchStats(): Promise<Stats> {
+  const base = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://web:8000/api/v1";
+  try {
+    const res = await fetch(`${base}/stats/`, { cache: "no-store" });
+    if (res.ok) return await res.json();
+  } catch { /* API недоступен — покажем нули */ }
+  return { cosplayers: 0, workshops: 0, shops: 0, photographers: 0, cities: 0 };
+}
+
+export default async function HomePage() {
+  const stats = await fetchStats();
   return (
     <>
       {/* HERO */}
@@ -23,11 +37,11 @@ export default function HomePage() {
             <a href="/pro" className="btn btn-ghost btn-big">Pro-тарифы</a>
           </div>
           <div className="hero-stats">
-            <div><div className="stat-num">1 200+</div><div className="stat-label">Косплееров</div></div>
-            <div><div className="stat-num">180</div><div className="stat-label">Мастерских</div></div>
-            <div><div className="stat-num">62</div><div className="stat-label">Магазинов</div></div>
-            <div><div className="stat-num">340</div><div className="stat-label">Фотографов</div></div>
-            <div><div className="stat-num">14</div><div className="stat-label">Городов</div></div>
+            <div><div className="stat-num">{stats.cosplayers}</div><div className="stat-label">Косплееров</div></div>
+            <div><div className="stat-num">{stats.workshops}</div><div className="stat-label">Мастерских</div></div>
+            <div><div className="stat-num">{stats.shops}</div><div className="stat-label">Магазинов</div></div>
+            <div><div className="stat-num">{stats.photographers}</div><div className="stat-label">Фотографов</div></div>
+            <div><div className="stat-num">{stats.cities}</div><div className="stat-label">Городов</div></div>
           </div>
         </section>
       </div>
