@@ -35,16 +35,18 @@ export default function AuthNav() {
   // Аноним: только кнопка «Войти»
   if (!me) {
     return (
-      <a href="/auth/login" className="btn btn-primary btn-sm" style={{ whiteSpace: "nowrap" }}>
-        Войти
-      </a>
+      <div className="auth-nav">
+        <a href="/auth/login" className="btn btn-primary btn-sm" style={{ whiteSpace: "nowrap" }}>
+          Войти
+        </a>
+      </div>
     );
   }
 
   // Залогинен: сообщения, уведомления, аватар→кабинет, выйти
   const initial = (me.username || me.email || "?").trim().charAt(0).toUpperCase();
   return (
-    <>
+    <div className="auth-nav">
       <button className="icon-btn" title="Сообщения">💬</button>
       <button className="icon-btn" title="Уведомления">🔔</button>
       <a href="/cabinet" className="me-btn" title="Кабинет">
@@ -60,6 +62,6 @@ export default function AuthNav() {
       >
         ⎋
       </button>
-    </>
+    </div>
   );
 }

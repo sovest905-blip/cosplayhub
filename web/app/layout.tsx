@@ -37,6 +37,11 @@ export const metadata: Metadata = {
   description: "Косплееры, мастерские, магазины, фотографы, события — в одном месте. Казахстан и СНГ.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ru" className={`${unbounded.variable} ${jetbrainsMono.variable} ${manrope.variable}`}>
