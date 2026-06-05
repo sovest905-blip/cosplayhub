@@ -16,6 +16,7 @@ class Profile(models.Model):
     avatar = models.ImageField("аватар", upload_to="avatars/", blank=True, null=True)
     cover = models.ImageField("обложка", upload_to="covers/", blank=True, null=True)
     available_for_work = models.BooleanField("свободен для заказов", default=False)
+    accept_messages = models.BooleanField("принимаю сообщения", default=True)
     experience = models.CharField("опыт", max_length=60, blank=True)
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0)
     accent_color = models.CharField(max_length=7, default="#ff2d6f")  # конструктор

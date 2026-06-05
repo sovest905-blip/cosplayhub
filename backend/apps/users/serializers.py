@@ -65,46 +65,60 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class MeSerializer(serializers.ModelSerializer):
-    """Кабинет: редактирование User (ник, город) + Profile (о себе, опыт) разом."""
+    """Кабинет: редактирование User (ник, город) + Profile (о себе, опыт, роли, статус) разом."""
     bio = serializers.CharField(required=False, allow_blank=True)
     experience = serializers.CharField(required=False, allow_blank=True, max_length=60)
+    roles = serializers.ListField(child=serializers.CharField(), required=False)
+    available_for_work = serializers.BooleanField(required=False)
+    accept_messages = serializers.BooleanField(required=False)
+    profile_id = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "username", "email", "phone", "city",
-            "bio", "experience",
+            "bio", "experience", "roles", "available_for_work", "accept_messages", "profile_id",
             "is_email_verified", "is_phone_verified", "is_verified",
         ]
         read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified"]
+
+    def get_profile_id(self, instance):
+        prof = getattr(instance, "profile", None)
+        return prof.id if prof else None
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         prof = getattr(instance, "profile", None)
         data["bio"] = prof.bio if prof else ""
         data["experience"] = prof.experience if prof else ""
+        data["roles"] = prof.roles if prof else []
+        data["available_for_work"] = prof.available_for_work if prof else False
+        data["accept_messages"] = prof.accept_messages if prof else True
         return data
 
     def update(self, instance, validated_data):
-        bio = validated_data.pop("bio", None)
-        experience = validated_data.pop("experience", None)
+        prof_fields = {}
+        for key in ("bio", "experience", "roles", "available_for_work", "accept_messages"):
+            if key in validated_data:
+                prof_fields[key] = validated_data.pop(key)
 
         # User-поля (ник, город)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
-        # Profile-поля (о себе, опыт) — создаём профиль если ещё нет
-        if bio is not None or experience is not None:
+        # Profile-поля — создаём профиль если ещё нет
+        if prof_fields:
             from apps.profiles.models import Profile
             prof, _ = Profile.objects.get_or_create(
                 user=instance,
                 defaults={"display_name": instance.username or instance.email or "user"},
             )
-            if bio is not None:
-                prof.bio = bio
-            if experience is not None:
-                prof.experience = experience
+            # ник профиля держим в синхроне с username
+            if instance.username:
+                prof.display_name = instance.username
+            for attr, value in prof_fields.items():
+                setattr(prof, attr, value)
             prof.save()
 
         return instance
