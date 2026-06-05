@@ -31,13 +31,29 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def get_object(self):
         pk = self.kwargs["pk"]
         qs = self.get_queryset()
+        # 1. По profile.pk
         try:
             obj = qs.get(pk=pk)
+            self.check_object_permissions(self.request, obj)
+            return obj
         except Profile.DoesNotExist:
-            obj = qs.filter(user_id=pk).first()
-            if obj is None:
-                from rest_framework.exceptions import NotFound
-                raise NotFound()
+            pass
+        # 2. По user_id
+        obj = qs.filter(user_id=pk).first()
+        if obj:
+            self.check_object_permissions(self.request, obj)
+            return obj
+        # 3. Юзер есть, но профиля нет → создаём пустой
+        from apps.users.models import User
+        from rest_framework.exceptions import NotFound
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            raise NotFound()
+        obj, _ = Profile.objects.get_or_create(
+            user=user,
+            defaults={"display_name": user.username or user.email or f"user_{pk}"},
+        )
         self.check_object_permissions(self.request, obj)
         return obj
 
