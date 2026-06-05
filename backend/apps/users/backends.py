@@ -1,8 +1,16 @@
 import re
 
 from django.contrib.auth.backends import BaseBackend
+from rest_framework.authentication import SessionAuthentication
 
 from .models import User
+
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    """Сессионная авторизация без CSRF (для API, вызываемого своим фронтом).
+    Защита от CSRF обеспечивается SameSite=Lax на сессионной куке."""
+    def enforce_csrf(self, request):
+        return
 
 
 def _normalize_phone(raw: str) -> str:

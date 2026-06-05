@@ -62,3 +62,49 @@ class UserSerializer(serializers.ModelSerializer):
             "city", "is_email_verified", "is_phone_verified", "is_verified",
         ]
         read_only_fields = ["is_email_verified", "is_phone_verified", "is_verified", "telegram_id"]
+
+
+class MeSerializer(serializers.ModelSerializer):
+    """Кабинет: редактирование User (ник, город) + Profile (о себе, опыт) разом."""
+    bio = serializers.CharField(required=False, allow_blank=True)
+    experience = serializers.CharField(required=False, allow_blank=True, max_length=60)
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "username", "email", "phone", "city",
+            "bio", "experience",
+            "is_email_verified", "is_phone_verified", "is_verified",
+        ]
+        read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        prof = getattr(instance, "profile", None)
+        data["bio"] = prof.bio if prof else ""
+        data["experience"] = prof.experience if prof else ""
+        return data
+
+    def update(self, instance, validated_data):
+        bio = validated_data.pop("bio", None)
+        experience = validated_data.pop("experience", None)
+
+        # User-поля (ник, город)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Profile-поля (о себе, опыт) — создаём профиль если ещё нет
+        if bio is not None or experience is not None:
+            from apps.profiles.models import Profile
+            prof, _ = Profile.objects.get_or_create(
+                user=instance,
+                defaults={"display_name": instance.username or instance.email or "user"},
+            )
+            if bio is not None:
+                prof.bio = bio
+            if experience is not None:
+                prof.experience = experience
+            prof.save()
+
+        return instance

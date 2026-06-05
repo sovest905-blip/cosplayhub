@@ -10,10 +10,10 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .backends import resolve_user
+from .backends import CsrfExemptSessionAuthentication, resolve_user
 from .models import User
 from .otp import send_email_otp, send_reset_otp, verify_email_otp, verify_reset_otp
-from .serializers import RegisterSerializer, UserSerializer
+from .serializers import MeSerializer, RegisterSerializer, UserSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +100,9 @@ class LogoutView(APIView):
 
 
 class MeView(generics.RetrieveUpdateAPIView):
-    serializer_class = UserSerializer
+    serializer_class = MeSerializer
     permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]  # PATCH из кабинета без CSRF-токена
 
     def get_object(self):
         return self.request.user

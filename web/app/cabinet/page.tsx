@@ -18,10 +18,16 @@ const NAV_ITEMS = [
   { id: "settings",  icon: "⚙", label: "Настройки" },
 ];
 
+const CITIES = ["Алматы", "Астана", "Шымкент", "Караганда", "Бишкек", "Ташкент", "Москва", "Другой"];
+
 export default function CabinetPage() {
   const router = useRouter();
   const [me, setMe] = useState<any>(null);
   const [authed, setAuthed] = useState(false);
+  const [form, setForm] = useState({ username: "", city: "", experience: "", bio: "" });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -33,11 +39,40 @@ export default function CabinetPage() {
       .then((data) => {
         if (cancelled || !data) return;
         setMe(data);
+        setForm({
+          username: data.username || "",
+          city: data.city || "",
+          experience: data.experience || "",
+          bio: data.bio || "",
+        });
         setAuthed(true);
       })
       .catch(() => router.replace("/auth/login"));
     return () => { cancelled = true; };
   }, [router]);
+
+  async function saveBasics() {
+    setSaving(true); setSaved(false); setSaveErr("");
+    try {
+      const res = await fetch(`/api/v1/auth/me/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.username?.[0] || data.detail || "Не удалось сохранить");
+      }
+      setMe(data);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e: unknown) {
+      setSaveErr(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Пока не подтвердили авторизацию — не показываем кабинет (иначе мелькает мок)
   if (!authed) return (
@@ -171,28 +206,38 @@ export default function CabinetPage() {
             <h3>Базовые данные</h3>
             <div className="field">
               <label>Ник</label>
-              <input defaultValue={user.display_name} />
+              <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="field">
                 <label>Город</label>
-                <select defaultValue={user.city}>
-                  <option>Алматы</option>
-                  <option>Астана</option>
-                  <option>Бишкек</option>
-                  <option>Ташкент</option>
+                <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}>
+                  <option value="">Не выбран</option>
+                  {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="field">
                 <label>Опыт</label>
-                <input defaultValue={user.experience} />
+                <input value={form.experience} placeholder="напр. 3 года"
+                  onChange={(e) => setForm({ ...form, experience: e.target.value })} />
               </div>
             </div>
             <div className="field">
               <label>О себе</label>
-              <textarea rows={3} placeholder="Расскажи про свой косплей..." />
+              <textarea rows={3} placeholder="Расскажи про свой косплей..."
+                value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
             </div>
-            <button className="btn btn-primary">Сохранить</button>
+            {saveErr && (
+              <div style={{ color: "var(--accent)", fontSize: 13, marginBottom: 10, padding: "8px 12px", background: "rgba(255,45,111,.1)", borderRadius: 8 }}>
+                {saveErr}
+              </div>
+            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button className="btn btn-primary" onClick={saveBasics} disabled={saving}>
+                {saving ? "Сохраняем..." : "Сохранить"}
+              </button>
+              {saved && <span style={{ color: "var(--green)", fontSize: 13 }}>✓ Сохранено</span>}
+            </div>
           </div>
 
           <div className="acc-card">
