@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import AuthNav from "./components/AuthNav";
 import MobileMenu from "./components/MobileMenu";
+import SearchBox from "./components/SearchBox";
 import "./globals.css";
 
 // Самохостинг шрифтов: скачиваются при сборке, без зависимости от CDN в рантайме.
@@ -125,9 +126,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            <div className="nav-search">
-              <input placeholder="Поиск..." autoComplete="off" />
-            </div>
+            <SearchBox />
 
             <div className="nav-cta">
               <AuthNav />

@@ -8,6 +8,8 @@ export default function AuthNav() {
   const router = useRouter();
   const [me, setMe] = useState<Me>(null);
   const [ready, setReady] = useState(false);
+  const [unreadMsg, setUnreadMsg] = useState(0);
+  const [unreadNotif, setUnreadNotif] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -19,6 +21,24 @@ export default function AuthNav() {
     return () => { cancelled = true; };
   }, []);
 
+  // Пуллинг счётчиков (сообщения + уведомления) каждые 20 сек, пока залогинен
+  useEffect(() => {
+    if (!me) return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const [m, n] = await Promise.all([
+          fetch("/api/v1/messages/unread-count/", { credentials: "include" }).then((r) => r.ok ? r.json() : { count: 0 }),
+          fetch("/api/v1/notifications/unread-count/", { credentials: "include" }).then((r) => r.ok ? r.json() : { count: 0 }),
+        ]);
+        if (!cancelled) { setUnreadMsg(m.count || 0); setUnreadNotif(n.count || 0); }
+      } catch { /* ignore */ }
+    }
+    poll();
+    const id = setInterval(poll, 20000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [me]);
+
   async function logout() {
     try {
       await fetch("/api/v1/auth/logout/", { method: "POST", credentials: "include" });
@@ -29,10 +49,8 @@ export default function AuthNav() {
     }
   }
 
-  // До ответа /me не мигаем — резервируем место
   if (!ready) return <div style={{ width: 96 }} />;
 
-  // Аноним: только кнопка «Войти»
   if (!me) {
     return (
       <div className="auth-nav">
@@ -43,12 +61,17 @@ export default function AuthNav() {
     );
   }
 
-  // Залогинен: сообщения, уведомления, аватар→кабинет, выйти
   const initial = (me.username || me.email || "?").trim().charAt(0).toUpperCase();
   return (
     <div className="auth-nav">
-      <button className="icon-btn" title="Сообщения">💬</button>
-      <button className="icon-btn" title="Уведомления">🔔</button>
+      <a href="/messages" className="icon-btn" title="Сообщения" style={{ position: "relative" }}>
+        💬
+        {unreadMsg > 0 && <Badge n={unreadMsg} />}
+      </a>
+      <a href="/notifications" className="icon-btn" title="Уведомления" style={{ position: "relative" }}>
+        🔔
+        {unreadNotif > 0 && <Badge n={unreadNotif} />}
+      </a>
       <a href="/cabinet" className="me-btn" title="Кабинет">
         <div className="me-av avail">{initial}</div>
         <div className="me-name">Кабинет</div>
@@ -63,5 +86,19 @@ export default function AuthNav() {
         ⎋
       </button>
     </div>
+  );
+}
+
+function Badge({ n }: { n: number }) {
+  return (
+    <span style={{
+      position: "absolute", top: -4, right: -4,
+      minWidth: 16, height: 16, padding: "0 4px",
+      borderRadius: 8, background: "var(--accent)", color: "#fff",
+      fontSize: 10, fontWeight: 700, lineHeight: "16px", textAlign: "center",
+      fontFamily: "var(--font-mono),monospace",
+    }}>
+      {n > 9 ? "9+" : n}
+    </span>
   );
 }

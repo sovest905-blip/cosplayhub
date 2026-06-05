@@ -27,6 +27,8 @@ INSTALLED_APPS = [
     "apps.workshops",
     "apps.orders",
     "apps.listings",
+    "apps.messaging",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [

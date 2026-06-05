@@ -17,7 +17,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Order.objects.filter(customer=self.request.user).select_related("workshop")
 
     def perform_create(self, serializer):
-        serializer.save(customer=self.request.user)
+        order = serializer.save(customer=self.request.user)
+        # Уведомить владельца мастерской о новой заявке
+        from apps.notifications.models import notify
+        notify(
+            order.workshop.owner, "order_new",
+            f"Новая заявка от @{self.request.user.username} в «{order.workshop.name}»",
+            url="/cabinet?tab=responses",
+        )
 
 
 class IncomingOrdersView(APIView):
@@ -58,4 +65,11 @@ class IncomingOrdersView(APIView):
             )
         order.status = new_status
         order.save(update_fields=["status"])
+        # Уведомить заказчика о смене статуса
+        from apps.notifications.models import notify
+        notify(
+            order.customer, "order_status",
+            f"Заказ в «{order.workshop.name}»: {order.get_status_display()}",
+            url="/cabinet?tab=orders",
+        )
         return Response(IncomingOrderSerializer(order).data)

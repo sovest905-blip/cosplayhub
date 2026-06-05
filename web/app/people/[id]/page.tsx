@@ -1,6 +1,7 @@
 import { PEOPLE } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
+import MessageButton from "../../components/MessageButton";
 import { getProfile, type Person } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -78,7 +79,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div className="profile-actions">
-          <GatedButton className="btn btn-primary">Написать</GatedButton>
+          <MessageButton userId={(person as Person).user_id ?? null} className="btn btn-primary" />
           <GatedButton className="btn btn-ghost">Подписаться</GatedButton>
         </div>
       </div>

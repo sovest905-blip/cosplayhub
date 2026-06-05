@@ -17,7 +17,7 @@ const WS_TYPE_RU: Record<string, string> = {
 };
 
 export type Person = {
-  id: number; display_name: string; city: string; experience: string;
+  id: number; user_id: number | null; display_name: string; city: string; experience: string;
   is_verified: boolean; available_for_work: boolean; is_pro: boolean;
   followers: number; looks: number; photo: string; specialization: string; bio: string;
 };
@@ -32,6 +32,7 @@ export function normalizeProfile(p: any): Person {
   const roles: string[] = Array.isArray(p.roles) ? p.roles : [];
   return {
     id: p.id,
+    user_id: p.user_id ?? null,
     display_name: p.display_name || p.username || "Без имени",
     city: p.city || "—",
     experience: p.experience || "—",
