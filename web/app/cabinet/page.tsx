@@ -169,7 +169,7 @@ export default function CabinetPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginTop: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14, marginTop: 20 }}>
               {[
                 { val: user.followers > 0 ? `${(user.followers / 1000).toFixed(1)}k` : "0", label: "Подписчиков" },
                 { val: user.looks, label: "Образов" },

@@ -1142,10 +1142,17 @@ footer {
   .avatar { width: 108px; height: 108px; }
   .foot-grid { grid-template-columns: 1fr 1fr; }
   .ev { grid-template-columns: 62px 1fr; }
+
+  /* Кабинет: сайдбар над контентом, без sticky */
+  .acc-grid { grid-template-columns: 1fr; gap: 16px; }
+  .acc-nav { position: static; top: auto; }
 }
 @media (max-width: 600px) {
   .people-grid, .workshops-grid, .foot-grid { grid-template-columns: 1fr; }
   .hero-stats { grid-template-columns: 1fr 1fr; }
   .wrap { padding: 0 16px; }
   .nav-inner { padding: 12px 16px; }
+
+  /* Кабинет на узких экранах */
+  .role-pick { grid-template-columns: repeat(2, 1fr); }
 }
