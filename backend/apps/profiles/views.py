@@ -1,18 +1,45 @@
 from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
-from django_filters.rest_framework import DjangoFilterBackend
 from common.permissions import IsOwnerOrReadOnly
 from .models import Profile
 from .serializers import ProfileSerializer
 
+ROLE_ALIAS = {"photo": "photographer", "photographer": "photographer",
+              "cosplayer": "cosplayer", "shop": "shop", "workshop": "workshop",
+              "location": "location", "fan": "fan"}
+
 class ProfileViewSet(viewsets.ModelViewSet):
-    """Каталог профилей + детальная.
-    GET — всем, изменение — только владельцу."""
-    queryset = Profile.objects.all().prefetch_related("socials")
+    """Каталог профилей + детальная. GET — всем, изменение — владельцу.
+    Фильтры: ?role=photo|cosplayer|... ?q=поиск по нику."""
     serializer_class = ProfileSerializer
     permission_classes = [AllowAny, IsOwnerOrReadOnly]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["available_for_work"]
+
+    def get_queryset(self):
+        qs = Profile.objects.all().select_related("user").prefetch_related("socials")
+        role = self.request.query_params.get("role")
+        if role:
+            mapped = ROLE_ALIAS.get(role, role)
+            qs = qs.filter(roles__contains=[mapped])
+        q = self.request.query_params.get("q")
+        if q:
+            qs = qs.filter(display_name__icontains=q)
+        avail = self.request.query_params.get("available_for_work")
+        if avail in ("true", "1"):
+            qs = qs.filter(available_for_work=True)
+        return qs.order_by("-created_at")
+
+    def get_object(self):
+        pk = self.kwargs["pk"]
+        qs = self.get_queryset()
+        try:
+            obj = qs.get(pk=pk)
+        except Profile.DoesNotExist:
+            obj = qs.filter(user_id=pk).first()
+            if obj is None:
+                from rest_framework.exceptions import NotFound
+                raise NotFound()
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
