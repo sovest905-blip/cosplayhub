@@ -13,6 +13,7 @@ api_v1 = [
     path("", include("apps.profiles.urls")),
     path("", include("apps.workshops.urls")),
     path("", include("apps.orders.urls")),
+    path("", include("apps.listings.urls")),
     # документация API
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),

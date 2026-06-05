@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "apps.profiles",
     "apps.workshops",
     "apps.orders",
+    "apps.listings",
 ]
 
 MIDDLEWARE = [

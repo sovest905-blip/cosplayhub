@@ -21,6 +21,26 @@ const ALL_ROLES = [
   { slug: "fan",          icon: "♥", name: "Фанат",      desc: "Смотришь"          },
 ];
 
+const LISTING_TYPES: Record<string, string> = {
+  job: "Ищу специалиста", collab: "Коллаборация", sell: "Продаю", buy: "Куплю",
+};
+
+const ORDER_STATUS_COLORS: Record<string, string> = {
+  request: "var(--accent-2)", accepted: "var(--green)", in_work: "var(--accent-3)",
+  shipped: "#7cf9ff", done: "var(--green)", cancelled: "var(--ink-dim)",
+};
+
+type IncomingOrder = {
+  id: number; workshop_name: string; customer_username: string;
+  description: string; budget: number | null; status: string; status_display: string;
+  created_at: string;
+};
+
+type Listing = {
+  id: number; title: string; description: string; type: string;
+  city: string; price: number | null; is_active: boolean; created_at: string;
+};
+
 export default function CabinetPage() {
   const router = useRouter();
   const [tab, setTab] = useState("dashboard");
@@ -36,6 +56,11 @@ export default function CabinetPage() {
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
+  const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [listingForm, setListingForm] = useState({ title: "", type: "job", city: "", description: "", price: "" });
+  const [showListingForm, setShowListingForm] = useState(false);
+  const [listingSaving, setListingSaving] = useState(false);
 
   useEffect(() => {
     setTab(new URLSearchParams(window.location.search).get("tab") || "dashboard");
@@ -43,11 +68,9 @@ export default function CabinetPage() {
 
   useEffect(() => {
     let cancelled = false;
+
     fetch(`/api/v1/auth/me/`, { credentials: "include" })
-      .then((r) => {
-        if (!r.ok) { router.replace("/auth/login"); return null; }
-        return r.json();
-      })
+      .then((r) => { if (!r.ok) { router.replace("/auth/login"); return null; } return r.json(); })
       .then((data) => {
         if (cancelled || !data) return;
         setMe(data);
@@ -65,8 +88,22 @@ export default function CabinetPage() {
         if (cancelled || !data) return;
         const list = data.results ?? data;
         setOrdersCount(Array.isArray(list) ? list.length : 0);
-      })
-      .catch(() => {});
+      }).catch(() => {});
+
+    fetch(`/api/v1/orders/incoming/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled || !Array.isArray(data)) return;
+        setIncomingOrders(data);
+      }).catch(() => {});
+
+    fetch(`/api/v1/listings/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled || !data) return;
+        const list = data.results ?? data;
+        setListings(Array.isArray(list) ? list : []);
+      }).catch(() => {});
 
     return () => { cancelled = true; };
   }, [router]);
@@ -85,20 +122,16 @@ export default function CabinetPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.username?.[0] || data.detail || "Не удалось сохранить");
-      setMe(data);
-      setSaved(true);
+      setMe(data); setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (e: unknown) {
       setSaveErr(e instanceof Error ? e.message : "Ошибка");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   async function toggleRole(slug: string) {
     const next = roles.includes(slug) ? roles.filter((r) => r !== slug) : [...roles, slug];
-    setRoles(next);
-    setRolesLoading(true); setRolesSaved(false);
+    setRoles(next); setRolesLoading(true); setRolesSaved(false);
     try {
       await fetch(`/api/v1/auth/me/`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
@@ -106,9 +139,7 @@ export default function CabinetPage() {
       });
       setRolesSaved(true);
       setTimeout(() => setRolesSaved(false), 2000);
-    } finally {
-      setRolesLoading(false);
-    }
+    } finally { setRolesLoading(false); }
   }
 
   async function patchProfile(patch: Record<string, unknown>) {
@@ -116,6 +147,57 @@ export default function CabinetPage() {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       credentials: "include", body: JSON.stringify(patch),
     });
+  }
+
+  async function updateIncomingStatus(orderId: number, newStatus: string) {
+    const res = await fetch(`/api/v1/orders/incoming/${orderId}/`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      credentials: "include", body: JSON.stringify({ status: newStatus }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setIncomingOrders((prev) => prev.map((o) => o.id === orderId ? updated : o));
+    }
+  }
+
+  async function createListing() {
+    if (!listingForm.title.trim()) return;
+    setListingSaving(true);
+    try {
+      const res = await fetch(`/api/v1/listings/`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: listingForm.title,
+          type: listingForm.type,
+          city: listingForm.city,
+          description: listingForm.description,
+          price: listingForm.price ? parseInt(listingForm.price) : null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setListings((prev) => [data, ...prev]);
+        setListingForm({ title: "", type: "job", city: "", description: "", price: "" });
+        setShowListingForm(false);
+      }
+    } finally { setListingSaving(false); }
+  }
+
+  async function toggleListingActive(id: number, current: boolean) {
+    const res = await fetch(`/api/v1/listings/${id}/`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      credentials: "include", body: JSON.stringify({ is_active: !current }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setListings((prev) => prev.map((l) => l.id === id ? updated : l));
+    }
+  }
+
+  async function deleteListing(id: number) {
+    const res = await fetch(`/api/v1/listings/${id}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok) setListings((prev) => prev.filter((l) => l.id !== id));
   }
 
   if (!authed) return (
@@ -134,16 +216,19 @@ export default function CabinetPage() {
     id: me.id,
   };
 
+  const newIncoming = incomingOrders.filter((o) => o.status === "request").length;
+  const activeListings = listings.filter((l) => l.is_active).length;
+
   const NAV_ITEMS = [
     { id: "dashboard", icon: "▤", label: "Обзор" },
     { id: "profile",   icon: "◉", label: "Профиль" },
     { id: "roles",     icon: "★", label: "Роли и услуги" },
     { id: "subs",      icon: "♛", label: "Подписки и доход" },
     { id: "socials",   icon: "⌘", label: "Соцсети" },
-    { id: "orders",    icon: "⚒", label: "Заказы",  num: ordersCount || undefined },
-    { id: "responses", icon: "↗", label: "Отклики" },
+    { id: "orders",    icon: "⚒", label: "Заказы",     num: ordersCount || undefined },
+    { id: "responses", icon: "↗", label: "Отклики",    num: newIncoming || undefined },
     { id: "favs",      icon: "♥", label: "Избранное" },
-    { id: "listings",  icon: "⌂", label: "Объявления" },
+    { id: "listings",  icon: "⌂", label: "Объявления", num: activeListings || undefined },
     { id: "settings",  icon: "⚙", label: "Настройки" },
   ];
 
@@ -221,9 +306,185 @@ export default function CabinetPage() {
       case "orders":
         return (
           <div className="acc-card">
-            <h3>Заказы{ordersCount > 0 ? ` (${ordersCount})` : ""}</h3>
+            <h3>Мои заказы{ordersCount > 0 ? ` (${ordersCount})` : ""}</h3>
             <EmptyBlock icon="⚒" title="Заказов пока нет"
-              sub="Когда ты сделаешь заказ мастерской или получишь его — он появится здесь." />
+              sub="Когда ты сделаешь заказ в мастерскую — он появится здесь." />
+          </div>
+        );
+
+      case "responses":
+        return (
+          <div className="acc-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0 }}>Входящие заказы{incomingOrders.length > 0 ? ` (${incomingOrders.length})` : ""}</h3>
+              {newIncoming > 0 && (
+                <span style={{ fontSize: 12, padding: "3px 10px", background: "rgba(124,249,255,.15)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.3)", borderRadius: 20 }}>
+                  {newIncoming} новых
+                </span>
+              )}
+            </div>
+            {incomingOrders.length === 0 ? (
+              <EmptyBlock icon="↗" title="Откликов пока нет"
+                sub="Когда косплееры оставят заявку в вашу мастерскую — они появятся здесь." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {incomingOrders.map((order) => (
+                  <div key={order.id} style={{
+                    padding: "14px 16px", background: "var(--bg-2)",
+                    border: "1px solid var(--line)", borderRadius: 12,
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>@{order.customer_username}</div>
+                        <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>→ {order.workshop_name}</div>
+                      </div>
+                      <span style={{
+                        fontSize: 11, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap",
+                        background: "rgba(0,0,0,.3)",
+                        color: ORDER_STATUS_COLORS[order.status] || "var(--ink)",
+                        border: `1px solid ${ORDER_STATUS_COLORS[order.status] || "var(--line)"}33`,
+                      }}>
+                        {order.status_display}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                      {order.description}
+                    </p>
+                    {order.budget && (
+                      <div style={{ fontSize: 12, color: "var(--accent-3)", marginBottom: 10 }}>
+                        Бюджет: {order.budget.toLocaleString()} ₸
+                      </div>
+                    )}
+                    {order.status === "request" && (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="btn btn-primary btn-sm"
+                          onClick={() => updateIncomingStatus(order.id, "accepted")}>
+                          Принять
+                        </button>
+                        <button className="btn btn-ghost btn-sm"
+                          onClick={() => updateIncomingStatus(order.id, "cancelled")}
+                          style={{ color: "var(--ink-dim)" }}>
+                          Отклонить
+                        </button>
+                      </div>
+                    )}
+                    {order.status === "accepted" && (
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => updateIncomingStatus(order.id, "in_work")}>
+                        Взять в работу
+                      </button>
+                    )}
+                    {order.status === "in_work" && (
+                      <button className="btn btn-ghost btn-sm"
+                        onClick={() => updateIncomingStatus(order.id, "shipped")}>
+                        Отметить как отправлено
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case "listings":
+        return (
+          <div className="acc-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0 }}>Объявления{listings.length > 0 ? ` (${listings.length})` : ""}</h3>
+              <button className="btn btn-primary btn-sm"
+                onClick={() => setShowListingForm((v) => !v)}>
+                {showListingForm ? "Отмена" : "+ Создать"}
+              </button>
+            </div>
+
+            {showListingForm && (
+              <div style={{ padding: "16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Тип</label>
+                    <select value={listingForm.type} onChange={(e) => setListingForm({ ...listingForm, type: e.target.value })}>
+                      {Object.entries(LISTING_TYPES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label>Город</label>
+                    <select value={listingForm.city} onChange={(e) => setListingForm({ ...listingForm, city: e.target.value })}>
+                      <option value="">Не важно</option>
+                      {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Заголовок</label>
+                  <input value={listingForm.title} placeholder="Ищу фотографа для съёмки в Алматы"
+                    onChange={(e) => setListingForm({ ...listingForm, title: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Описание</label>
+                  <textarea rows={2} value={listingForm.description} placeholder="Подробнее о проекте..."
+                    onChange={(e) => setListingForm({ ...listingForm, description: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Бюджет ₸ (необязательно)</label>
+                  <input type="number" value={listingForm.price} placeholder="15000"
+                    onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })} />
+                </div>
+                <button className="btn btn-primary" onClick={createListing} disabled={listingSaving || !listingForm.title.trim()}>
+                  {listingSaving ? "Публикуем..." : "Опубликовать"}
+                </button>
+              </div>
+            )}
+
+            {listings.length === 0 && !showListingForm ? (
+              <EmptyBlock icon="⌂" title="Объявлений пока нет"
+                sub="Ищешь фотографа, продаёшь реквизит или зовёшь на коллаборацию — создай объявление." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {listings.map((listing) => (
+                  <div key={listing.id} style={{
+                    padding: "12px 14px", background: "var(--bg-2)",
+                    border: `1px solid ${listing.is_active ? "var(--line)" : "rgba(255,255,255,.05)"}`,
+                    borderRadius: 11, opacity: listing.is_active ? 1 : 0.55,
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <span style={{
+                          fontSize: 10, padding: "2px 8px", borderRadius: 20, marginRight: 8,
+                          background: "rgba(157,124,255,.15)", color: "var(--accent-4)",
+                          border: "1px solid rgba(157,124,255,.25)",
+                        }}>
+                          {LISTING_TYPES[listing.type] || listing.type}
+                        </span>
+                        {listing.city && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>📍 {listing.city}</span>}
+                        <div style={{ fontWeight: 600, fontSize: 14, marginTop: 6 }}>{listing.title}</div>
+                        {listing.description && (
+                          <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>{listing.description}</div>
+                        )}
+                        {listing.price && (
+                          <div style={{ fontSize: 12, color: "var(--accent-3)", marginTop: 4 }}>
+                            {listing.price.toLocaleString()} ₸
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => toggleListingActive(listing.id, listing.is_active)}
+                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                            background: listing.is_active ? "rgba(124,249,255,.1)" : "rgba(255,255,255,.05)",
+                            border: "1px solid var(--line)", color: listing.is_active ? "var(--accent-2)" : "var(--ink-dim)" }}>
+                          {listing.is_active ? "Активно" : "Закрыто"}
+                        </button>
+                        <button onClick={() => deleteListing(listing.id)}
+                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                            background: "rgba(255,45,111,.1)", border: "1px solid rgba(255,45,111,.2)", color: "var(--accent)" }}>
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -239,8 +500,6 @@ export default function CabinetPage() {
 
       case "subs":
       case "socials":
-      case "responses":
-      case "listings":
       case "settings":
         return (
           <div className="acc-card">
@@ -275,7 +534,7 @@ export default function CabinetPage() {
                   { val: "0", label: "Подписчиков" },
                   { val: "0", label: "Образов" },
                   { val: ordersCount, label: "Заказов" },
-                  { val: "0", label: "Откликов" },
+                  { val: newIncoming, label: "Откликов" },
                 ].map((s) => (
                   <div key={s.label} style={{ background: "rgba(0,0,0,.25)", borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: "-.03em" }}>{s.val}</div>
@@ -292,30 +551,18 @@ export default function CabinetPage() {
                   <strong>Open for work</strong>
                   <small>На профиле появится зелёная плашка «Свободен»</small>
                 </div>
-                <div
-                  className={`toggle${availForWork ? " on" : ""}`}
-                  onClick={() => {
-                    const next = !availForWork;
-                    setAvailForWork(next);
-                    patchProfile({ available_for_work: next });
-                  }}
-                  style={{ cursor: "pointer" }}
-                />
+                <div className={`toggle${availForWork ? " on" : ""}`}
+                  onClick={() => { const n = !availForWork; setAvailForWork(n); patchProfile({ available_for_work: n }); }}
+                  style={{ cursor: "pointer" }} />
               </div>
               <div className="toggle-row">
                 <div>
                   <strong>Принимаю личные сообщения</strong>
                   <small>Все пользователи могут написать напрямую</small>
                 </div>
-                <div
-                  className={`toggle${acceptMessages ? " on" : ""}`}
-                  onClick={() => {
-                    const next = !acceptMessages;
-                    setAcceptMessages(next);
-                    patchProfile({ accept_messages: next });
-                  }}
-                  style={{ cursor: "pointer" }}
-                />
+                <div className={`toggle${acceptMessages ? " on" : ""}`}
+                  onClick={() => { const n = !acceptMessages; setAcceptMessages(n); patchProfile({ accept_messages: n }); }}
+                  style={{ cursor: "pointer" }} />
               </div>
             </div>
 
@@ -323,10 +570,10 @@ export default function CabinetPage() {
               <h3>Быстрый доступ</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {[
-                  { id: "profile", icon: "◉", label: "Редактировать профиль" },
-                  { id: "roles",   icon: "★", label: "Мои роли" },
-                  { id: "orders",  icon: "⚒", label: "Заказы" },
-                  { id: "favs",    icon: "♥", label: "Избранное" },
+                  { id: "profile",   icon: "◉", label: "Редактировать профиль" },
+                  { id: "roles",     icon: "★", label: "Мои роли" },
+                  { id: "responses", icon: "↗", label: `Отклики${newIncoming > 0 ? ` (${newIncoming})` : ""}` },
+                  { id: "listings",  icon: "⌂", label: "Объявления" },
                 ].map((item) => (
                   <button key={item.id} onClick={() => goTab(item.id)}
                     style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
@@ -352,11 +599,9 @@ export default function CabinetPage() {
       </div>
 
       <div className="acc-grid">
-        {/* Sidebar */}
         <nav className="acc-nav">
           <div style={{
-            display: "flex", alignItems: "center", gap: 11,
-            padding: "12px 13px", marginBottom: 16,
+            display: "flex", alignItems: "center", gap: 11, padding: "12px 13px", marginBottom: 16,
             background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 13,
           }}>
             <div style={{
@@ -388,18 +633,13 @@ export default function CabinetPage() {
           <div style={{ marginTop: 12, padding: "12px 13px", borderTop: "1px solid var(--line)", display: "flex", gap: 12 }}>
             <a href="/" style={{ fontSize: 12, color: "var(--ink-dim)" }}>← На сайт</a>
             <button
-              onClick={() => {
-                fetch(`/api/v1/auth/logout/`, { method: "POST", credentials: "include" })
-                  .finally(() => router.push("/"));
-              }}
-              style={{ fontSize: 12, color: "var(--ink-dim)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-            >
+              onClick={() => fetch(`/api/v1/auth/logout/`, { method: "POST", credentials: "include" }).finally(() => router.push("/"))}
+              style={{ fontSize: 12, color: "var(--ink-dim)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
               Выйти
             </button>
           </div>
         </nav>
 
-        {/* Content */}
         <div>{renderContent()}</div>
       </div>
     </div>
@@ -407,8 +647,7 @@ export default function CabinetPage() {
 }
 
 function EmptyBlock({ icon, title, sub, cta }: {
-  icon: string; title: string; sub: string;
-  cta?: { label: string; href: string };
+  icon: string; title: string; sub: string; cta?: { label: string; href: string };
 }) {
   return (
     <div className="empty-state">
