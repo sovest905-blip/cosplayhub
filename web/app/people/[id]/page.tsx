@@ -1,5 +1,6 @@
 import { PEOPLE } from "../../../lib/mock";
 import { notFound } from "next/navigation";
+import GatedButton from "../../components/GatedButton";
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -39,8 +40,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div className="profile-actions">
-          <button className="btn btn-primary">Написать</button>
-          <button className="btn btn-ghost">Подписаться</button>
+          <GatedButton className="btn btn-primary">Написать</GatedButton>
+          <GatedButton className="btn btn-ghost">Подписаться</GatedButton>
         </div>
       </div>
 
@@ -103,9 +104,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
               Подпишитесь, чтобы получить эксклюзивные образы и ранний доступ.
             </p>
-            <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}>
+            <GatedButton className="btn btn-primary" fullWidth>
               Подписаться · от 500₸
-            </button>
+            </GatedButton>
           </div>
         </div>
       </div>

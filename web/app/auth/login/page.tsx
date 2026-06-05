@@ -36,7 +36,9 @@ export default function LoginPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || "Неверные данные");
       }
-      router.push("/cabinet");
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.push(next && next.startsWith("/") ? next : "/cabinet");
+      router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Ошибка входа");
     } finally { setLoading(false); }

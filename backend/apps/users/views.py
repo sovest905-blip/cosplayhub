@@ -89,6 +89,11 @@ class LoginView(APIView):
 
 
 class LogoutView(APIView):
+    # Без CSRF/сессионной auth: logout гасит сессию сам. SessionAuthentication
+    # требовала бы CSRF-токен на этот POST → 403, и выход не срабатывал.
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     def post(self, request):
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)

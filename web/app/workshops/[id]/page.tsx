@@ -1,5 +1,6 @@
 import { WORKSHOPS } from "../../../lib/mock";
 import { notFound } from "next/navigation";
+import GatedButton from "../../components/GatedButton";
 
 const SERVICES = [
   { name: "Базовая деталь (до 20 см)", price: 3500 },
@@ -49,8 +50,8 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <div className="profile-actions">
-          <button className="btn btn-primary">Заказать</button>
-          <button className="btn btn-ghost">Сохранить</button>
+          <GatedButton className="btn btn-primary">Заказать</GatedButton>
+          <GatedButton className="btn btn-ghost">Сохранить</GatedButton>
         </div>
       </div>
 
@@ -98,9 +99,9 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
             <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
               Безопасная оплата: деньги хранятся на платформе до завершения заказа.
             </p>
-            <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}>
+            <GatedButton className="btn btn-primary" fullWidth>
               Оставить заявку
-            </button>
+            </GatedButton>
           </div>
         </div>
       </div>
