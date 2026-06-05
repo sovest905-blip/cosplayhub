@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 
 const SECTIONS = [
@@ -36,6 +37,9 @@ export default function MobileMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [authed, setAuthed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +78,7 @@ export default function MobileMenu() {
     <>
       <button className="burger" aria-label="Меню" onClick={() => setOpen(true)}>☰</button>
 
-      {open && (
+      {open && mounted && createPortal(
         <div
           onClick={() => setOpen(false)}
           style={{
@@ -139,7 +143,8 @@ export default function MobileMenu() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
