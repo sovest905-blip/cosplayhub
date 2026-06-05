@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import AuthNav from "./components/AuthNav";
+import MobileMenu from "./components/MobileMenu";
 import "./globals.css";
 
 // Самохостинг шрифтов: скачиваются при сборке, без зависимости от CDN в рантайме.
@@ -125,7 +126,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
             <div className="nav-cta">
               <AuthNav />
-              <button className="burger">☰</button>
+              <MobileMenu />
             </div>
           </div>
         </nav>
