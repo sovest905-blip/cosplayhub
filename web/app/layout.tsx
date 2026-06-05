@@ -3,24 +3,31 @@ import type { Metadata } from "next";
 import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 
-// Самохостинг шрифтов: скачиваются при сборке, без зависимости от CDN в рантайме
+// Самохостинг шрифтов: скачиваются при сборке, без зависимости от CDN в рантайме.
+// display:"optional" + adjustFontFallback — НЕТ подмены на лету и НЕТ сдвига вёрстки (шрифты не «скачут»).
 const unbounded = Unbounded({
   subsets: ["latin", "cyrillic"],
   weight: ["400", "600", "800", "900"],
   variable: "--font-display",
-  display: "swap",
+  display: "optional",
+  adjustFontFallback: true,
+  preload: true,
 });
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin", "cyrillic"],
   weight: ["400", "600"],
   variable: "--font-mono",
-  display: "swap",
+  display: "optional",
+  adjustFontFallback: true,
+  preload: true,
 });
 const manrope = Manrope({
   subsets: ["latin", "cyrillic"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-sans",
-  display: "swap",
+  display: "optional",
+  adjustFontFallback: true,
+  preload: true,
 });
 
 export const metadata: Metadata = {
