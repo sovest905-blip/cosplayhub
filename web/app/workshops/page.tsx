@@ -1,23 +1,10 @@
 export const dynamic = "force-dynamic";
 import { WORKSHOPS } from "../../lib/mock";
-
-async function fetchWorkshops() {
-  const base = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL;
-  try {
-    const res = await fetch(`${base}/workshops/`, {
-      next: { revalidate: 60 },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.results as typeof WORKSHOPS;
-  } catch {
-    return null;
-  }
-}
+import { getWorkshops, type Shop } from "../../lib/api";
 
 export default async function WorkshopsPage() {
-  const apiWorkshops = await fetchWorkshops();
-  const workshops = apiWorkshops && apiWorkshops.length > 0 ? apiWorkshops : WORKSHOPS;
+  const api = await getWorkshops();
+  const workshops: Shop[] = api && api.length > 0 ? api : (WORKSHOPS as unknown as Shop[]);
 
   return (
     <div className="wrap">
