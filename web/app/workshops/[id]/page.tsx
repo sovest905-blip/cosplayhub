@@ -1,6 +1,7 @@
 import { WORKSHOPS } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
+import SaveButton from "../../components/SaveButton";
 import { getWorkshop, type Shop } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +59,7 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
         </div>
         <div className="profile-actions">
           <GatedButton className="btn btn-primary">Заказать</GatedButton>
-          <GatedButton className="btn btn-ghost">Сохранить</GatedButton>
+          <SaveButton kind="workshop" objectId={apiWorkshop ? w.id : null} className="btn btn-ghost" />
         </div>
       </div>
 

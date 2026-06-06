@@ -33,6 +33,23 @@ class SocialLink(models.Model):
     is_connected = models.BooleanField(default=False)
 
 
+class Favorite(models.Model):
+    """Закладка: пользователь сохранил профиль или мастерскую."""
+    KIND_CHOICES = [("profile", "Профиль"), ("workshop", "Мастерская")]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="favorites")
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    object_id = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "kind", "object_id")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user_id} ♥ {self.kind}:{self.object_id}"
+
+
 class Follow(models.Model):
     """Подписка: follower подписан на target (оба — User)."""
     follower = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
 import FollowButton from "../../components/FollowButton";
+import SaveButton from "../../components/SaveButton";
 import { getProfile, type Person, ROLE_DETAIL_FIELDS, fmtDetailValue } from "../../../lib/api";
 
 const ROLE_RU: Record<string, string> = {
@@ -89,6 +90,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         <div className="profile-actions">
           <MessageButton userId={(person as Person).user_id ?? null} className="btn btn-primary" />
           <FollowButton userId={(person as Person).user_id ?? null} className="btn btn-ghost" />
+          <SaveButton kind="profile" objectId={apiPerson ? person.id : null} className="btn btn-ghost" />
         </div>
       </div>
 

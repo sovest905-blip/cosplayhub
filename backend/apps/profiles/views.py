@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
 from common.permissions import IsOwnerOrReadOnly
-from .models import Profile, Follow
+from .models import Profile, Follow, Favorite
 from .serializers import ProfileSerializer
 
 ROLE_ALIAS = {"photo": "photographer", "photographer": "photographer",
@@ -131,3 +131,62 @@ class FollowersListView(APIView):
         follower_ids = Follow.objects.filter(target=request.user).values_list("follower_id", flat=True)
         qs = _profiles_qs().filter(user_id__in=list(follower_ids)).order_by("-created_at")
         return Response(ProfileSerializer(qs, many=True, context={"request": request}).data)
+
+
+# ─────────── Избранное (закладки) ───────────
+
+VALID_FAV_KINDS = ("profile", "workshop")
+
+
+class FavoriteDetailView(APIView):
+    """GET статус / POST сохранить / DELETE убрать на /favorites/<kind>/<object_id>/."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def _check(self, kind):
+        return kind in VALID_FAV_KINDS
+
+    def get(self, request, kind, object_id):
+        if not self._check(kind):
+            return Response({"detail": "Неверный тип"}, status=400)
+        fav = Favorite.objects.filter(user=request.user, kind=kind, object_id=object_id).exists()
+        return Response({"favorited": fav})
+
+    def post(self, request, kind, object_id):
+        if not self._check(kind):
+            return Response({"detail": "Неверный тип"}, status=400)
+        Favorite.objects.get_or_create(user=request.user, kind=kind, object_id=object_id)
+        return Response({"favorited": True}, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, kind, object_id):
+        if not self._check(kind):
+            return Response({"detail": "Неверный тип"}, status=400)
+        Favorite.objects.filter(user=request.user, kind=kind, object_id=object_id).delete()
+        return Response({"favorited": False})
+
+
+class FavoriteListView(APIView):
+    """Список избранного текущего пользователя с раскрытыми объектами."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def get(self, request):
+        favs = list(Favorite.objects.filter(user=request.user))
+        profile_ids = [f.object_id for f in favs if f.kind == "profile"]
+        workshop_ids = [f.object_id for f in favs if f.kind == "workshop"]
+
+        from apps.workshops.models import Workshop
+        from apps.workshops.serializers import WorkshopSerializer
+
+        profiles = {p.id: p for p in _profiles_qs().filter(id__in=profile_ids)}
+        workshops = {w.id: w for w in Workshop.objects.filter(id__in=workshop_ids).prefetch_related("services")}
+
+        items = []
+        for f in favs:  # уже отсортированы по -created_at
+            if f.kind == "profile" and f.object_id in profiles:
+                items.append({"kind": "profile",
+                              "item": ProfileSerializer(profiles[f.object_id], context={"request": request}).data})
+            elif f.kind == "workshop" and f.object_id in workshops:
+                items.append({"kind": "workshop",
+                              "item": WorkshopSerializer(workshops[f.object_id], context={"request": request}).data})
+        return Response(items)
