@@ -25,6 +25,7 @@ def _user_dict(u: User) -> dict:
         "is_staff": u.is_staff,
         "is_verified": u.is_verified,
         "roles": (prof.roles if prof else []) or [],
+        "role_details": (prof.role_details if prof else {}) or {},
         "profile_id": prof.id if prof else None,
         "followers": u.follower_set.count(),
         "following": u.following_set.count(),
@@ -93,7 +94,8 @@ def _get_user(pk):
 
 
 class AdminUserRolesView(_StaffView):
-    """POST {roles:[...]} — заменить роли пользователя."""
+    """POST {roles:[...], role_details:{...}} — заменить роли и/или анкеты пользователя.
+    role_details — необязательно (админ может править анкету за юзера)."""
 
     def post(self, request, pk):
         user = _get_user(pk)
@@ -104,7 +106,12 @@ class AdminUserRolesView(_StaffView):
             user=user, defaults={"display_name": user.username, "roles": roles},
         )
         prof.roles = roles
-        prof.save(update_fields=["roles"])
+        fields = ["roles"]
+        role_details = request.data.get("role_details")
+        if isinstance(role_details, dict):
+            prof.role_details = role_details
+            fields.append("role_details")
+        prof.save(update_fields=fields)
         return Response(_user_dict(user))
 
 

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ROLE_FORMS, RoleFields } from "../../lib/roleForms";
 
 const ROLE_LIST: { slug: string; name: string }[] = [
   { slug: "cosplayer", name: "Косплеер" }, { slug: "photographer", name: "Фотограф" },
@@ -11,8 +12,8 @@ const ROLE_RU: Record<string, string> = Object.fromEntries(ROLE_LIST.map((r) => 
 
 type AdminUser = {
   id: number; username: string; email: string; phone: string; city: string;
-  is_staff: boolean; is_verified: boolean; roles: string[]; profile_id: number | null;
-  followers: number; following: number; avatar: string | null;
+  is_staff: boolean; is_verified: boolean; roles: string[]; role_details: Record<string, any>;
+  profile_id: number | null; followers: number; following: number; avatar: string | null;
 };
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
@@ -295,17 +296,24 @@ function CreateUser({ onDone }: { onDone: () => void }) {
 
 function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUser) => void }) {
   const [roles, setRoles] = useState<string[]>(user.roles);
+  const [details, setDetails] = useState<Record<string, any>>(user.role_details || {});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   function toggle(slug: string) { setRoles((p) => (p.includes(slug) ? p.filter((r) => r !== slug) : [...p, slug])); }
+  function setField(role: string, key: string, value: any) {
+    setDetails((prev) => ({ ...prev, [role]: { ...(prev[role] || {}), [key]: value } }));
+  }
   async function save() {
     setSaving(true); setSaved(false);
     const res = await api(`/admin-panel/users/${user.id}/set-roles/`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roles }),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roles, role_details: details }),
     });
     if (res.ok) { const u = await res.json(); onSaved(u); setSaved(true); setTimeout(() => setSaved(false), 1800); }
     setSaving(false);
   }
+  // Роли, у которых есть анкета и которые сейчас включены.
+  const withForms = roles.filter((r) => ROLE_FORMS[r]);
   return (
     <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
@@ -316,7 +324,21 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
           </button>
         ))}
       </div>
-      <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? "Сохраняем…" : "Сохранить роли"}</button>
+
+      {withForms.map((role) => {
+        const cfg = ROLE_FORMS[role];
+        return (
+          <div key={role} style={{ marginBottom: 12, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+            <h4 style={{ margin: "0 0 2px", fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "var(--accent-2)" }}>{cfg.icon}</span> {cfg.title}
+            </h4>
+            <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>{cfg.hint}</p>
+            <RoleFields role={role} values={details[role] || {}} onChange={(k, v) => setField(role, k, v)} />
+          </div>
+        );
+      })}
+
+      <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? "Сохраняем…" : "Сохранить роли и анкеты"}</button>
       {saved && <span style={{ color: "var(--green)", fontSize: 12, marginLeft: 10 }}>✓ Сохранено</span>}
     </div>
   );
