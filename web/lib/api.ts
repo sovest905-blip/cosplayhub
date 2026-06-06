@@ -179,6 +179,18 @@ export async function getWorkshop(id: string | number): Promise<Shop | null> {
   return data ? normalizeWorkshop(data) : null;
 }
 
+export type NewsItem = {
+  id: number; title: string; body: string; image: string | null;
+  is_pinned: boolean; author_name: string; created_at: string;
+};
+
+export async function getNews(): Promise<NewsItem[] | null> {
+  const data = await get(`/news/`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
 // Каталоги магазинов/локаций = профили с соответствующей ролью.
 export async function getProfilesByRole(role: string): Promise<Person[] | null> {
   const data = await get(`/profiles/?role=${role}`);

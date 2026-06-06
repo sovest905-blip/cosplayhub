@@ -87,9 +87,9 @@ class MeSerializer(serializers.ModelSerializer):
             "id", "username", "email", "phone", "city",
             "bio", "experience", "roles", "available_for_work", "accept_messages",
             "role_details", "socials", "profile_id",
-            "is_email_verified", "is_phone_verified", "is_verified",
+            "is_email_verified", "is_phone_verified", "is_verified", "is_staff",
         ]
-        read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified"]
+        read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified", "is_staff"]
 
     def get_profile_id(self, instance):
         prof = getattr(instance, "profile", None)

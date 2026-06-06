@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Me = { id: number; username?: string; email?: string | null } | null;
+type Me = { id: number; username?: string; email?: string | null; is_staff?: boolean } | null;
 
 export default function AuthNav() {
   const router = useRouter();
@@ -64,6 +64,11 @@ export default function AuthNav() {
   const initial = (me.username || me.email || "?").trim().charAt(0).toUpperCase();
   return (
     <div className="auth-nav">
+      {me.is_staff && (
+        <a href="/admin-panel" className="icon-btn" title="Админ-панель" style={{ fontSize: 15 }}>
+          ⚙
+        </a>
+      )}
       <a href="/messages" className="icon-btn" title="Сообщения" style={{ position: "relative" }}>
         💬
         {unreadMsg > 0 && <Badge n={unreadMsg} />}

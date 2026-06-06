@@ -6,6 +6,10 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from common.views import StatsView, SearchView
+from common.admin_panel import (
+    AdminUsersView, AdminUserRolesView, AdminUserPasswordView,
+    AdminUserSubsView, AdminUserSubDeleteView,
+)
 
 api_v1 = [
     path("stats/", StatsView.as_view(), name="stats"),
@@ -17,6 +21,13 @@ api_v1 = [
     path("", include("apps.listings.urls")),
     path("", include("apps.messaging.urls")),
     path("", include("apps.notifications.urls")),
+    path("", include("apps.news.urls")),
+    # ── Веб админ-панель (только staff) ──
+    path("admin-panel/users/", AdminUsersView.as_view(), name="ap-users"),
+    path("admin-panel/users/<int:pk>/set-roles/", AdminUserRolesView.as_view(), name="ap-roles"),
+    path("admin-panel/users/<int:pk>/reset-password/", AdminUserPasswordView.as_view(), name="ap-pass"),
+    path("admin-panel/users/<int:pk>/subscriptions/", AdminUserSubsView.as_view(), name="ap-subs"),
+    path("admin-panel/users/<int:pk>/subscriptions/<int:target_id>/", AdminUserSubDeleteView.as_view(), name="ap-sub-del"),
     # документация API
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
