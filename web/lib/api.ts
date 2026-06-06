@@ -16,12 +16,35 @@ const WS_TYPE_RU: Record<string, string> = {
   print3d: "3D-печать", eva: "EVA", sewing: "Швейная", wigs: "Парики",
 };
 
+export type Social = { platform: string; handle: string };
+
 export type Person = {
   id: number; user_id: number | null; display_name: string; city: string; experience: string;
   is_verified: boolean; available_for_work: boolean; is_pro: boolean;
   followers: number; looks: number; photo: string; specialization: string; bio: string;
-  roles: string[]; role_details: Record<string, Record<string, any>>;
+  roles: string[]; role_details: Record<string, Record<string, any>>; socials: Social[];
 };
+
+// Доступные соцсети: подпись, иконка-символ и база для ссылки (если ввели только ник).
+export const SOCIAL_META: Record<string, { label: string; icon: string; base: string }> = {
+  instagram: { label: "Instagram", icon: "◎", base: "https://instagram.com/" },
+  tiktok:    { label: "TikTok",    icon: "♪", base: "https://tiktok.com/@" },
+  vk:        { label: "VK",        icon: "✦", base: "https://vk.com/" },
+  telegram:  { label: "Telegram",  icon: "✈", base: "https://t.me/" },
+  youtube:   { label: "YouTube",   icon: "▷", base: "https://youtube.com/@" },
+  twitter:   { label: "Twitter / X", icon: "✗", base: "https://x.com/" },
+  discord:   { label: "Discord",   icon: "◈", base: "" },
+  boosty:    { label: "Boosty",    icon: "❖", base: "https://boosty.to/" },
+};
+
+// Хэндл → полная ссылка. Если ввели готовый URL — отдаём как есть.
+export function socialUrl(platform: string, handle: string): string {
+  const h = (handle || "").trim();
+  if (/^https?:\/\//i.test(h)) return h;
+  const base = SOCIAL_META[platform]?.base ?? "";
+  if (!base) return h;
+  return base + h.replace(/^@/, "");
+}
 
 // Как показывать анкеты ролей (role_details) в публичных карточках/профиле.
 // Ключи совпадают с ROLE_FORMS в кабинете.
@@ -98,6 +121,9 @@ export function normalizeProfile(p: any): Person {
     bio: p.bio || "",
     roles,
     role_details: (p.role_details && typeof p.role_details === "object") ? p.role_details : {},
+    socials: Array.isArray(p.socials)
+      ? p.socials.filter((s: any) => s && s.platform && s.handle).map((s: any) => ({ platform: s.platform, handle: s.handle }))
+      : [],
   };
 }
 

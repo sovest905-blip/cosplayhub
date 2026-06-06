@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SOCIAL_META } from "../../lib/api";
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -122,6 +123,9 @@ export default function CabinetPage() {
   const [roleDetails, setRoleDetails] = useState<Record<string, Record<string, any>>>({});
   const [rdSaving, setRdSaving] = useState<string | null>(null);
   const [rdSaved, setRdSaved] = useState<string | null>(null);
+  const [socials, setSocials] = useState<Record<string, string>>({});
+  const [socialsSaving, setSocialsSaving] = useState(false);
+  const [socialsSaved, setSocialsSaved] = useState(false);
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -172,6 +176,11 @@ export default function CabinetPage() {
           setRoles(loadedRoles);
         }
         setRoleDetails(data.role_details || {});
+        const soc: Record<string, string> = {};
+        (Array.isArray(data.socials) ? data.socials : []).forEach((s: any) => {
+          if (s && s.platform) soc[s.platform] = s.handle || "";
+        });
+        setSocials(soc);
         setAvailForWork(!!data.available_for_work);
         setAcceptMessages(data.accept_messages !== false);
         setAvatarUrl(data.avatar || null);
@@ -287,6 +296,23 @@ export default function CabinetPage() {
         setTimeout(() => setRdSaved(null), 2000);
       }
     } finally { setRdSaving(null); }
+  }
+
+  async function saveSocials() {
+    setSocialsSaving(true); setSocialsSaved(false);
+    try {
+      const list = Object.entries(socials)
+        .map(([platform, handle]) => ({ platform, handle: (handle || "").trim() }))
+        .filter((s) => s.handle);
+      const res = await fetch(`/api/v1/auth/me/`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify({ socials: list }),
+      });
+      if (res.ok) {
+        setSocialsSaved(true);
+        setTimeout(() => setSocialsSaved(false), 2500);
+      }
+    } finally { setSocialsSaving(false); }
   }
 
   async function patchProfile(patch: Record<string, unknown>) {
@@ -1081,6 +1107,38 @@ export default function CabinetPage() {
         );
 
       case "socials":
+        return (
+          <div className="acc-card">
+            <h2 style={{ margin: "0 0 4px" }}>Соцсети</h2>
+            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
+              Добавь ссылки или ники — покажем их на твоём профиле. Можно вставить полную ссылку или просто ник.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0 16px" }}>
+              {Object.entries(SOCIAL_META).map(([slug, meta]) => (
+                <div className="field" key={slug}>
+                  <label>
+                    <span style={{ color: "var(--accent-2)", marginRight: 6 }}>{meta.icon}</span>
+                    {meta.label}
+                  </label>
+                  <input
+                    value={socials[slug] || ""}
+                    placeholder={meta.base ? `${meta.base}ник или ник` : "ник / ссылка"}
+                    onChange={(e) => setSocials((prev) => ({ ...prev, [slug]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
+              <button className="btn btn-primary" onClick={saveSocials} disabled={socialsSaving}>
+                {socialsSaving ? "Сохраняем..." : "Сохранить"}
+              </button>
+              <span style={{ fontSize: 12, color: "var(--green)", opacity: socialsSaved ? 1 : 0, transition: "opacity .3s" }}>
+                ✓ Сохранено
+              </span>
+            </div>
+          </div>
+        );
+
       case "settings":
         return (
           <div className="acc-card">

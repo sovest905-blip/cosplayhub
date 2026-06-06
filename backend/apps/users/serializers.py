@@ -78,6 +78,7 @@ class MeSerializer(serializers.ModelSerializer):
     available_for_work = serializers.BooleanField(required=False)
     accept_messages = serializers.BooleanField(required=False)
     role_details = serializers.DictField(required=False)
+    socials = serializers.ListField(child=serializers.DictField(), required=False)
     profile_id = serializers.SerializerMethodField()
 
     class Meta:
@@ -85,7 +86,7 @@ class MeSerializer(serializers.ModelSerializer):
         fields = [
             "id", "username", "email", "phone", "city",
             "bio", "experience", "roles", "available_for_work", "accept_messages",
-            "role_details", "profile_id",
+            "role_details", "socials", "profile_id",
             "is_email_verified", "is_phone_verified", "is_verified",
         ]
         read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified"]
@@ -103,11 +104,16 @@ class MeSerializer(serializers.ModelSerializer):
         data["available_for_work"] = prof.available_for_work if prof else False
         data["accept_messages"] = prof.accept_messages if prof else True
         data["role_details"] = (prof.role_details or {}) if prof else {}
+        data["socials"] = (
+            [{"platform": s.platform, "handle": s.handle} for s in prof.socials.all()]
+            if prof else []
+        )
         data["avatar"] = prof.avatar.url if prof and prof.avatar else None
         data["cover"] = prof.cover.url if prof and prof.cover else None
         return data
 
     def update(self, instance, validated_data):
+        socials = validated_data.pop("socials", None)
         prof_fields = {}
         for key in ("bio", "experience", "roles", "available_for_work", "accept_messages", "role_details"):
             if key in validated_data:
@@ -119,7 +125,7 @@ class MeSerializer(serializers.ModelSerializer):
         instance.save()
 
         # Profile-поля — создаём профиль если ещё нет
-        if prof_fields:
+        if prof_fields or socials is not None:
             from apps.profiles.models import Profile
             prof, _ = Profile.objects.get_or_create(
                 user=instance,
@@ -131,5 +137,18 @@ class MeSerializer(serializers.ModelSerializer):
             for attr, value in prof_fields.items():
                 setattr(prof, attr, value)
             prof.save()
+
+            # Соцсети: полная замена набора (платформа+хэндл, пустые игнорируем)
+            if socials is not None:
+                from apps.profiles.models import SocialLink
+                prof.socials.all().delete()
+                links = [
+                    SocialLink(profile=prof, platform=str(s.get("platform", "")).strip(),
+                               handle=str(s.get("handle", "")).strip(), is_connected=True)
+                    for s in socials
+                    if str(s.get("platform", "")).strip() and str(s.get("handle", "")).strip()
+                ]
+                if links:
+                    SocialLink.objects.bulk_create(links)
 
         return instance

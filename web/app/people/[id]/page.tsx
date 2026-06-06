@@ -4,7 +4,7 @@ import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
-import { getProfile, type Person, ROLE_DETAIL_FIELDS, fmtDetailValue } from "../../../lib/api";
+import { getProfile, type Person, ROLE_DETAIL_FIELDS, fmtDetailValue, SOCIAL_META, socialUrl } from "../../../lib/api";
 
 const ROLE_RU: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -173,6 +173,22 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               </span>
             </div>
           </div>
+
+          {person.socials?.length > 0 && (
+            <div className="about">
+              <h3>Соцсети</h3>
+              {person.socials.map((s) => {
+                const meta = SOCIAL_META[s.platform];
+                return (
+                  <div className="info-row" key={s.platform + s.handle}>
+                    <span>{meta ? `${meta.icon} ${meta.label}` : s.platform}</span>
+                    <a href={socialUrl(s.platform, s.handle)} target="_blank" rel="noopener noreferrer"
+                       style={{ color: "var(--accent-2)" }}>Открыть ↗</a>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {isEmpty ? (
             <div className="about" style={{
