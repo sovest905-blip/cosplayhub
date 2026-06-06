@@ -75,6 +75,7 @@ export default function AdminPanelPage() {
 function NewsAdmin() {
   const [items, setItems] = useState<NewsItem[]>([]);
   const [show, setShow] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
@@ -87,6 +88,14 @@ function NewsAdmin() {
   }
   useEffect(load, []);
 
+  function resetForm() {
+    setEditId(null); setTitle(""); setBody(""); setPinned(false); setImage(null); setErr("");
+  }
+  function startEdit(n: NewsItem) {
+    setEditId(n.id); setTitle(n.title); setBody(n.body || ""); setPinned(n.is_pinned);
+    setImage(null); setErr(""); setShow(true);
+  }
+
   async function publish() {
     if (!title.trim()) { setErr("Введите заголовок"); return; }
     setSaving(true); setErr("");
@@ -95,10 +104,12 @@ function NewsAdmin() {
       fd.append("title", title);
       fd.append("body", body);
       fd.append("is_pinned", pinned ? "true" : "false");
-      if (image) fd.append("image", image);
-      const res = await api("/news/", { method: "POST", body: fd });
+      if (image) fd.append("image", image);  // при редактировании без нового файла — старая картинка остаётся
+      const res = editId
+        ? await api(`/news/${editId}/`, { method: "PATCH", body: fd })
+        : await api("/news/", { method: "POST", body: fd });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || "Не удалось"); }
-      setTitle(""); setBody(""); setPinned(false); setImage(null); setShow(false);
+      resetForm(); setShow(false);
       load();
     } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
     finally { setSaving(false); }
@@ -114,23 +125,29 @@ function NewsAdmin() {
     <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Новости</h2>
-        <button className="btn btn-primary btn-sm" onClick={() => setShow((v) => !v)}>{show ? "Отмена" : "+ Добавить новость"}</button>
+        <button className="btn btn-primary btn-sm" onClick={() => { if (show) { resetForm(); setShow(false); } else { resetForm(); setShow(true); } }}>
+          {show ? "Отмена" : "+ Добавить новость"}
+        </button>
       </div>
       <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>Видны всем на странице /news.</p>
 
       {show && (
         <div style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>{editId ? "Редактировать новость" : "Новая новость"}</h3>
           <div className="field"><label>Заголовок</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Открыта закрытая бета!" /></div>
           <div className="field"><label>Текст</label>
             <textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Что нового…" /></div>
-          <div className="field"><label>Картинка (необязательно)</label>
+          <div className="field"><label>Картинка{editId ? " (выбери файл, чтобы заменить)" : " (необязательно)"}</label>
             <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} /></div>
           <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-dim)", margin: "4px 0 14px" }}>
             <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} style={{ width: "auto" }} /> Закрепить вверху
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button className="btn btn-primary" onClick={publish} disabled={saving}>{saving ? "Публикуем…" : "Опубликовать"}</button>
+            <button className="btn btn-primary" onClick={publish} disabled={saving}>
+              {saving ? "Сохраняем…" : editId ? "Сохранить изменения" : "Опубликовать"}
+            </button>
+            {editId && <button className="btn btn-ghost" onClick={() => { resetForm(); setShow(false); }}>Отмена</button>}
             {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
           </div>
         </div>
@@ -149,7 +166,10 @@ function NewsAdmin() {
               {new Date(n.created_at).toLocaleDateString("ru-RU")}{n.is_pinned ? " · закреплено" : ""}
             </div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)}>Удалить</button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(n)}>Изменить</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)}>Удалить</button>
+          </div>
         </div>
       ))}
     </div>
