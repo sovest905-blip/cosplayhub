@@ -108,6 +108,21 @@ class AdminUserRolesView(_StaffView):
         return Response(_user_dict(user))
 
 
+class AdminUserStaffView(_StaffView):
+    """POST {is_staff: bool} — выдать/снять права администратора.
+    Нельзя снять с самого себя (чтобы не потерять доступ случайно)."""
+
+    def post(self, request, pk):
+        user = _get_user(pk)
+        if not user:
+            return Response({"detail": "Не найдено"}, status=404)
+        if user == request.user:
+            return Response({"detail": "Нельзя менять права у самого себя"}, status=400)
+        user.is_staff = bool(request.data.get("is_staff"))
+        user.save(update_fields=["is_staff"])
+        return Response(_user_dict(user))
+
+
 class AdminUserPasswordView(_StaffView):
     """POST {password} — задать новый пароль."""
 

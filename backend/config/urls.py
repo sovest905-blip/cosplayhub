@@ -8,7 +8,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from common.views import StatsView, SearchView
 from common.admin_panel import (
     AdminUsersView, AdminUserRolesView, AdminUserPasswordView,
-    AdminUserSubsView, AdminUserSubDeleteView,
+    AdminUserSubsView, AdminUserSubDeleteView, AdminUserStaffView,
 )
 
 api_v1 = [
@@ -25,6 +25,7 @@ api_v1 = [
     # ── Веб админ-панель (только staff) ──
     path("admin-panel/users/", AdminUsersView.as_view(), name="ap-users"),
     path("admin-panel/users/<int:pk>/set-roles/", AdminUserRolesView.as_view(), name="ap-roles"),
+    path("admin-panel/users/<int:pk>/set-staff/", AdminUserStaffView.as_view(), name="ap-staff"),
     path("admin-panel/users/<int:pk>/reset-password/", AdminUserPasswordView.as_view(), name="ap-pass"),
     path("admin-panel/users/<int:pk>/subscriptions/", AdminUserSubsView.as_view(), name="ap-subs"),
     path("admin-panel/users/<int:pk>/subscriptions/<int:target_id>/", AdminUserSubDeleteView.as_view(), name="ap-sub-del"),

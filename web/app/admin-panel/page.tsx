@@ -192,6 +192,16 @@ function UsersAdmin() {
 
   function patchUser(u: AdminUser) { setUsers((p) => p.map((x) => (x.id === u.id ? u : x))); }
 
+  async function toggleStaff(u: AdminUser) {
+    const next = !u.is_staff;
+    if (!confirm(next ? `Выдать ${u.username} права администратора?` : `Снять права администратора с ${u.username}?`)) return;
+    const res = await api(`/admin-panel/users/${u.id}/set-staff/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_staff: next }),
+    });
+    if (res.ok) { patchUser(await res.json()); }
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
   return (
     <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -232,6 +242,10 @@ function UsersAdmin() {
                   {m === "roles" ? "Роли" : m === "subs" ? "Подписки" : "Пароль"}
                 </button>
               ))}
+              <button className={`btn btn-sm ${u.is_staff ? "btn-primary" : "btn-ghost"}`}
+                onClick={() => toggleStaff(u)} title="Права администратора">
+                {u.is_staff ? "✓ Админ" : "Сделать админом"}
+              </button>
             </div>
           </div>
 
