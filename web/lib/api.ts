@@ -20,7 +20,53 @@ export type Person = {
   id: number; user_id: number | null; display_name: string; city: string; experience: string;
   is_verified: boolean; available_for_work: boolean; is_pro: boolean;
   followers: number; looks: number; photo: string; specialization: string; bio: string;
+  roles: string[]; role_details: Record<string, Record<string, any>>;
 };
+
+// Как показывать анкеты ролей (role_details) в публичных карточках/профиле.
+// Ключи совпадают с ROLE_FORMS в кабинете.
+export const ROLE_DETAIL_FIELDS: Record<string, { title: string; icon: string; fields: { key: string; label: string; suffix?: string }[] }> = {
+  cosplayer: {
+    title: "Косплеер", icon: "◉", fields: [
+      { key: "amplua", label: "Амплуа" },
+      { key: "fandoms", label: "Фандомы" },
+      { key: "level", label: "Уровень" },
+      { key: "open_collab", label: "Открыт к коллабам" },
+    ],
+  },
+  photographer: {
+    title: "Фотограф", icon: "◐", fields: [
+      { key: "shoot_types", label: "Тип съёмки" },
+      { key: "price_hour", label: "Стоимость", suffix: " ₸/час" },
+      { key: "gear", label: "Оборудование" },
+      { key: "portfolio_url", label: "Портфолио" },
+    ],
+  },
+  shop: {
+    title: "Магазин", icon: "⌂", fields: [
+      { key: "shop_name", label: "Название" },
+      { key: "sells", label: "Ассортимент" },
+      { key: "contact", label: "Контакт" },
+      { key: "delivery_cis", label: "Доставка по СНГ" },
+    ],
+  },
+  location: {
+    title: "Локация", icon: "⌖", fields: [
+      { key: "loc_type", label: "Тип" },
+      { key: "price_hour", label: "Цена", suffix: " ₸/час" },
+      { key: "capacity", label: "Вместимость" },
+      { key: "amenities", label: "Удобства" },
+    ],
+  },
+};
+
+// Превращает значение поля анкеты в строку для показа ("" → пропустить).
+export function fmtDetailValue(v: any, suffix = ""): string {
+  if (v === undefined || v === null || v === "") return "";
+  if (typeof v === "boolean") return v ? "Да" : "";
+  if (Array.isArray(v)) return v.length ? v.join(", ") : "";
+  return `${v}${suffix}`;
+}
 
 export type Shop = {
   id: number; name: string; type: string; city: string; is_pro: boolean;
@@ -44,6 +90,8 @@ export function normalizeProfile(p: any): Person {
     photo: p.avatar || PLACEHOLDER_PERSON,
     specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Косплеер",
     bio: p.bio || "",
+    roles,
+    role_details: (p.role_details && typeof p.role_details === "object") ? p.role_details : {},
   };
 }
 
@@ -97,4 +145,13 @@ export async function getWorkshops(query = ""): Promise<Shop[] | null> {
 export async function getWorkshop(id: string | number): Promise<Shop | null> {
   const data = await get(`/workshops/${id}/`);
   return data ? normalizeWorkshop(data) : null;
+}
+
+// Каталоги магазинов/локаций = профили с соответствующей ролью.
+export async function getProfilesByRole(role: string): Promise<Person[] | null> {
+  const data = await get(`/profiles/?role=${role}`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  if (!Array.isArray(list)) return [];
+  return list.map(normalizeProfile);
 }

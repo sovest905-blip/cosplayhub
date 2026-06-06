@@ -2,7 +2,12 @@ import { PEOPLE } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
-import { getProfile, type Person } from "../../../lib/api";
+import { getProfile, type Person, ROLE_DETAIL_FIELDS, fmtDetailValue } from "../../../lib/api";
+
+const ROLE_RU: Record<string, string> = {
+  cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
+  shop: "Магазин", location: "Локация", fan: "Фанат",
+};
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +77,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           </h1>
           <div className="role">{person.specialization} · {person.city}</div>
           <div className="roles-line">
-            <span className="role-badge">Косплеер</span>
+            {(person.roles?.length ? person.roles : ["cosplayer"]).map((r) => (
+              <span key={r} className="role-badge">{ROLE_RU[r] || r}</span>
+            ))}
             {person.is_pro && (
               <span className="role-badge" style={{ background: "rgba(255,210,74,.08)", color: "var(--accent-3)", borderColor: "rgba(255,210,74,.2)" }}>PRO</span>
             )}
@@ -103,6 +110,32 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               </p>
             )}
           </div>
+          {(person.roles || []).filter((r) => {
+            const d = person.role_details?.[r];
+            return ROLE_DETAIL_FIELDS[r] && d && Object.values(d).some((v) => fmtDetailValue(v) !== "");
+          }).map((r) => {
+            const cfg = ROLE_DETAIL_FIELDS[r];
+            const d = person.role_details[r];
+            return (
+              <div className="about" key={r}>
+                <h3><span style={{ color: "var(--accent-2)", marginRight: 6 }}>{cfg.icon}</span>{cfg.title}</h3>
+                {cfg.fields.map((f) => {
+                  const val = fmtDetailValue(d[f.key], f.suffix);
+                  if (!val) return null;
+                  const isUrl = typeof d[f.key] === "string" && /^https?:\/\//.test(d[f.key]);
+                  return (
+                    <div className="info-row" key={f.key}>
+                      <span>{f.label}</span>
+                      {isUrl
+                        ? <a href={d[f.key]} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-2)" }}>Открыть ↗</a>
+                        : <span style={{ textAlign: "right" }}>{val}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+
           <div className="about">
             <h3>Образы</h3>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
