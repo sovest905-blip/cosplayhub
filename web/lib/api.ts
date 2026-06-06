@@ -58,6 +58,12 @@ export const ROLE_DETAIL_FIELDS: Record<string, { title: string; icon: string; f
       { key: "amenities", label: "Удобства" },
     ],
   },
+  fan: {
+    title: "Фанат", icon: "♥", fields: [
+      { key: "fandoms", label: "Любимые фандомы" },
+      { key: "hobbies", label: "Хобби" },
+    ],
+  },
 };
 
 // Превращает значение поля анкеты в строку для показа ("" → пропустить).

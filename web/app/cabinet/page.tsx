@@ -74,6 +74,14 @@ const ROLE_FORMS: Record<string, { title: string; icon: string; hint: string; fi
       { key: "amenities", label: "Что есть", type: "text", placeholder: "Свет, фоны, гримёрка, парковка" },
     ],
   },
+  fan: {
+    title: "Анкета фаната", icon: "♥",
+    hint: "Расскажи о себе — найдём единомышленников и подберём ленту",
+    fields: [
+      { key: "fandoms", label: "Любимые фандомы", type: "text", placeholder: "Genshin, Naruto, Marvel" },
+      { key: "hobbies", label: "Хобби", type: "multi", options: ["Аниме", "Манга", "Игры", "Настолки", "Рисование", "Музыка", "Фигурки", "K-pop", "Комиксы", "Фэнтези"] },
+    ],
+  },
 };
 
 type WsService = { name: string; price_from: string };
@@ -663,13 +671,6 @@ export default function CabinetPage() {
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--line)" }}>
                 <h3 style={{ margin: "0 0 4px" }}>Анкеты ролей</h3>
                 {roles.filter((r) => ROLE_FORMS[r]).map((r) => renderRoleForm(r))}
-              </div>
-            )}
-
-            {roles.includes("fan") && !roles.some((r) => ROLE_FORMS[r] || r === "workshop") && (
-              <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--line)" }}>
-                <EmptyBlock icon="♥" title="Роль «Фанат» — анкета не нужна"
-                  sub="Ты можешь смотреть образы, подписываться и общаться. Хочешь публиковать своё — добавь роль косплеера, фотографа и т.д." />
               </div>
             )}
 
