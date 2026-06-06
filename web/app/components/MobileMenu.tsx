@@ -38,13 +38,25 @@ export default function MobileMenu() {
   const [open, setOpen] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [q, setQ] = useState("");
+  const [unreadMsg, setUnreadMsg] = useState(0);
+  const [unreadNotif, setUnreadNotif] = useState(0);
 
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     if (!open) return;
     fetch("/api/v1/auth/me/", { credentials: "include" })
-      .then((r) => setAuthed(r.ok))
+      .then((r) => {
+        setAuthed(r.ok);
+        if (r.ok) {
+          // счётчики непрочитанного — только для залогиненных
+          fetch("/api/v1/messages/unread-count/", { credentials: "include" })
+            .then((x) => x.ok ? x.json() : { count: 0 }).then((d) => setUnreadMsg(d.count || 0)).catch(() => {});
+          fetch("/api/v1/notifications/unread-count/", { credentials: "include" })
+            .then((x) => x.ok ? x.json() : { count: 0 }).then((d) => setUnreadNotif(d.count || 0)).catch(() => {});
+        }
+      })
       .catch(() => setAuthed(false));
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("keydown", onKey);
@@ -54,6 +66,14 @@ export default function MobileMenu() {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const term = q.trim();
+    if (term.length < 2) return;
+    setOpen(false);
+    router.push(`/search?q=${encodeURIComponent(term)}`);
+  }
 
   async function logout() {
     try {
@@ -108,6 +128,21 @@ export default function MobileMenu() {
               </button>
             </div>
 
+            <form onSubmit={submitSearch} style={{ margin: "12px 0 4px", display: "flex", gap: 8 }}>
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Поиск косплееров, мастерских..."
+                autoComplete="off"
+                style={{
+                  flex: 1, background: "var(--bg)", border: "1px solid var(--line)",
+                  borderRadius: 10, padding: "10px 13px", color: "var(--ink)",
+                  fontSize: 14, fontFamily: "inherit",
+                }}
+              />
+              <button type="submit" className="btn btn-primary" style={{ flexShrink: 0, minWidth: 44, justifyContent: "center" }} aria-label="Искать">⌕</button>
+            </form>
+
             <a href="/" style={{ ...linkStyle, borderTop: "1px solid var(--line)", marginTop: 8 }} onClick={() => setOpen(false)}>
               Главная
             </a>
@@ -129,7 +164,15 @@ export default function MobileMenu() {
             <div style={{ marginTop: 24 }}>
               {authed ? (
                 <>
-                  <a href="/cabinet" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginBottom: 10 }} onClick={() => setOpen(false)}>
+                  <a href="/messages" style={{ ...linkStyle, display: "flex", alignItems: "center", gap: 10 }} onClick={() => setOpen(false)}>
+                    💬 Сообщения
+                    {unreadMsg > 0 && <MobBadge n={unreadMsg} />}
+                  </a>
+                  <a href="/notifications" style={{ ...linkStyle, display: "flex", alignItems: "center", gap: 10 }} onClick={() => setOpen(false)}>
+                    🔔 Уведомления
+                    {unreadNotif > 0 && <MobBadge n={unreadNotif} />}
+                  </a>
+                  <a href="/cabinet" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", margin: "16px 0 10px" }} onClick={() => setOpen(false)}>
                     Кабинет
                   </a>
                   <button onClick={logout} className="btn btn-ghost" style={{ width: "100%", justifyContent: "center" }}>
@@ -147,5 +190,17 @@ export default function MobileMenu() {
         document.body
       )}
     </>
+  );
+}
+
+function MobBadge({ n }: { n: number }) {
+  return (
+    <span style={{
+      minWidth: 18, height: 18, padding: "0 5px", borderRadius: 9,
+      background: "var(--accent)", color: "#fff", fontSize: 11, fontWeight: 700,
+      lineHeight: "18px", textAlign: "center", fontFamily: "var(--font-mono),monospace",
+    }}>
+      {n > 9 ? "9+" : n}
+    </span>
   );
 }
