@@ -22,6 +22,17 @@ const LISTING_TYPES: Record<string, string> = {
   job: "Ищу специалиста", collab: "Коллаборация", sell: "Продаю", buy: "Куплю",
 };
 
+const WORKSHOP_TYPES: Record<string, string> = {
+  print3d: "3D-печать", eva: "EVA-броня", sewing: "Пошив", wigs: "Парики",
+};
+
+type WsService = { name: string; price_from: string };
+type Workshop = {
+  id: number; name: string; type: string; city: string; about: string;
+  eta: string; rating: number; orders_count: number; is_pro: boolean;
+  services: { id: number; name: string; description: string; price_from: number }[];
+};
+
 const ORDER_STATUS_COLORS: Record<string, string> = {
   request: "var(--accent-2)", accepted: "var(--green)", in_work: "var(--accent-3)",
   shipped: "#7cf9ff", done: "var(--green)", cancelled: "var(--ink-dim)",
@@ -61,6 +72,13 @@ export default function CabinetPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState<"avatar" | "cover" | null>(null);
+  const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [showWsForm, setShowWsForm] = useState(false);
+  const [wsSaving, setWsSaving] = useState(false);
+  const [wsErr, setWsErr] = useState("");
+  const [wsForm, setWsForm] = useState<{
+    name: string; type: string; city: string; eta: string; about: string; services: WsService[];
+  }>({ name: "", type: "print3d", city: "", eta: "", about: "", services: [{ name: "", price_from: "" }] });
 
   useEffect(() => {
     setTab(new URLSearchParams(window.location.search).get("tab") || "dashboard");
@@ -105,6 +123,14 @@ export default function CabinetPage() {
         if (cancelled || !data) return;
         const list = data.results ?? data;
         setListings(Array.isArray(list) ? list : []);
+      }).catch(() => {});
+
+    fetch(`/api/v1/workshops/mine/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled || !data) return;
+        const list = data.results ?? data;
+        setWorkshops(Array.isArray(list) ? list : []);
       }).catch(() => {});
 
     return () => { cancelled = true; };
@@ -229,6 +255,44 @@ export default function CabinetPage() {
   async function deleteListing(id: number) {
     const res = await fetch(`/api/v1/listings/${id}/`, { method: "DELETE", credentials: "include" });
     if (res.ok) setListings((prev) => prev.filter((l) => l.id !== id));
+  }
+
+  async function createWorkshop() {
+    if (!wsForm.name.trim() || !wsForm.city.trim()) {
+      setWsErr("Заполни название и город"); return;
+    }
+    setWsSaving(true); setWsErr("");
+    try {
+      const services = wsForm.services
+        .filter((s) => s.name.trim() && s.price_from)
+        .map((s) => ({ name: s.name.trim(), price_from: parseInt(s.price_from) || 0 }));
+      const res = await fetch(`/api/v1/workshops/`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: wsForm.name.trim(), type: wsForm.type, city: wsForm.city.trim(),
+          eta: wsForm.eta.trim(), about: wsForm.about.trim(), services,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.name?.[0] || data.detail || "Не удалось создать мастерскую");
+      setWorkshops((prev) => [data, ...prev]);
+      // роль workshop включаем автоматически
+      if (!roles.includes("workshop")) {
+        const next = [...roles, "workshop"];
+        setRoles(next);
+        patchProfile({ roles: next });
+      }
+      setWsForm({ name: "", type: "print3d", city: "", eta: "", about: "", services: [{ name: "", price_from: "" }] });
+      setShowWsForm(false);
+    } catch (e: unknown) {
+      setWsErr(e instanceof Error ? e.message : "Ошибка");
+    } finally { setWsSaving(false); }
+  }
+
+  async function deleteWorkshop(id: number) {
+    const res = await fetch(`/api/v1/workshops/${id}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok) setWorkshops((prev) => prev.filter((w) => w.id !== id));
   }
 
   if (!authed) return (
@@ -385,6 +449,133 @@ export default function CabinetPage() {
             <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "12px 0 0" }}>
               Роли влияют на статистику сайта и видимость в каталогах
             </p>
+
+            {/* ─── Мои мастерские ─── */}
+            <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--line)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <h3 style={{ margin: 0 }}>Мои мастерские{workshops.length > 0 ? ` (${workshops.length})` : ""}</h3>
+                <button className="btn btn-primary btn-sm" onClick={() => { setShowWsForm((v) => !v); setWsErr(""); }}>
+                  {showWsForm ? "Отмена" : "+ Создать"}
+                </button>
+              </div>
+
+              {showWsForm && (
+                <div style={{ padding: 16, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 16 }}>
+                  <div className="field">
+                    <label>Название</label>
+                    <input value={wsForm.name} placeholder="Напр. EVA Forge"
+                      onChange={(e) => setWsForm({ ...wsForm, name: e.target.value })} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div className="field">
+                      <label>Тип</label>
+                      <select value={wsForm.type} onChange={(e) => setWsForm({ ...wsForm, type: e.target.value })}>
+                        {Object.entries(WORKSHOP_TYPES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Город</label>
+                      <select value={wsForm.city} onChange={(e) => setWsForm({ ...wsForm, city: e.target.value })}>
+                        <option value="">Выбери город</option>
+                        {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label>Срок выполнения (необязательно)</label>
+                    <input value={wsForm.eta} placeholder="напр. 7-14 дней"
+                      onChange={(e) => setWsForm({ ...wsForm, eta: e.target.value })} />
+                  </div>
+                  <div className="field">
+                    <label>Описание</label>
+                    <textarea rows={2} value={wsForm.about} placeholder="Чем занимается мастерская..."
+                      onChange={(e) => setWsForm({ ...wsForm, about: e.target.value })} />
+                  </div>
+
+                  <label style={{ fontSize: 11, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", display: "block", marginBottom: 8 }}>Услуги и цены</label>
+                  {wsForm.services.map((svc, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input value={svc.name} placeholder="Услуга (напр. Шлем)" style={{ flex: 2 }}
+                        onChange={(e) => {
+                          const next = [...wsForm.services]; next[i] = { ...next[i], name: e.target.value };
+                          setWsForm({ ...wsForm, services: next });
+                        }} />
+                      <input type="number" value={svc.price_from} placeholder="₸ от" style={{ flex: 1, minWidth: 0 }}
+                        onChange={(e) => {
+                          const next = [...wsForm.services]; next[i] = { ...next[i], price_from: e.target.value };
+                          setWsForm({ ...wsForm, services: next });
+                        }} />
+                      {wsForm.services.length > 1 && (
+                        <button onClick={() => setWsForm({ ...wsForm, services: wsForm.services.filter((_, j) => j !== i) })}
+                          style={{ padding: "0 12px", borderRadius: 8, cursor: "pointer",
+                            background: "rgba(255,45,111,.1)", border: "1px solid rgba(255,45,111,.2)", color: "var(--accent)" }}>
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={() => setWsForm({ ...wsForm, services: [...wsForm.services, { name: "", price_from: "" }] })}
+                    style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer", marginBottom: 14,
+                      background: "var(--bg)", border: "1px dashed var(--line)", color: "var(--ink-dim)" }}>
+                    + Добавить услугу
+                  </button>
+
+                  {wsErr && (
+                    <div style={{ color: "var(--accent)", fontSize: 13, marginBottom: 10, padding: "8px 12px", background: "rgba(255,45,111,.1)", borderRadius: 8 }}>
+                      {wsErr}
+                    </div>
+                  )}
+                  <button className="btn btn-primary" onClick={createWorkshop} disabled={wsSaving}>
+                    {wsSaving ? "Создаём..." : "Создать мастерскую"}
+                  </button>
+                </div>
+              )}
+
+              {workshops.length === 0 && !showWsForm ? (
+                <EmptyBlock icon="◆" title="Мастерских пока нет"
+                  sub="Шьёшь, печатаешь на 3D или делаешь EVA-броню? Создай мастерскую — её увидят в каталоге, и тебе пойдут заказы." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {workshops.map((w) => (
+                    <div key={w.id} style={{ padding: "12px 14px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 11 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, marginRight: 8,
+                            background: "rgba(124,249,255,.12)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.25)" }}>
+                            {WORKSHOP_TYPES[w.type] || w.type}
+                          </span>
+                          <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>📍 {w.city}{w.eta ? ` · ${w.eta}` : ""}</span>
+                          <div style={{ fontWeight: 700, fontSize: 15, marginTop: 6 }}>{w.name}</div>
+                          {w.about && <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>{w.about}</div>}
+                          {w.services?.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                              {w.services.map((s) => (
+                                <span key={s.id} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6,
+                                  background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-dim)" }}>
+                                  {s.name} · от {s.price_from.toLocaleString()} ₸
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                          <a href={`/workshops/${w.id}`}
+                            style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8,
+                              background: "rgba(124,249,255,.1)", border: "1px solid var(--line)", color: "var(--accent-2)" }}>
+                            Открыть
+                          </a>
+                          <button onClick={() => deleteWorkshop(w.id)}
+                            style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                              background: "rgba(255,45,111,.1)", border: "1px solid rgba(255,45,111,.2)", color: "var(--accent)" }}>
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         );
 

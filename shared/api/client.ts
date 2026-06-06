@@ -42,6 +42,11 @@ export const api = {
   workshops: {
     list: () => apiFetch<{ results: import("../types/workshop").Workshop[] }>("/workshops/"),
     get: (id: number) => apiFetch<import("../types/workshop").Workshop>(`/workshops/${id}/`),
+    mine: () => apiFetch<import("../types/workshop").Workshop[]>("/workshops/mine/"),
+    create: (data: Partial<import("../types/workshop").Workshop>) =>
+      apiFetch<import("../types/workshop").Workshop>("/workshops/", {
+        method: "POST", body: JSON.stringify(data),
+      }),
   },
   orders: {
     create: (data: Partial<import("../types/order").Order>) =>
