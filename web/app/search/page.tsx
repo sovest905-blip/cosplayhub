@@ -7,6 +7,9 @@ const ROLE_RU: Record<string, string> = {
 const WS_TYPE_RU: Record<string, string> = {
   print3d: "3D-печать", eva: "EVA", sewing: "Швейная", wigs: "Парики",
 };
+const LISTING_RU: Record<string, string> = {
+  job: "Ищу специалиста", collab: "Коллаборация", sell: "Продаю", buy: "Куплю",
+};
 
 function base() {
   return process.env.API_URL || "http://web:8000/api/v1";
@@ -14,8 +17,10 @@ function base() {
 
 type SearchResult = {
   q: string;
+  sections: { label: string; url: string }[];
   profiles: { id: number; display_name: string; city: string; roles: string[]; avatar: string | null }[];
   workshops: { id: number; name: string; type: string; city: string; cover: string | null }[];
+  listings: { id: number; title: string; type: string; city: string; price: number | null; owner: string }[];
 };
 
 export default async function SearchPage({
@@ -26,7 +31,7 @@ export default async function SearchPage({
   const sp = await searchParams;
   const q = (sp.q || "").trim();
 
-  let data: SearchResult = { q, profiles: [], workshops: [] };
+  let data: SearchResult = { q, sections: [], profiles: [], workshops: [], listings: [] };
   if (q.length >= 2) {
     try {
       const res = await fetch(`${base()}/search/?q=${encodeURIComponent(q)}`, { cache: "no-store" });
@@ -34,7 +39,7 @@ export default async function SearchPage({
     } catch { /* пустой результат */ }
   }
 
-  const total = data.profiles.length + data.workshops.length;
+  const total = data.profiles.length + data.workshops.length + data.listings.length;
 
   return (
     <div className="wrap">
@@ -51,6 +56,16 @@ export default async function SearchPage({
 
       {q.length >= 2 && (
         <section style={{ paddingTop: 28 }}>
+          {data.sections.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 32 }}>
+              {data.sections.map((s) => (
+                <a key={s.url} href={s.url} className="chip" style={{ textDecoration: "none" }}>
+                  ◈ {s.label}
+                </a>
+              ))}
+            </div>
+          )}
+
           {data.profiles.length > 0 && (
             <>
               <h3 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 16, margin: "0 0 14px", color: "var(--ink-dim)" }}>
@@ -91,6 +106,38 @@ export default async function SearchPage({
                     <div className="ws-body">
                       <div className="ws-name">{w.name}</div>
                       <div className="ws-loc">📍 {w.city || "—"}</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </>
+          )}
+
+          {data.listings.length > 0 && (
+            <>
+              <h3 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 16, margin: "36px 0 14px", color: "var(--ink-dim)" }}>
+                Объявления ({data.listings.length})
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {data.listings.map((l) => (
+                  <a key={l.id} href="/market" style={{
+                    display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
+                    background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12,
+                    textDecoration: "none", color: "inherit",
+                  }}>
+                    <span style={{
+                      fontSize: 10, padding: "3px 9px", borderRadius: 20, flexShrink: 0,
+                      background: "rgba(157,124,255,.15)", color: "var(--accent-4)",
+                      border: "1px solid rgba(157,124,255,.25)",
+                    }}>
+                      {LISTING_RU[l.type] || l.type}
+                    </span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{l.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                        {l.city ? `📍 ${l.city} · ` : ""}@{l.owner}
+                        {l.price ? ` · ${l.price.toLocaleString()} ₸` : ""}
+                      </div>
                     </div>
                   </a>
                 ))}

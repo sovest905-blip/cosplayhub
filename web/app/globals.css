@@ -1323,3 +1323,96 @@ footer {
   .msg-list { max-height: 240px; }
   .msg-thread-wrap { height: 60vh; }
 }
+
+/* ============ Живые подсказки поиска ============ */
+.search-drop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(420px, 92vw);
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  z-index: 300;
+  padding: 6px;
+}
+.search-empty {
+  padding: 18px 14px;
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 13px;
+}
+.search-group { padding: 4px 0; }
+.search-group + .search-group { border-top: 1px solid var(--line); }
+.search-cat {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--ink-dim);
+  padding: 6px 10px 4px;
+}
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--ink);
+  transition: background .12s;
+}
+.search-row:hover { background: rgba(255,255,255,.05); }
+.search-av {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 700; font-size: 13px; color: #fff;
+}
+.search-ic {
+  width: 34px; height: 34px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--accent-2);
+  font-size: 15px;
+}
+.search-main {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.search-sub {
+  font-size: 11px;
+  color: var(--ink-dim);
+  flex-shrink: 0;
+  max-width: 45%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.search-all {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 11px;
+  background: rgba(255,45,111,.1);
+  border: none;
+  border-radius: 9px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+.search-all:hover { background: rgba(255,45,111,.18); }

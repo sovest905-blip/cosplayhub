@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.listings.models import Listing
 from apps.profiles.models import Profile
 from apps.users.models import User
 from apps.workshops.models import Workshop
@@ -31,45 +32,152 @@ class StatsView(APIView):
         })
 
 
+# ── Умный поиск ───────────────────────────────────────────────────────────────
+
+# Русские слова → slug роли (для профилей). Если запрос содержит такое слово —
+# дополнительно ищем профили с этой ролью.
+ROLE_KEYWORDS = {
+    "косплеер": "cosplayer", "косплей": "cosplayer", "cosplay": "cosplayer",
+    "фотограф": "photographer", "фото": "photographer", "photo": "photographer",
+    "мастерская": "workshop", "мастер": "workshop",
+    "магазин": "shop", "шоп": "shop", "shop": "shop",
+    "локация": "location", "студия": "location", "локаци": "location",
+    "фанат": "fan",
+}
+# Русские слова → тип мастерской.
+WS_TYPE_KEYWORDS = {
+    "3d": "print3d", "3д": "print3d", "печать": "print3d", "принт": "print3d", "print": "print3d",
+    "eva": "eva", "эва": "eva", "броня": "eva", "пена": "eva",
+    "пошив": "sewing", "шить": "sewing", "швея": "sewing", "костюм": "sewing", "ткан": "sewing",
+    "парик": "wigs", "волос": "wigs", "wig": "wigs",
+}
+# Разделы сайта для быстрого перехода ("куда пойти").
+SECTIONS = [
+    {"label": "Косплееры", "url": "/people", "keys": ["косплеер", "косплей", "люди", "анкет"]},
+    {"label": "Фотографы", "url": "/people?role=photo", "keys": ["фотограф", "фото", "съёмк", "съемк"]},
+    {"label": "Мастерские", "url": "/workshops", "keys": ["мастерск", "мастер", "печать", "пошив", "парик", "броня"]},
+    {"label": "Магазины", "url": "/shops", "keys": ["магазин", "шоп", "купить", "товар"]},
+    {"label": "Локации", "url": "/locations", "keys": ["локаци", "студи", "съёмочн", "площадк"]},
+    {"label": "События", "url": "/events", "keys": ["событи", "фест", "сходк", "конвент"]},
+    {"label": "Гайды", "url": "/guides", "keys": ["гайд", "урок", "туториал", "как"]},
+    {"label": "Барахолка", "url": "/market", "keys": ["барахолк", "продать", "купить", "объявлен"]},
+    {"label": "Pro-тарифы", "url": "/pro", "keys": ["pro", "про", "тариф", "подписк", "premium"]},
+]
+
+
 class SearchView(APIView):
-    """Глобальный поиск по профилям и мастерским. ?q=строка."""
+    """Умный глобальный поиск: профили + мастерские + объявления + разделы.
+    Ищет по многим полям, понимает русские слова-категории, ранжирует по релевантности.
+    ?q=строка"""
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
         if len(q) < 2:
-            return Response({"profiles": [], "workshops": [], "q": q})
+            return Response({"q": q, "profiles": [], "workshops": [], "listings": [], "sections": []})
 
-        profiles = (
-            Profile.objects.select_related("user")
-            .filter(Q(display_name__icontains=q) | Q(user__username__icontains=q))[:12]
-        )
-        workshops = (
-            Workshop.objects
-            .filter(Q(name__icontains=q) | Q(city__icontains=q))[:12]
-        )
+        ql = q.lower()
+        words = [w for w in ql.split() if w]
+
+        # Какие роли/типы подразумевает запрос
+        wanted_roles = {slug for kw, slug in ROLE_KEYWORDS.items() if kw in ql}
+        wanted_types = {slug for kw, slug in WS_TYPE_KEYWORDS.items() if kw in ql}
+
+        profiles = self._search_profiles(q, ql, wanted_roles)
+        workshops = self._search_workshops(q, ql, wanted_types)
+        listings = self._search_listings(q, ql)
+        sections = self._match_sections(ql, words)
 
         return Response({
             "q": q,
-            "profiles": [
-                {
-                    "id": p.id,
-                    "display_name": p.display_name or (p.user.username if p.user else ""),
-                    "city": p.user.city if p.user else "",
-                    "roles": p.roles,
-                    "avatar": p.avatar.url if p.avatar else None,
-                }
-                for p in profiles
-            ],
-            "workshops": [
-                {
-                    "id": w.id,
-                    "name": w.name,
-                    "type": w.type,
-                    "city": w.city,
-                    "cover": w.cover.url if w.cover else None,
-                }
-                for w in workshops
-            ],
+            "sections": sections,
+            "profiles": profiles,
+            "workshops": workshops,
+            "listings": listings,
         })
+
+    # ── профили ──
+    def _search_profiles(self, q, ql, wanted_roles):
+        cond = (
+            Q(display_name__icontains=q) | Q(user__username__icontains=q)
+            | Q(bio__icontains=q) | Q(user__city__icontains=q)
+            | Q(experience__icontains=q)
+        )
+        for slug in wanted_roles:
+            cond |= Q(roles__contains=[slug])
+        qs = Profile.objects.select_related("user").filter(cond).distinct()[:40]
+
+        def score(p):
+            s = 0
+            name = (p.display_name or (p.user.username if p.user else "")).lower()
+            city = (p.user.city if p.user else "").lower()
+            if name == ql: s += 100
+            if name.startswith(ql): s += 50
+            if ql in name: s += 30
+            if any(r in wanted_roles for r in (p.roles or [])): s += 25
+            if ql and ql in city: s += 15
+            if p.bio and ql in p.bio.lower(): s += 5
+            if p.avatar: s += 3
+            return s
+
+        ranked = sorted(qs, key=score, reverse=True)[:12]
+        return [
+            {
+                "id": p.id,
+                "display_name": p.display_name or (p.user.username if p.user else ""),
+                "city": p.user.city if p.user else "",
+                "roles": p.roles,
+                "avatar": p.avatar.url if p.avatar else None,
+            }
+            for p in ranked
+        ]
+
+    # ── мастерские ──
+    def _search_workshops(self, q, ql, wanted_types):
+        cond = Q(name__icontains=q) | Q(city__icontains=q) | Q(about__icontains=q)
+        for slug in wanted_types:
+            cond |= Q(type=slug)
+        qs = Workshop.objects.filter(cond).distinct()[:40]
+
+        def score(w):
+            s = 0
+            name = (w.name or "").lower()
+            if name == ql: s += 100
+            if name.startswith(ql): s += 50
+            if ql in name: s += 30
+            if w.type in wanted_types: s += 25
+            if ql in (w.city or "").lower(): s += 15
+            if w.about and ql in w.about.lower(): s += 5
+            if w.is_pro: s += 4
+            if w.cover: s += 3
+            return s
+
+        ranked = sorted(qs, key=score, reverse=True)[:12]
+        return [
+            {"id": w.id, "name": w.name, "type": w.type, "city": w.city,
+             "cover": w.cover.url if w.cover else None}
+            for w in ranked
+        ]
+
+    # ── объявления (только активные) ──
+    def _search_listings(self, q, ql):
+        qs = (
+            Listing.objects.filter(is_active=True)
+            .filter(Q(title__icontains=q) | Q(description__icontains=q) | Q(city__icontains=q))
+            .select_related("user")[:12]
+        )
+        return [
+            {"id": l.id, "title": l.title, "type": l.type, "city": l.city,
+             "price": l.price, "owner": l.user.username if l.user else ""}
+            for l in qs
+        ]
+
+    # ── разделы сайта ──
+    def _match_sections(self, ql, words):
+        out = []
+        for sec in SECTIONS:
+            if any(any(w.startswith(k) or k.startswith(w) for k in sec["keys"]) for w in words) \
+               or any(k in ql for k in sec["keys"]):
+                out.append({"label": sec["label"], "url": sec["url"]})
+        return out[:5]
