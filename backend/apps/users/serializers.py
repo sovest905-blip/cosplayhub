@@ -71,13 +71,15 @@ class MeSerializer(serializers.ModelSerializer):
     roles = serializers.ListField(child=serializers.CharField(), required=False)
     available_for_work = serializers.BooleanField(required=False)
     accept_messages = serializers.BooleanField(required=False)
+    role_details = serializers.DictField(required=False)
     profile_id = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "username", "email", "phone", "city",
-            "bio", "experience", "roles", "available_for_work", "accept_messages", "profile_id",
+            "bio", "experience", "roles", "available_for_work", "accept_messages",
+            "role_details", "profile_id",
             "is_email_verified", "is_phone_verified", "is_verified",
         ]
         read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified"]
@@ -94,13 +96,14 @@ class MeSerializer(serializers.ModelSerializer):
         data["roles"] = prof.roles if prof else []
         data["available_for_work"] = prof.available_for_work if prof else False
         data["accept_messages"] = prof.accept_messages if prof else True
+        data["role_details"] = (prof.role_details or {}) if prof else {}
         data["avatar"] = prof.avatar.url if prof and prof.avatar else None
         data["cover"] = prof.cover.url if prof and prof.cover else None
         return data
 
     def update(self, instance, validated_data):
         prof_fields = {}
-        for key in ("bio", "experience", "roles", "available_for_work", "accept_messages"):
+        for key in ("bio", "experience", "roles", "available_for_work", "accept_messages", "role_details"):
             if key in validated_data:
                 prof_fields[key] = validated_data.pop(key)
 

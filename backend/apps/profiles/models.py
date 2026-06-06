@@ -18,6 +18,7 @@ class Profile(models.Model):
     available_for_work = models.BooleanField("свободен для заказов", default=False)
     accept_messages = models.BooleanField("принимаю сообщения", default=True)
     experience = models.CharField("опыт", max_length=60, blank=True)
+    role_details = models.JSONField("анкеты ролей", default=dict, blank=True)  # {role: {...поля}}
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0)
     accent_color = models.CharField(max_length=7, default="#ff2d6f")  # конструктор
     created_at = models.DateTimeField(auto_now_add=True)

@@ -26,6 +26,56 @@ const WORKSHOP_TYPES: Record<string, string> = {
   print3d: "3D-печать", eva: "EVA-броня", sewing: "Пошив", wigs: "Парики",
 };
 
+// Анкеты ролей: появляются под сеткой ролей при выборе роли.
+// workshop — отдельная сущность (своя форма ниже), fan — без анкеты.
+type RoleField = {
+  key: string; label: string;
+  type: "text" | "number" | "select" | "multi" | "toggle" | "textarea";
+  options?: string[]; placeholder?: string;
+};
+const ROLE_FORMS: Record<string, { title: string; icon: string; hint: string; fields: RoleField[] }> = {
+  cosplayer: {
+    title: "Анкета косплеера", icon: "◉",
+    hint: "Покажем в каталоге косплееров и подберём коллабы",
+    fields: [
+      { key: "amplua", label: "Амплуа", type: "multi", options: ["Косплеер", "Костюмер", "Гримёр", "Реквизитор", "Мейкер"] },
+      { key: "fandoms", label: "Фандомы", type: "text", placeholder: "Genshin, Naruto, Marvel" },
+      { key: "level", label: "Уровень", type: "select", options: ["Новичок", "Любитель", "Продвинутый", "Профи"] },
+      { key: "open_collab", label: "Открыт к коллаборациям", type: "toggle" },
+    ],
+  },
+  photographer: {
+    title: "Анкета фотографа", icon: "◐",
+    hint: "Косплееры найдут тебя для съёмок",
+    fields: [
+      { key: "shoot_types", label: "Тип съёмки", type: "multi", options: ["Студийная", "Выездная", "Конвеншн", "Предметная"] },
+      { key: "price_hour", label: "Стоимость, ₸/час от", type: "number", placeholder: "10000" },
+      { key: "gear", label: "Оборудование", type: "text", placeholder: "Sony A7 IV, выездной свет" },
+      { key: "portfolio_url", label: "Ссылка на портфолио", type: "text", placeholder: "https://..." },
+    ],
+  },
+  shop: {
+    title: "Анкета магазина", icon: "⌂",
+    hint: "Появишься в разделе магазинов",
+    fields: [
+      { key: "shop_name", label: "Название магазина", type: "text", placeholder: "CosplayShop KZ" },
+      { key: "sells", label: "Что продаёшь", type: "text", placeholder: "Линзы, парики, ткани, фурнитура" },
+      { key: "contact", label: "Ссылка / контакт для заказов", type: "text", placeholder: "@shop или https://..." },
+      { key: "delivery_cis", label: "Доставка по СНГ", type: "toggle" },
+    ],
+  },
+  location: {
+    title: "Анкета локации", icon: "⌖",
+    hint: "Косплееры арендуют твою площадку для съёмок",
+    fields: [
+      { key: "loc_type", label: "Тип локации", type: "select", options: ["Фотостудия", "Интерьер", "Улица / природа", "Ивент-площадка"] },
+      { key: "price_hour", label: "Цена, ₸/час", type: "number", placeholder: "8000" },
+      { key: "capacity", label: "Площадь / вместимость", type: "text", placeholder: "60 м², до 10 человек" },
+      { key: "amenities", label: "Что есть", type: "text", placeholder: "Свет, фоны, гримёрка, парковка" },
+    ],
+  },
+};
+
 type WsService = { name: string; price_from: string };
 type Workshop = {
   id: number; name: string; type: string; city: string; about: string;
@@ -61,6 +111,9 @@ export default function CabinetPage() {
   const [roles, setRoles] = useState<string[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [rolesSaved, setRolesSaved] = useState(false);
+  const [roleDetails, setRoleDetails] = useState<Record<string, Record<string, any>>>({});
+  const [rdSaving, setRdSaving] = useState<string | null>(null);
+  const [rdSaved, setRdSaved] = useState<string | null>(null);
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -98,7 +151,16 @@ export default function CabinetPage() {
         if (cancelled || !data) return;
         setMe(data);
         setForm({ username: data.username || "", city: data.city || "", experience: data.experience || "", bio: data.bio || "" });
-        setRoles(data.roles || []);
+        const loadedRoles: string[] = data.roles || [];
+        // заход с каталога «Создать мастерскую» — гарантируем роль workshop
+        if (new URLSearchParams(window.location.search).get("new") === "workshop" && !loadedRoles.includes("workshop")) {
+          const next = [...loadedRoles, "workshop"];
+          setRoles(next);
+          patchProfile({ roles: next });
+        } else {
+          setRoles(loadedRoles);
+        }
+        setRoleDetails(data.role_details || {});
         setAvailForWork(!!data.available_for_work);
         setAcceptMessages(data.accept_messages !== false);
         setAvatarUrl(data.avatar || null);
@@ -149,6 +211,11 @@ export default function CabinetPage() {
   function openWorkshopForm() {
     setWsErr("");
     setShowWsForm(true);
+    if (!roles.includes("workshop")) {
+      const next = [...roles, "workshop"];
+      setRoles(next);
+      patchProfile({ roles: next });
+    }
     goTab("roles");
   }
 
@@ -179,6 +246,24 @@ export default function CabinetPage() {
       setRolesSaved(true);
       setTimeout(() => setRolesSaved(false), 2000);
     } finally { setRolesLoading(false); }
+  }
+
+  function setRoleField(role: string, key: string, value: any) {
+    setRoleDetails((prev) => ({ ...prev, [role]: { ...(prev[role] || {}), [key]: value } }));
+  }
+
+  async function saveRoleDetails(role: string) {
+    setRdSaving(role); setRdSaved(null);
+    try {
+      const res = await fetch(`/api/v1/auth/me/`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify({ role_details: roleDetails }),
+      });
+      if (res.ok) {
+        setRdSaved(role);
+        setTimeout(() => setRdSaved(null), 2000);
+      }
+    } finally { setRdSaving(null); }
   }
 
   async function patchProfile(patch: Record<string, unknown>) {
@@ -338,6 +423,93 @@ export default function CabinetPage() {
     { id: "settings",  icon: "⚙", label: "Настройки" },
   ];
 
+  function renderRoleForm(role: string) {
+    const cfg = ROLE_FORMS[role];
+    if (!cfg) return null;
+    const vals = roleDetails[role] || {};
+    return (
+      <div key={role} style={{ marginTop: 16, padding: 16, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <h4 style={{ margin: 0, fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "var(--accent-2)" }}>{cfg.icon}</span> {cfg.title}
+          </h4>
+          <span style={{ fontSize: 12, color: rdSaving === role ? "var(--ink-dim)" : "var(--green)",
+            opacity: rdSaving === role || rdSaved === role ? 1 : 0, transition: "opacity .3s" }}>
+            {rdSaving === role ? "Сохраняем..." : "✓ Сохранено"}
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 14px" }}>{cfg.hint}</p>
+
+        {cfg.fields.map((f) => {
+          if (f.type === "toggle") {
+            return (
+              <div key={f.key} className="toggle-row" style={{ padding: "8px 0" }}>
+                <div><strong style={{ fontSize: 13 }}>{f.label}</strong></div>
+                <div className={`toggle${vals[f.key] ? " on" : ""}`}
+                  onClick={() => setRoleField(role, f.key, !vals[f.key])} style={{ cursor: "pointer" }} />
+              </div>
+            );
+          }
+          if (f.type === "multi") {
+            const arr: string[] = Array.isArray(vals[f.key]) ? vals[f.key] : [];
+            return (
+              <div className="field" key={f.key}>
+                <label>{f.label}</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {f.options!.map((opt) => {
+                    const on = arr.includes(opt);
+                    return (
+                      <button key={opt} type="button"
+                        onClick={() => setRoleField(role, f.key, on ? arr.filter((x) => x !== opt) : [...arr, opt])}
+                        style={{ fontSize: 12, padding: "6px 12px", borderRadius: 20, cursor: "pointer",
+                          background: on ? "rgba(255,45,111,.15)" : "var(--bg)",
+                          border: `1px solid ${on ? "var(--accent)" : "var(--line)"}`,
+                          color: on ? "var(--accent)" : "var(--ink-dim)" }}>
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+          if (f.type === "select") {
+            return (
+              <div className="field" key={f.key}>
+                <label>{f.label}</label>
+                <select value={vals[f.key] || ""} onChange={(e) => setRoleField(role, f.key, e.target.value)}>
+                  <option value="">Не выбрано</option>
+                  {f.options!.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
+            );
+          }
+          if (f.type === "textarea") {
+            return (
+              <div className="field" key={f.key}>
+                <label>{f.label}</label>
+                <textarea rows={2} value={vals[f.key] || ""} placeholder={f.placeholder}
+                  onChange={(e) => setRoleField(role, f.key, e.target.value)} />
+              </div>
+            );
+          }
+          return (
+            <div className="field" key={f.key}>
+              <label>{f.label}</label>
+              <input type={f.type === "number" ? "number" : "text"} value={vals[f.key] ?? ""}
+                placeholder={f.placeholder}
+                onChange={(e) => setRoleField(role, f.key, e.target.value)} />
+            </div>
+          );
+        })}
+
+        <button className="btn btn-primary btn-sm" onClick={() => saveRoleDetails(role)} disabled={rdSaving === role}>
+          {rdSaving === role ? "Сохраняем..." : "Сохранить анкету"}
+        </button>
+      </div>
+    );
+  }
+
   function renderContent() {
     switch (tab) {
       case "profile":
@@ -458,10 +630,26 @@ export default function CabinetPage() {
               ))}
             </div>
             <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "12px 0 0" }}>
-              Роли влияют на статистику сайта и видимость в каталогах
+              Роли влияют на статистику сайта и видимость в каталогах. Выбери роль — ниже появится её анкета.
             </p>
 
-            {/* ─── Мои мастерские ─── */}
+            {/* ─── Анкеты выбранных ролей ─── */}
+            {roles.some((r) => ROLE_FORMS[r]) && (
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--line)" }}>
+                <h3 style={{ margin: "0 0 4px" }}>Анкеты ролей</h3>
+                {roles.filter((r) => ROLE_FORMS[r]).map((r) => renderRoleForm(r))}
+              </div>
+            )}
+
+            {roles.includes("fan") && !roles.some((r) => ROLE_FORMS[r] || r === "workshop") && (
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--line)" }}>
+                <EmptyBlock icon="♥" title="Роль «Фанат» — анкета не нужна"
+                  sub="Ты можешь смотреть образы, подписываться и общаться. Хочешь публиковать своё — добавь роль косплеера, фотографа и т.д." />
+              </div>
+            )}
+
+            {/* ─── Мои мастерские (только при роли «Мастерская») ─── */}
+            {roles.includes("workshop") && (
             <div style={{ marginTop: 28, paddingTop: 24, borderTop: "1px solid var(--line)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
                 <h3 style={{ margin: 0 }}>Мои мастерские{workshops.length > 0 ? ` (${workshops.length})` : ""}</h3>
@@ -587,6 +775,7 @@ export default function CabinetPage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         );
 
