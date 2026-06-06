@@ -12,10 +12,22 @@ class ProfileSerializer(serializers.ModelSerializer):
     is_verified = serializers.BooleanField(source="user.is_verified", read_only=True, default=False)
     username = serializers.CharField(source="user.username", read_only=True, default="")
     user_id = serializers.IntegerField(source="user.id", read_only=True)
+    followers_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "user_id", "display_name", "username", "bio", "roles", "role_details",
                   "avatar", "cover", "available_for_work", "experience", "rating", "accent_color",
-                  "city", "is_verified", "socials", "created_at"]
+                  "city", "is_verified", "socials", "followers_count", "is_following", "created_at"]
         read_only_fields = ["rating", "created_at"]
+
+    def get_followers_count(self, obj):
+        return obj.user.follower_set.count()
+
+    def get_is_following(self, obj):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            return False
+        from .models import Follow
+        return Follow.objects.filter(follower=request.user, target=obj.user).exists()

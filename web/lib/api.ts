@@ -85,7 +85,7 @@ export function normalizeProfile(p: any): Person {
     is_verified: !!p.is_verified,
     available_for_work: !!p.available_for_work,
     is_pro: false,
-    followers: 0,
+    followers: p.followers_count ?? 0,
     looks: 0,
     photo: p.avatar || PLACEHOLDER_PERSON,
     specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Косплеер",

@@ -51,6 +51,12 @@ class RegisterSerializer(serializers.Serializer):
             user.phone = value
         user.set_password(validated_data["password"])
         user.save()
+        # Дефолтная роль «фанат» — каждый зарегистрированный сразу может подписываться/смотреть.
+        from apps.profiles.models import Profile
+        Profile.objects.get_or_create(
+            user=user,
+            defaults={"display_name": user.username or value, "roles": ["fan"]},
+        )
         return user
 
 
@@ -117,7 +123,7 @@ class MeSerializer(serializers.ModelSerializer):
             from apps.profiles.models import Profile
             prof, _ = Profile.objects.get_or_create(
                 user=instance,
-                defaults={"display_name": instance.username or instance.email or "user"},
+                defaults={"display_name": instance.username or instance.email or "user", "roles": ["fan"]},
             )
             # ник профиля держим в синхроне с username
             if instance.username:

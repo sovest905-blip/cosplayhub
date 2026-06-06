@@ -31,3 +31,19 @@ class SocialLink(models.Model):
     platform = models.CharField(max_length=20)   # instagram, tiktok, vk...
     handle = models.CharField(max_length=120)
     is_connected = models.BooleanField(default=False)
+
+
+class Follow(models.Model):
+    """Подписка: follower подписан на target (оба — User)."""
+    follower = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                 related_name="following_set")
+    target = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                               related_name="follower_set")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("follower", "target")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.follower_id} → {self.target_id}"

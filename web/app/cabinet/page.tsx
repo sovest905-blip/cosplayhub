@@ -125,6 +125,8 @@ export default function CabinetPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState<"avatar" | "cover" | null>(null);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [followersCount, setFollowersCount] = useState(0);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [showWsForm, setShowWsForm] = useState(false);
   const [wsSaving, setWsSaving] = useState(false);
@@ -191,6 +193,14 @@ export default function CabinetPage() {
         const list = data.results ?? data;
         setListings(Array.isArray(list) ? list : []);
       }).catch(() => {});
+
+    fetch(`/api/v1/follow/following/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && Array.isArray(data)) setFollowing(data); }).catch(() => {});
+
+    fetch(`/api/v1/follow/followers/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && Array.isArray(data)) setFollowersCount(data.length); }).catch(() => {});
 
     fetch(`/api/v1/workshops/mine/`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
@@ -389,6 +399,11 @@ export default function CabinetPage() {
   async function deleteWorkshop(id: number) {
     const res = await fetch(`/api/v1/workshops/${id}/`, { method: "DELETE", credentials: "include" });
     if (res.ok) setWorkshops((prev) => prev.filter((w) => w.id !== id));
+  }
+
+  async function unfollow(userId: number) {
+    const res = await fetch(`/api/v1/follow/${userId}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok) setFollowing((prev) => prev.filter((p) => p.user_id !== userId));
   }
 
   if (!authed) return (
@@ -975,6 +990,45 @@ export default function CabinetPage() {
         );
 
       case "subs":
+        return (
+          <div className="acc-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <h3 style={{ margin: 0 }}>Мои подписки{following.length > 0 ? ` (${following.length})` : ""}</h3>
+              <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>Подписчиков: {followersCount}</span>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 16px" }}>
+              Косплееры, фотографы, мастерские и магазины, на которых ты подписан.
+            </p>
+            {following.length === 0 ? (
+              <EmptyBlock icon="♛" title="Пока нет подписок"
+                sub="Подпишись на косплееров, фотографов и мастерские — они появятся здесь, а ты не пропустишь их новинки."
+                cta={{ label: "Смотреть косплееров", href: "/people" }} />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {following.map((p) => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12,
+                    padding: "10px 12px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 11 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+                      background: p.avatar ? `url('${p.avatar}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
+                      border: "1px solid var(--line)" }} />
+                    <a href={`/people/${p.id}`} style={{ flex: 1, color: "var(--ink)" }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{p.display_name}{p.is_verified && <span className="verified" style={{ marginLeft: 4 }}>✓</span>}</div>
+                      <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                        {(p.roles || []).map((r: string) => ROLE_MAP[r] || r).join(" · ") || "Фанат"}{p.city ? ` · ${p.city}` : ""}
+                      </div>
+                    </a>
+                    <button onClick={() => unfollow(p.user_id)}
+                      style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer", flexShrink: 0,
+                        background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-dim)" }}>
+                      Отписаться
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
       case "socials":
       case "settings":
         return (
@@ -1010,8 +1064,8 @@ export default function CabinetPage() {
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14, marginTop: 20 }}>
                 {[
-                  { val: "0", label: "Подписчиков" },
-                  { val: "0", label: "Образов" },
+                  { val: followersCount, label: "Подписчиков" },
+                  { val: following.length, label: "Подписок" },
                   { val: ordersCount, label: "Заказов" },
                   { val: newIncoming, label: "Откликов" },
                 ].map((s) => (
