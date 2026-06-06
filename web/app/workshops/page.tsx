@@ -14,7 +14,7 @@ export default async function WorkshopsPage() {
           Мастерские <span className="accent">СНГ.</span>
         </h1>
         <div style={{ marginTop: 16 }}>
-          <a href="/cabinet?tab=roles" className="btn btn-primary">+ Создать мастерскую</a>
+          <a href="/cabinet?tab=roles&new=workshop" className="btn btn-primary">+ Создать мастерскую</a>
         </div>
       </section>
 

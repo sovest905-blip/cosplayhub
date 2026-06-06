@@ -81,7 +81,12 @@ export default function CabinetPage() {
   }>({ name: "", type: "print3d", city: "", eta: "", about: "", services: [{ name: "", price_from: "" }] });
 
   useEffect(() => {
-    setTab(new URLSearchParams(window.location.search).get("tab") || "dashboard");
+    const params = new URLSearchParams(window.location.search);
+    setTab(params.get("tab") || "dashboard");
+    if (params.get("new") === "workshop") {
+      setTab("roles");
+      setShowWsForm(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -139,6 +144,12 @@ export default function CabinetPage() {
   function goTab(id: string) {
     setTab(id);
     window.history.pushState({}, "", `/cabinet?tab=${id}`);
+  }
+
+  function openWorkshopForm() {
+    setWsErr("");
+    setShowWsForm(true);
+    goTab("roles");
   }
 
   async function saveBasics() {
@@ -847,10 +858,18 @@ export default function CabinetPage() {
 
             <div className="acc-card">
               <h3>Быстрый доступ</h3>
+              <button onClick={openWorkshopForm}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", width: "100%",
+                  background: "linear-gradient(135deg,rgba(255,45,111,.16),rgba(124,249,255,.08))",
+                  border: "1px solid rgba(255,45,111,.3)", borderRadius: 11, marginBottom: 10,
+                  cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--ink)", textAlign: "left" }}>
+                <span style={{ fontSize: 18 }}>◆</span>
+                + Создать мастерскую
+              </button>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 {[
                   { id: "profile",   icon: "◉", label: "Редактировать профиль" },
-                  { id: "roles",     icon: "★", label: "Мои роли" },
+                  { id: "roles",     icon: "★", label: "Роли и услуги" },
                   { id: "responses", icon: "↗", label: `Отклики${newIncoming > 0 ? ` (${newIncoming})` : ""}` },
                   { id: "listings",  icon: "⌂", label: "Объявления" },
                 ].map((item) => (
