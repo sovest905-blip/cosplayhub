@@ -23,11 +23,14 @@ export default async function GuidesPage() {
       <div className="crumbs">
         <a href="/">Главная</a><span className="sep">›</span><span className="cur">Гайды</span>
       </div>
-      <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 30, margin: "8px 0 24px" }}>Гайды</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, margin: "8px 0 24px" }}>
+        <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 30, margin: 0 }}>Гайды</h1>
+        <a href="/guides/new" className="btn btn-primary btn-sm">+ Написать гайд</a>
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 18 }}>
         {guides.map((g: GuideItem) => (
-          <article key={g.id} style={{
+          <a key={g.id} href={`/guides/${g.id}`} style={{
             background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, overflow: "hidden",
             display: "flex", flexDirection: "column",
           }}>
@@ -42,9 +45,11 @@ export default async function GuidesPage() {
               )}
               <h2 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 17, margin: 0 }}>{g.title}</h2>
               {g.summary && <p style={{ color: "var(--ink-dim)", fontSize: 13, lineHeight: 1.6, margin: 0 }}>{g.summary}</p>}
-              <span style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: "auto" }}>{fmtDate(g.created_at)}</span>
+              <span style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: "auto" }}>
+                {g.author_name ? `${g.author_name} · ` : ""}{fmtDate(g.created_at)}
+              </span>
             </div>
-          </article>
+          </a>
         ))}
       </div>
     </div>

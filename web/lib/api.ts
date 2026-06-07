@@ -213,7 +213,7 @@ export async function getEvents(): Promise<EventItem[] | null> {
 
 export type GuideItem = {
   id: number; title: string; summary: string; body: string; category: string;
-  cover: string | null; created_at: string;
+  cover: string | null; author_name: string; author_id: number | null; created_at: string;
 };
 
 export async function getGuides(): Promise<GuideItem[] | null> {
@@ -221,6 +221,11 @@ export async function getGuides(): Promise<GuideItem[] | null> {
   if (!data) return null;
   const list = data.results ?? data;
   return Array.isArray(list) ? list : [];
+}
+
+export async function getGuide(id: string | number): Promise<GuideItem | null> {
+  const data = await get(`/guides/${id}/`);
+  return data && data.id ? data : null;
 }
 
 export type LookItem = {

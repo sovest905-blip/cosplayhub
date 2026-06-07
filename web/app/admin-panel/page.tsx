@@ -826,7 +826,7 @@ function EventsAdmin() {
 }
 
 // ─────────────────────────── ГАЙДЫ ───────────────────────────
-type GuideRow = { id: number; title: string; summary: string; body: string; category: string; created_at: string };
+type GuideRow = { id: number; title: string; summary: string; body: string; category: string; author_name: string; created_at: string };
 function GuidesAdmin() {
   const [items, setItems] = useState<GuideRow[]>([]);
   const [show, setShow] = useState(false);
@@ -890,7 +890,9 @@ function GuidesAdmin() {
           <div key={g.id} style={rowStyle}>
             <div style={{ flex: 1, minWidth: 180 }}>
               <b style={{ fontSize: 14 }}>{g.category ? `[${g.category}] ` : ""}{g.title}</b>
-              {g.summary && <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>{g.summary}</div>}
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                {g.author_name ? `@${g.author_name}` : "—"}{g.summary ? ` · ${g.summary}` : ""}
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => startEdit(g)}>Изменить</button>

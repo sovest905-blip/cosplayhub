@@ -1,8 +1,11 @@
+from django.conf import settings
 from django.db import models
 
 
 class Guide(models.Model):
-    """Гайд/туториал по крафту. Управляется из админ-панели."""
+    """Гайд/туториал по крафту. Пишут залогиненные юзеры и админы."""
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                               null=True, blank=True, related_name="guides")
     title = models.CharField("заголовок", max_length=200)
     summary = models.CharField("кратко", max_length=300, blank=True)
     body = models.TextField("текст", blank=True)
