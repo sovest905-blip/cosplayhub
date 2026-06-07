@@ -199,6 +199,18 @@ export async function getNews(): Promise<NewsItem[] | null> {
   return Array.isArray(list) ? list : [];
 }
 
+export type EventItem = {
+  id: number; title: string; description: string; city: string; place: string;
+  date: string; cover: string | null; going: number; day: number | string; month: string;
+};
+
+export async function getEvents(): Promise<EventItem[] | null> {
+  const data = await get(`/events/`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
 // Каталоги магазинов/локаций = профили с соответствующей ролью.
 export async function getProfilesByRole(role: string): Promise<Person[] | null> {
   const data = await get(`/profiles/?role=${role}`);

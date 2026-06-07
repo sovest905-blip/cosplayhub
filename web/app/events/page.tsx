@@ -1,6 +1,12 @@
 import { EVENTS } from "../../lib/mock";
+import { getEvents } from "../../lib/api";
 
-export default function EventsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function EventsPage() {
+  const api = await getEvents().catch(() => null);
+  const list: any[] = api && api.length ? api : EVENTS;
+
   return (
     <div className="wrap" style={{ paddingBottom: 60 }}>
       <div className="crumbs" style={{ paddingTop: 16 }}>
@@ -20,7 +26,7 @@ export default function EventsPage() {
       </section>
 
       <div className="ev-list" style={{ marginTop: 24 }}>
-        {EVENTS.map((e) => (
+        {list.map((e) => (
           <div key={e.id} className="ev">
             <div className="ev-date">
               <b>{e.day}</b>
@@ -28,7 +34,7 @@ export default function EventsPage() {
             </div>
             <div className="ev-info">
               <h4>{e.title}</h4>
-              <p>{e.city}</p>
+              <p>{e.place ? `${e.place} · ` : ""}{e.city}</p>
             </div>
             <div className="ev-going">
               <b>{e.going}</b>
@@ -39,7 +45,7 @@ export default function EventsPage() {
       </div>
 
       <div style={{ textAlign: "center", marginTop: 28, color: "var(--ink-dim)", fontSize: 13 }}>
-        Создание своих событий и запись появятся в ближайших обновлениях беты.
+        Запись на события появится в ближайших обновлениях беты.
       </div>
     </div>
   );

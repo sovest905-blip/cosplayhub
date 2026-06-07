@@ -1,5 +1,5 @@
 import { PEOPLE, WORKSHOPS, EVENTS } from "../lib/mock";
-import { getProfiles, getWorkshops } from "../lib/api";
+import { getProfiles, getWorkshops, getEvents } from "../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +15,16 @@ async function fetchStats(): Promise<Stats> {
 }
 
 export default async function HomePage() {
-  const [stats, apiPeople, apiWs] = await Promise.all([
+  const [stats, apiPeople, apiWs, apiEvents] = await Promise.all([
     fetchStats(),
     getProfiles("?role=cosplayer").catch(() => null),
     getWorkshops().catch(() => null),
+    getEvents().catch(() => null),
   ]);
   // Реальные данные из БД; фолбэк на мок, пока пусто.
   const peopleList: any[] = apiPeople && apiPeople.length ? apiPeople : PEOPLE;
   const wsList: any[] = apiWs && apiWs.length ? apiWs : WORKSHOPS;
+  const evList: any[] = apiEvents && apiEvents.length ? apiEvents : EVENTS;
   return (
     <>
       {/* HERO */}
@@ -193,7 +195,7 @@ export default async function HomePage() {
             <a href="/events" className="section-link">Все →</a>
           </div>
           <div className="ev-list">
-            {EVENTS.map((e) => (
+            {evList.slice(0, 4).map((e) => (
               <a key={e.id} href="/events" className="ev">
                 <div className="ev-date">
                   <b>{e.day}</b>

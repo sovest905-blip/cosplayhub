@@ -15,6 +15,7 @@ from apps.workshops.serializers import WorkshopSerializer
 from apps.listings.models import Listing
 from apps.orders.models import Order
 from apps.news.models import News
+from apps.events.models import Event
 
 OPEN_ORDER_STATUSES = ["request", "accepted", "in_work"]
 
@@ -36,6 +37,7 @@ class AdminStatsView(_StaffView):
             "orders_total": Order.objects.count(),
             "orders_open": Order.objects.filter(status__in=OPEN_ORDER_STATUSES).count(),
             "news": News.objects.count(),
+            "events": Event.objects.count(),
         })
 
 

@@ -3,9 +3,13 @@
 
 Запуск на VPS:  docker compose exec web python manage.py seed_demo
 """
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
+from apps.events.models import Event
 from apps.listings.models import Listing
 from apps.news.models import News
 from apps.profiles.models import Profile
@@ -155,7 +159,8 @@ class Command(BaseCommand):
         return u
 
     def handle(self, *args, **opts):
-        n_prof = n_ws = n_list = n_news = 0
+        n_prof = n_ws = n_list = n_news = n_ev = 0
+        today = timezone.localdate()
 
         # Профили
         for p in PROFILES:
@@ -215,6 +220,27 @@ class Command(BaseCommand):
             if created:
                 n_news += 1
 
+        # События (будущие даты)
+        events = [
+            {"title": "Edgerunners фотосет — Алматы", "city": "Алматы", "place": "Парк Первого Президента",
+             "days": 7, "going": 23, "desc": "Неоновый киберпанк-сет, берём дым и свет."},
+            {"title": "AniFest Astana 2026", "city": "Астана", "place": "EXPO, павильон C",
+             "days": 21, "going": 140, "desc": "Большой косплей-фестиваль: сцена, маркет, гости."},
+            {"title": "Сходка Genshin — Шымкент", "city": "Шымкент", "place": "Центральный парк",
+             "days": 14, "going": 38, "desc": "Тематическая сходка фанатов Genshin Impact."},
+            {"title": "EVA-воркшоп: основы брони", "city": "Алматы", "place": "EVA Forge studio",
+             "days": 10, "going": 12, "desc": "Мастер-класс по EVA: выкройки, термоформовка, покраска."},
+        ]
+        for ev in events:
+            _, created = Event.objects.get_or_create(
+                title=ev["title"],
+                defaults={"city": ev["city"], "place": ev["place"], "going": ev["going"],
+                          "description": ev["desc"], "date": today + timedelta(days=ev["days"]),
+                          "is_published": True},
+            )
+            if created:
+                n_ev += 1
+
         self.stdout.write(self.style.SUCCESS(
-            f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}. Пароль всех демо: {PWD}"
+            f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}, событий +{n_ev}. Пароль всех демо: {PWD}"
         ))

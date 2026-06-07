@@ -18,10 +18,11 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
+type TabId = "dashboard" | "news" | "events" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
+  ["events", "◈ События"],
   ["users", "◇ Пользователи"],
   ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
@@ -89,6 +90,7 @@ export default function AdminPanelPage() {
         <div>
           {tab === "dashboard" && <Dashboard onGo={setTab} />}
           {tab === "news" && <NewsAdmin />}
+          {tab === "events" && <EventsAdmin />}
           {tab === "users" && <UsersAdmin roleFilter="" />}
           {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
@@ -665,6 +667,7 @@ function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
     { label: "Объявлений (актив.)", value: s.listings_active, tab: "listings" },
     { label: "Заказов (открытых)", value: s.orders_open, tab: "orders", accent: "var(--accent-3)" },
     { label: "Новостей", value: s.news, tab: "news" },
+    { label: "Событий", value: s.events, tab: "events" },
   ] : [];
 
   return (
@@ -723,6 +726,92 @@ function WorkshopsAdmin() {
             <div style={{ display: "flex", gap: 8 }}>
               <a className="btn btn-ghost btn-sm" href={`/workshops/${w.id}`} target="_blank" rel="noopener noreferrer">Открыть</a>
               <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(w)}>Удалить</button>
+            </div>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── СОБЫТИЯ ───────────────────────────
+type EventRow = { id: number; title: string; description: string; city: string; place: string; date: string; going: number; is_published: boolean; day: number | string; month: string };
+function EventsAdmin() {
+  const [items, setItems] = useState<EventRow[]>([]);
+  const [show, setShow] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [f, setF] = useState({ title: "", description: "", city: "", place: "", date: "", going: "" });
+  const [cover, setCover] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  function load() {
+    api("/events/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(d.results ?? d ?? []));
+  }
+  useEffect(load, []);
+  function reset() { setEditId(null); setF({ title: "", description: "", city: "", place: "", date: "", going: "" }); setCover(null); setErr(""); }
+  function startEdit(e: EventRow) {
+    setEditId(e.id); setF({ title: e.title, description: e.description || "", city: e.city || "", place: e.place || "", date: e.date, going: String(e.going || "") });
+    setCover(null); setErr(""); setShow(true);
+  }
+  async function save() {
+    if (!f.title.trim() || !f.date) { setErr("Нужны название и дата"); return; }
+    setSaving(true); setErr("");
+    try {
+      const fd = new FormData();
+      fd.append("title", f.title); fd.append("description", f.description); fd.append("city", f.city);
+      fd.append("place", f.place); fd.append("date", f.date); fd.append("going", f.going || "0");
+      if (cover) fd.append("cover", cover);
+      const res = editId
+        ? await api(`/events/${editId}/`, { method: "PATCH", body: fd })
+        : await api("/events/", { method: "POST", body: fd });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || e.date || "Не удалось"); }
+      reset(); setShow(false); load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
+    finally { setSaving(false); }
+  }
+  async function remove(id: number) {
+    if (!confirm("Удалить событие?")) return;
+    const res = await api(`/events/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((e) => e.id !== id));
+  }
+
+  return (
+    <Card title="События" sub="Сходки, конвенты, фотосеты. Видны всем на /events и на главной.">
+      <button className="btn btn-primary btn-sm" style={{ marginBottom: 14 }}
+        onClick={() => { if (show) { reset(); setShow(false); } else { reset(); setShow(true); } }}>
+        {show ? "Отмена" : "+ Добавить событие"}
+      </button>
+      {show && (
+        <div style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>{editId ? "Редактировать событие" : "Новое событие"}</h3>
+          <div className="field"><label>Название</label><input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Edgerunners сет — Алматы" /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
+            <div className="field"><label>Дата</label><input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></div>
+            <div className="field"><label>Город</label><input value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} placeholder="Алматы" /></div>
+            <div className="field"><label>Место (опц.)</label><input value={f.place} onChange={(e) => setF({ ...f, place: e.target.value })} placeholder="ТРЦ Mega, 3 этаж" /></div>
+            <div className="field"><label>Идут (число)</label><input type="number" value={f.going} onChange={(e) => setF({ ...f, going: e.target.value })} placeholder="23" /></div>
+          </div>
+          <div className="field"><label>Описание</label><textarea rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Что за событие…" /></div>
+          <div className="field"><label>Обложка (опц.)</label><input type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] || null)} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Сохраняем…" : editId ? "Сохранить" : "Опубликовать"}</button>
+            {editId && <button className="btn btn-ghost" onClick={() => { reset(); setShow(false); }}>Отмена</button>}
+            {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
+          </div>
+        </div>
+      )}
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Событий пока нет.</p>
+        : items.map((e) => (
+          <div key={e.id} style={rowStyle}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <b style={{ fontSize: 14 }}>{e.day} {e.month} · {e.title}</b>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                {e.place ? `${e.place} · ` : ""}{e.city || "—"} · идут: {e.going}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => startEdit(e)}>Изменить</button>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(e.id)}>Удалить</button>
             </div>
           </div>
         ))}
