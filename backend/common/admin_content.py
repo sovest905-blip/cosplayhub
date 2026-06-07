@@ -10,6 +10,7 @@ from common.admin_panel import _StaffView
 from apps.users.models import User
 from apps.profiles.models import Profile
 from apps.workshops.models import Workshop
+from apps.workshops.serializers import WorkshopSerializer
 from apps.listings.models import Listing
 from apps.orders.models import Order
 from apps.news.models import News
@@ -72,6 +73,39 @@ class AdminWorkshopDeleteView(_StaffView):
             return Response({"detail": "Не найдено"}, status=404)
         w.delete()
         return Response(status=204)
+
+
+class AdminUserWorkshopsView(_StaffView):
+    """GET — мастерские конкретного юзера (с услугами). POST — создать мастерскую за юзера."""
+
+    def get(self, request, pk):
+        owner = User.objects.filter(pk=pk).first()
+        if not owner:
+            return Response({"detail": "Не найдено"}, status=404)
+        qs = Workshop.objects.filter(owner=owner).prefetch_related("services").order_by("-created_at")
+        return Response(WorkshopSerializer(qs, many=True, context={"request": request}).data)
+
+    def post(self, request, pk):
+        owner = User.objects.filter(pk=pk).first()
+        if not owner:
+            return Response({"detail": "Не найдено"}, status=404)
+        ser = WorkshopSerializer(data=request.data, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        ser.save(owner=owner)
+        return Response(ser.data, status=201)
+
+
+class AdminWorkshopUpdateView(_StaffView):
+    """PATCH — обновить мастерскую (название/тип/город/срок/описание/услуги)."""
+
+    def patch(self, request, pk):
+        w = Workshop.objects.filter(pk=pk).first()
+        if not w:
+            return Response({"detail": "Не найдено"}, status=404)
+        ser = WorkshopSerializer(w, data=request.data, partial=True, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(ser.data)
 
 
 class AdminListingsView(_StaffView):

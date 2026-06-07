@@ -405,6 +405,120 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
 
       <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? "Сохраняем…" : "Сохранить роли и анкеты"}</button>
       {saved && <span style={{ color: "var(--green)", fontSize: 12, marginLeft: 10 }}>✓ Сохранено</span>}
+
+      {roles.includes("workshop") && <WorkshopEditor userId={user.id} />}
+    </div>
+  );
+}
+
+// Мастерская — отдельная сущность (не role_details). Редактор мастерских юзера.
+type WsServiceRow = { name: string; price_from: string };
+type WsFull = { id: number; name: string; type: string; city: string; about: string; eta: string; services: { name: string; price_from: number }[] };
+function WorkshopEditor({ userId }: { userId: number }) {
+  const [items, setItems] = useState<WsFull[]>([]);
+  const [draft, setDraft] = useState<Record<number, { name: string; type: string; city: string; eta: string; about: string; services: WsServiceRow[] }>>({});
+  const [showNew, setShowNew] = useState(false);
+  const [nw, setNw] = useState({ name: "", type: "print3d", city: "", eta: "", about: "", services: [{ name: "", price_from: "" }] as WsServiceRow[] });
+  const [msg, setMsg] = useState("");
+
+  function load() {
+    api(`/admin-panel/users/${userId}/workshops/`).then((r) => (r.ok ? r.json() : [])).then((d: WsFull[]) => {
+      const list = Array.isArray(d) ? d : [];
+      setItems(list);
+      const dr: any = {};
+      list.forEach((w) => { dr[w.id] = { name: w.name, type: w.type, city: w.city, eta: w.eta || "", about: w.about || "",
+        services: (w.services || []).map((s) => ({ name: s.name, price_from: String(s.price_from) })) }; });
+      setDraft(dr);
+    });
+  }
+  useEffect(load, [userId]);
+
+  function svcArr(services: WsServiceRow[]) {
+    return services.filter((s) => s.name.trim()).map((s) => ({ name: s.name.trim(), description: "", price_from: parseInt(s.price_from) || 0 }));
+  }
+  async function saveWs(id: number) {
+    const d = draft[id];
+    const res = await api(`/admin-panel/workshops/${id}/`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: d.name, type: d.type, city: d.city, eta: d.eta, about: d.about, services: svcArr(d.services) }),
+    });
+    if (res.ok) { setMsg("Мастерская сохранена ✓"); setTimeout(() => setMsg(""), 2000); load(); }
+    else { const e = await res.json().catch(() => ({})); alert(e.name || e.detail || "Ошибка"); }
+  }
+  async function createWs() {
+    if (!nw.name.trim()) { alert("Введите название"); return; }
+    const res = await api(`/admin-panel/users/${userId}/workshops/`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: nw.name, type: nw.type, city: nw.city, eta: nw.eta, about: nw.about, services: svcArr(nw.services) }),
+    });
+    if (res.ok) { setShowNew(false); setNw({ name: "", type: "print3d", city: "", eta: "", about: "", services: [{ name: "", price_from: "" }] }); load(); }
+    else { const e = await res.json().catch(() => ({})); alert(e.name || e.detail || "Ошибка"); }
+  }
+  async function delWs(id: number) {
+    if (!confirm("Удалить мастерскую?")) return;
+    const res = await api(`/admin-panel/workshops/${id}/delete/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) load();
+  }
+
+  function setD(id: number, patch: Partial<{ name: string; type: string; city: string; eta: string; about: string; services: WsServiceRow[] }>) {
+    setDraft((p) => ({ ...p, [id]: { ...p[id], ...patch } }));
+  }
+
+  return (
+    <div style={{ marginTop: 16, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <h4 style={{ margin: 0, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "var(--accent-2)" }}>⚒</span> Мастерские юзера ({items.length})
+        </h4>
+        <button className="btn btn-ghost btn-sm" onClick={() => setShowNew((v) => !v)}>{showNew ? "Отмена" : "+ Добавить"}</button>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Мастерская — отдельная сущность с услугами. Заполни за юзера, если он не может.</p>
+      {msg && <div style={{ color: "var(--green)", fontSize: 12, marginBottom: 8 }}>{msg}</div>}
+
+      {showNew && <WsForm v={nw} onChange={setNw as any} onSubmit={createWs} submitLabel="Создать мастерскую" />}
+
+      {items.map((w) => draft[w.id] && (
+        <div key={w.id} style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+          <WsForm v={draft[w.id]} onChange={(patch) => setD(w.id, patch)} onSubmit={() => saveWs(w.id)} submitLabel="Сохранить" onDelete={() => delWs(w.id)} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WsForm({ v, onChange, onSubmit, submitLabel, onDelete }: {
+  v: { name: string; type: string; city: string; eta: string; about: string; services: WsServiceRow[] };
+  onChange: (patch: any) => void; onSubmit: () => void; submitLabel: string; onDelete?: () => void;
+}) {
+  function setSvc(i: number, patch: Partial<WsServiceRow>) {
+    const services = v.services.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
+    onChange({ services });
+  }
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+        <div className="field"><label>Название</label><input value={v.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="EVA Forge" /></div>
+        <div className="field"><label>Тип</label>
+          <select value={v.type} onChange={(e) => onChange({ type: e.target.value })}>
+            {Object.entries(WS_TYPE_RU).map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+          </select></div>
+        <div className="field"><label>Город</label><input value={v.city} onChange={(e) => onChange({ city: e.target.value })} placeholder="Алматы" /></div>
+        <div className="field"><label>Срок</label><input value={v.eta} onChange={(e) => onChange({ eta: e.target.value })} placeholder="7-14 дней" /></div>
+      </div>
+      <div className="field"><label>Описание</label><textarea rows={2} value={v.about} onChange={(e) => onChange({ about: e.target.value })} placeholder="Чем занимается мастерская…" /></div>
+      <label style={{ fontSize: 12, color: "var(--ink-dim)" }}>Услуги</label>
+      {v.services.map((s, i) => (
+        <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+          <input value={s.name} onChange={(e) => setSvc(i, { name: e.target.value })} placeholder="Услуга (напр. Шлем)" style={{ flex: 2 }} />
+          <input type="number" value={s.price_from} onChange={(e) => setSvc(i, { price_from: e.target.value })} placeholder="₸ от" style={{ flex: 1, minWidth: 0 }} />
+        </div>
+      ))}
+      <button className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}
+        onClick={() => onChange({ services: [...v.services, { name: "", price_from: "" }] })}>+ услуга</button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-primary btn-sm" onClick={onSubmit}>{submitLabel}</button>
+        {onDelete && <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={onDelete}>Удалить</button>}
+      </div>
     </div>
   );
 }
