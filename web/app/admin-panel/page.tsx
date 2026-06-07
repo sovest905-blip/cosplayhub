@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ROLE_FORMS, RoleFields } from "../../lib/roleForms";
 
@@ -18,14 +18,33 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
+type TabId = "dashboard" | "news" | "users" | "locations" | "workshops" | "listings" | "orders";
+const TABS: [TabId, string][] = [
+  ["dashboard", "▤ Дашборд"],
+  ["news", "◆ Новости"],
+  ["users", "◇ Пользователи"],
+  ["locations", "⌖ Локации"],
+  ["workshops", "⚒ Мастерские"],
+  ["listings", "⌂ Объявления"],
+  ["orders", "↗ Заказы"],
+];
+
+const WS_TYPE_RU: Record<string, string> = { print3d: "3D-печать", eva: "EVA", sewing: "Швейная", wigs: "Парики" };
+const LISTING_TYPE_RU: Record<string, string> = { job: "Ищу спеца", collab: "Коллаб", sell: "Продаю", buy: "Куплю" };
+const ORDER_STATUS_RU: Record<string, string> = {
+  request: "Заявка", accepted: "Принят", in_work: "В работе", shipped: "Отправлен", done: "Получен", cancelled: "Отменён",
+};
+
 async function api(path: string, opts: RequestInit = {}) {
   return fetch(`/api/v1${path}`, { credentials: "include", ...opts });
 }
 
+function fmtDate(s: string) { try { return new Date(s).toLocaleDateString("ru-RU"); } catch { return ""; } }
+
 export default function AdminPanelPage() {
   const router = useRouter();
   const [ok, setOk] = useState<boolean | null>(null); // null=loading, false=нет доступа
-  const [tab, setTab] = useState<"news" | "users">("news");
+  const [tab, setTab] = useState<TabId>("dashboard");
 
   useEffect(() => {
     api("/auth/me/")
@@ -53,7 +72,7 @@ export default function AdminPanelPage() {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "210px 1fr", gap: 22, alignItems: "start" }}>
         <div className="ap-side" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 16, padding: 8 }}>
-          {([["news", "◆ Новости"], ["users", "◇ Пользователи"]] as const).map(([id, label]) => (
+          {TABS.map(([id, label]) => (
             <div key={id} onClick={() => setTab(id)}
               style={{
                 padding: "11px 14px", borderRadius: 11, cursor: "pointer", fontWeight: 600, fontSize: 14,
@@ -66,7 +85,15 @@ export default function AdminPanelPage() {
             </div>
           ))}
         </div>
-        <div>{tab === "news" ? <NewsAdmin /> : <UsersAdmin />}</div>
+        <div>
+          {tab === "dashboard" && <Dashboard onGo={setTab} />}
+          {tab === "news" && <NewsAdmin />}
+          {tab === "users" && <UsersAdmin roleFilter="" />}
+          {tab === "locations" && <UsersAdmin roleFilter="location" />}
+          {tab === "workshops" && <WorkshopsAdmin />}
+          {tab === "listings" && <ListingsAdmin />}
+          {tab === "orders" && <OrdersAdmin />}
+        </div>
       </div>
     </div>
   );
@@ -178,11 +205,12 @@ function NewsAdmin() {
 }
 
 // ─────────────────────────── ПОЛЬЗОВАТЕЛИ ───────────────────────────
-function UsersAdmin() {
+function UsersAdmin({ roleFilter = "" }: { roleFilter?: string }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [q, setQ] = useState("");
-  const [roleF, setRoleF] = useState("");
+  const [roleF, setRoleF] = useState(roleFilter);
   const [statusF, setStatusF] = useState("");
+  const locked = !!roleFilter; // вкладка «Локации» — роль зафиксирована
   const [expanded, setExpanded] = useState<{ id: number; mode: "roles" | "subs" | "pass" } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
@@ -229,14 +257,19 @@ function UsersAdmin() {
 
   return (
     <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
-      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Пользователи</h2>
-      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 14px" }}>Поиск и фильтры, создание аккаунтов, роли, блокировка и удаление.</p>
+      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>{locked ? "Локации (фотозоны)" : "Пользователи"}</h2>
+      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 14px" }}>
+        {locked ? "Профили с ролью «Локация»: анкета (тип/цена/вместимость) — в кнопке «Роли». Блокировка и удаление как у юзеров."
+                : "Поиск и фильтры, создание аккаунтов, роли, блокировка и удаление."}
+      </p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 ник / email / телефон" style={{ flex: "1 1 200px", minWidth: 160 }} />
-        <select value={roleF} onChange={(e) => setRoleF(e.target.value)} style={{ maxWidth: 170 }}>
-          <option value="">Все роли</option>
-          {ROLE_LIST.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
-        </select>
+        {!locked && (
+          <select value={roleF} onChange={(e) => setRoleF(e.target.value)} style={{ maxWidth: 170 }}>
+            <option value="">Все роли</option>
+            {ROLE_LIST.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+          </select>
+        )}
         <select value={statusF} onChange={(e) => setStatusF(e.target.value)} style={{ maxWidth: 170 }}>
           <option value="">Любой статус</option>
           <option value="active">Активные</option>
@@ -436,5 +469,205 @@ function PassEditor({ user, onDone }: { user: AdminUser; onDone: () => void }) {
       {done && <span style={{ color: "var(--green)", fontSize: 12 }}>✓ Готово</span>}
       {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
     </div>
+  );
+}
+
+// ─────────────────────────── ОБЩЕЕ ───────────────────────────
+function Card({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
+  return (
+    <div style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
+      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>{title}</h2>
+      {sub && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>{sub}</p>}
+      {children}
+    </div>
+  );
+}
+const rowStyle: CSSProperties = {
+  display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
+  background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 13, padding: "13px 16px", marginBottom: 10,
+};
+
+// ─────────────────────────── ДАШБОРД ───────────────────────────
+function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
+  const [s, setS] = useState<Record<string, number> | null>(null);
+  useEffect(() => { api("/admin-panel/stats/").then((r) => (r.ok ? r.json() : null)).then(setS); }, []);
+
+  const cards: { label: string; value: number; tab?: TabId; accent?: string }[] = s ? [
+    { label: "Пользователей", value: s.users_total, tab: "users" },
+    { label: "Активных", value: s.users_active, accent: "var(--green)" },
+    { label: "Заблокировано", value: s.users_blocked, accent: "var(--red)" },
+    { label: "Новых за 7 дней", value: s.users_new_7d, accent: "var(--accent-2)" },
+    { label: "Локаций", value: s.locations, tab: "locations" },
+    { label: "Мастерских", value: s.workshops, tab: "workshops" },
+    { label: "Объявлений (актив.)", value: s.listings_active, tab: "listings" },
+    { label: "Заказов (открытых)", value: s.orders_open, tab: "orders", accent: "var(--accent-3)" },
+    { label: "Новостей", value: s.news, tab: "news" },
+  ] : [];
+
+  return (
+    <Card title="Дашборд" sub="Сводка по платформе. Клик по карточке — переход в раздел.">
+      {!s ? <p style={{ color: "var(--ink-dim)" }}>Загрузка…</p> : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12 }}>
+          {cards.map((c) => (
+            <div key={c.label} onClick={() => c.tab && onGo(c.tab)}
+              style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 18px", cursor: c.tab ? "pointer" : "default" }}>
+              <div style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 28, color: c.accent || "var(--ink)" }}>{c.value}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>{c.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─────────────────────────── МАСТЕРСКИЕ ───────────────────────────
+type WsRow = { id: number; name: string; type: string; city: string; owner: string; is_pro: boolean; services: number; orders_count: number; created_at: string };
+function WorkshopsAdmin() {
+  const [items, setItems] = useState<WsRow[]>([]);
+  const [q, setQ] = useState("");
+  const [type, setType] = useState("");
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (type) p.set("type", type);
+    api(`/admin-panel/workshops/${p.toString() ? `?${p}` : ""}`).then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, type]);
+  async function remove(w: WsRow) {
+    if (!confirm(`Удалить мастерскую «${w.name}»? Заказы к ней тоже удалятся.`)) return;
+    const res = await api(`/admin-panel/workshops/${w.id}/delete/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== w.id));
+  }
+  return (
+    <Card title="Мастерские" sub="Все мастерские платформы. Поиск, модерация, удаление.">
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 название / город / владелец" style={{ flex: "1 1 200px" }} />
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ maxWidth: 170 }}>
+          <option value="">Все типы</option>
+          {Object.entries(WS_TYPE_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Ничего не найдено.</p>
+        : items.map((w) => (
+          <div key={w.id} style={rowStyle}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <b style={{ fontSize: 14 }}>{w.name}{w.is_pro && <span style={{ color: "var(--accent-3)", fontSize: 11, marginLeft: 6 }}>PRO</span>}</b>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                {WS_TYPE_RU[w.type] || w.type} · {w.city || "—"} · @{w.owner} · услуг: {w.services} · заказов: {w.orders_count}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a className="btn btn-ghost btn-sm" href={`/workshops/${w.id}`} target="_blank" rel="noopener noreferrer">Открыть</a>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(w)}>Удалить</button>
+            </div>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ОБЪЯВЛЕНИЯ ───────────────────────────
+type ListRow = { id: number; title: string; type: string; city: string; price: number | null; is_active: boolean; owner: string; created_at: string };
+function ListingsAdmin() {
+  const [items, setItems] = useState<ListRow[]>([]);
+  const [q, setQ] = useState("");
+  const [type, setType] = useState("");
+  const [status, setStatus] = useState("");
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (type) p.set("type", type);
+    if (status) p.set("status", status);
+    api(`/admin-panel/listings/${p.toString() ? `?${p}` : ""}`).then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, type, status]);
+  async function toggle(l: ListRow) {
+    const res = await api(`/admin-panel/listings/${l.id}/set-active/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !l.is_active }),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === l.id ? { ...x, is_active: d.is_active } : x))); }
+  }
+  async function remove(l: ListRow) {
+    if (!confirm(`Удалить объявление «${l.title}»?`)) return;
+    const res = await api(`/admin-panel/listings/${l.id}/delete/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== l.id));
+  }
+  return (
+    <Card title="Объявления (барахолка)" sub="Все объявления юзеров. Скрывай спам/нарушения или удаляй.">
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 заголовок / город / автор" style={{ flex: "1 1 180px" }} />
+        <select value={type} onChange={(e) => setType(e.target.value)} style={{ maxWidth: 150 }}>
+          <option value="">Все типы</option>
+          {Object.entries(LISTING_TYPE_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 150 }}>
+          <option value="">Любой статус</option>
+          <option value="active">Активные</option>
+          <option value="hidden">Скрытые</option>
+        </select>
+      </div>
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Ничего не найдено.</p>
+        : items.map((l) => (
+          <div key={l.id} style={{ ...rowStyle, opacity: l.is_active ? 1 : 0.55 }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <b style={{ fontSize: 14 }}>{l.title}{!l.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>скрыто</span>}</b>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                {LISTING_TYPE_RU[l.type] || l.type} · {l.city || "—"}{l.price ? ` · ${l.price}₸` : ""} · @{l.owner} · {fmtDate(l.created_at)}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => toggle(l)}>{l.is_active ? "Скрыть" : "Показать"}</button>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(l)}>Удалить</button>
+            </div>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ЗАКАЗЫ ───────────────────────────
+type OrderRow = { id: number; customer: string; workshop: string; description: string; budget: number | null; status: string; status_display: string; created_at: string };
+function OrdersAdmin() {
+  const [items, setItems] = useState<OrderRow[]>([]);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (status) p.set("status", status);
+    api(`/admin-panel/orders/${p.toString() ? `?${p}` : ""}`).then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, status]);
+  async function setOrderStatus(o: OrderRow, st: string) {
+    const res = await api(`/admin-panel/orders/${o.id}/set-status/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: st }),
+    });
+    if (res.ok) setItems((p) => p.map((x) => (x.id === o.id ? { ...x, status: st, status_display: ORDER_STATUS_RU[st] || st } : x)));
+  }
+  return (
+    <Card title="Заказы" sub="Все заказы между юзерами и мастерскими. Можно сменить статус для разбора споров.">
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 мастерская / заказчик / описание" style={{ flex: "1 1 200px" }} />
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 170 }}>
+          <option value="">Любой статус</option>
+          {Object.entries(ORDER_STATUS_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Заказов нет.</p>
+        : items.map((o) => (
+          <div key={o.id} style={rowStyle}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <b style={{ fontSize: 14 }}>#{o.id} · @{o.customer} → {o.workshop}</b>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                {o.description?.slice(0, 80)}{o.description?.length > 80 ? "…" : ""}{o.budget ? ` · ${o.budget}₸` : ""} · {fmtDate(o.created_at)}
+              </div>
+            </div>
+            <select value={o.status} onChange={(e) => setOrderStatus(o, e.target.value)} style={{ maxWidth: 150 }}>
+              {Object.entries(ORDER_STATUS_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+        ))}
+    </Card>
   );
 }

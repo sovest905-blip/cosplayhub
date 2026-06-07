@@ -11,6 +11,11 @@ from common.admin_panel import (
     AdminUserSubsView, AdminUserSubDeleteView, AdminUserStaffView,
     AdminUserActiveView, AdminUserDeleteView,
 )
+from common.admin_content import (
+    AdminStatsView, AdminWorkshopsView, AdminWorkshopDeleteView,
+    AdminListingsView, AdminListingActiveView, AdminListingDeleteView,
+    AdminOrdersView, AdminOrderStatusView,
+)
 
 api_v1 = [
     path("stats/", StatsView.as_view(), name="stats"),
@@ -32,6 +37,14 @@ api_v1 = [
     path("admin-panel/users/<int:pk>/reset-password/", AdminUserPasswordView.as_view(), name="ap-pass"),
     path("admin-panel/users/<int:pk>/subscriptions/", AdminUserSubsView.as_view(), name="ap-subs"),
     path("admin-panel/users/<int:pk>/subscriptions/<int:target_id>/", AdminUserSubDeleteView.as_view(), name="ap-sub-del"),
+    path("admin-panel/stats/", AdminStatsView.as_view(), name="ap-stats"),
+    path("admin-panel/workshops/", AdminWorkshopsView.as_view(), name="ap-workshops"),
+    path("admin-panel/workshops/<int:pk>/delete/", AdminWorkshopDeleteView.as_view(), name="ap-ws-del"),
+    path("admin-panel/listings/", AdminListingsView.as_view(), name="ap-listings"),
+    path("admin-panel/listings/<int:pk>/set-active/", AdminListingActiveView.as_view(), name="ap-listing-active"),
+    path("admin-panel/listings/<int:pk>/delete/", AdminListingDeleteView.as_view(), name="ap-listing-del"),
+    path("admin-panel/orders/", AdminOrdersView.as_view(), name="ap-orders"),
+    path("admin-panel/orders/<int:pk>/set-status/", AdminOrderStatusView.as_view(), name="ap-order-status"),
     # документация API
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
