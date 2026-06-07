@@ -407,6 +407,63 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
       {saved && <span style={{ color: "var(--green)", fontSize: 12, marginLeft: 10 }}>✓ Сохранено</span>}
 
       {roles.includes("workshop") && <WorkshopEditor userId={user.id} />}
+      {roles.includes("location") && <AdminLocationGallery userId={user.id} />}
+    </div>
+  );
+}
+
+// Фотогалерея локации в админке (до 20 фото за юзера).
+function AdminLocationGallery({ userId }: { userId: number }) {
+  const [photos, setPhotos] = useState<{ id: number; url: string }[]>([]);
+  const [up, setUp] = useState(false);
+  const [err, setErr] = useState("");
+  const MAX = 20;
+  function load() {
+    api(`/admin-panel/users/${userId}/photos/`).then((r) => (r.ok ? r.json() : [])).then((d) => setPhotos(Array.isArray(d) ? d : []));
+  }
+  useEffect(load, [userId]);
+  async function upload(file: File) {
+    setErr("");
+    if (photos.length >= MAX) { setErr(`Лимит ${MAX} фото`); return; }
+    if (file.size > 5 * 1024 * 1024) { setErr("Максимум 5 МБ"); return; }
+    setUp(true);
+    try {
+      const fd = new FormData(); fd.append("file", file);
+      const res = await api(`/admin-panel/users/${userId}/photos/`, { method: "POST", body: fd });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) setPhotos((p) => [...p, d]); else setErr(d.detail || "Не удалось");
+    } finally { setUp(false); }
+  }
+  async function remove(id: number) {
+    const res = await api(`/admin-panel/users/${userId}/photos/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setPhotos((p) => p.filter((x) => x.id !== id));
+  }
+  return (
+    <div style={{ marginTop: 16, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <h4 style={{ margin: 0, fontSize: 14 }}>⌖ Фотогалерея локации</h4>
+        <span style={{ fontSize: 12, color: photos.length >= MAX ? "var(--accent-3)" : "var(--ink-dim)" }}>{photos.length} / {MAX}</span>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Загрузи фото площадки за юзера. ≤5 МБ каждое.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 10 }}>
+        {photos.map((p) => (
+          <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
+            <div style={{ width: "100%", height: "100%", backgroundImage: `url('${p.url}')`, backgroundSize: "cover", backgroundPosition: "center" }} />
+            <button onClick={() => remove(p.id)} title="Удалить"
+              style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none",
+                background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
+          </div>
+        ))}
+        {photos.length < MAX && (
+          <label style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--line)", display: "flex",
+            alignItems: "center", justifyContent: "center", cursor: up ? "wait" : "pointer", color: "var(--ink-dim)", fontSize: 24 }}>
+            {up ? "…" : "+"}
+            <input type="file" accept="image/*" style={{ display: "none" }} disabled={up}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
+          </label>
+        )}
+      </div>
+      {err && <p style={{ color: "var(--red)", fontSize: 12, marginTop: 8 }}>{err}</p>}
     </div>
   );
 }

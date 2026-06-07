@@ -8,7 +8,8 @@ from rest_framework.response import Response
 
 from common.admin_panel import _StaffView
 from apps.users.models import User
-from apps.profiles.models import Profile
+from apps.profiles.models import Profile, ProfilePhoto
+from apps.profiles.serializers import ProfilePhotoSerializer
 from apps.workshops.models import Workshop
 from apps.workshops.serializers import WorkshopSerializer
 from apps.listings.models import Listing
@@ -157,6 +158,55 @@ class AdminListingDeleteView(_StaffView):
         if not l:
             return Response({"detail": "Не найдено"}, status=404)
         l.delete()
+        return Response(status=204)
+
+
+MAX_PHOTOS = 20
+
+
+class AdminUserPhotosView(_StaffView):
+    """GET — фото галереи юзера. POST — загрузить за юзера (multipart 'file', лимит 20)."""
+
+    def _profile(self, pk):
+        user = User.objects.filter(pk=pk, is_superuser=False).first()
+        if not user:
+            return None
+        prof, _ = Profile.objects.get_or_create(
+            user=user, defaults={"display_name": user.username or "user", "roles": ["fan"]},
+        )
+        return prof
+
+    def get(self, request, pk):
+        prof = self._profile(pk)
+        if not prof:
+            return Response({"detail": "Не найдено"}, status=404)
+        return Response(ProfilePhotoSerializer(prof.photos.all(), many=True).data)
+
+    def post(self, request, pk):
+        prof = self._profile(pk)
+        if not prof:
+            return Response({"detail": "Не найдено"}, status=404)
+        if prof.photos.count() >= MAX_PHOTOS:
+            return Response({"detail": f"Лимит {MAX_PHOTOS} фото"}, status=400)
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"detail": "Файл не передан"}, status=400)
+        if not file.content_type.startswith("image/"):
+            return Response({"detail": "Только изображения"}, status=400)
+        if file.size > 5 * 1024 * 1024:
+            return Response({"detail": "Максимум 5 МБ"}, status=400)
+        photo = ProfilePhoto.objects.create(profile=prof, image=file)
+        return Response(ProfilePhotoSerializer(photo).data, status=201)
+
+
+class AdminUserPhotoDeleteView(_StaffView):
+    """DELETE — удалить фото из галереи юзера."""
+
+    def delete(self, request, pk, photo_id):
+        photo = ProfilePhoto.objects.filter(pk=photo_id, profile__user_id=pk).first()
+        if photo:
+            photo.image.delete(save=False)
+            photo.delete()
         return Response(status=204)
 
 
