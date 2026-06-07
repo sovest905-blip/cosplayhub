@@ -211,6 +211,28 @@ export async function getEvents(): Promise<EventItem[] | null> {
   return Array.isArray(list) ? list : [];
 }
 
+export type GuideItem = {
+  id: number; title: string; summary: string; body: string; category: string;
+  cover: string | null; created_at: string;
+};
+
+export async function getGuides(): Promise<GuideItem[] | null> {
+  const data = await get(`/guides/`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+export type PublicListing = {
+  id: number; title: string; description: string; type: string; type_display: string;
+  city: string; price: number | null; owner: string; owner_id: number; created_at: string;
+};
+
+export async function getPublicListings(types = ""): Promise<PublicListing[] | null> {
+  const data = await get(`/listings/public/${types ? `?types=${types}` : ""}`);
+  return Array.isArray(data) ? data : (data ? [] : null);
+}
+
 // Каталоги магазинов/локаций = профили с соответствующей ролью.
 export async function getProfilesByRole(role: string): Promise<Person[] | null> {
   const data = await get(`/profiles/?role=${role}`);

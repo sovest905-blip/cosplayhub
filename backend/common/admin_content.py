@@ -16,6 +16,7 @@ from apps.listings.models import Listing
 from apps.orders.models import Order
 from apps.news.models import News
 from apps.events.models import Event
+from apps.guides.models import Guide
 
 OPEN_ORDER_STATUSES = ["request", "accepted", "in_work"]
 
@@ -38,6 +39,7 @@ class AdminStatsView(_StaffView):
             "orders_open": Order.objects.filter(status__in=OPEN_ORDER_STATUSES).count(),
             "news": News.objects.count(),
             "events": Event.objects.count(),
+            "guides": Guide.objects.count(),
         })
 
 

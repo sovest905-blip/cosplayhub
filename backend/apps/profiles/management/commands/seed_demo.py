@@ -10,6 +10,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.events.models import Event
+from apps.guides.models import Guide
 from apps.listings.models import Listing
 from apps.news.models import News
 from apps.profiles.models import Profile
@@ -159,7 +160,7 @@ class Command(BaseCommand):
         return u
 
     def handle(self, *args, **opts):
-        n_prof = n_ws = n_list = n_news = n_ev = 0
+        n_prof = n_ws = n_list = n_news = n_ev = n_guide = 0
         today = timezone.localdate()
 
         # Профили
@@ -241,6 +242,30 @@ class Command(BaseCommand):
             if created:
                 n_ev += 1
 
+        # Гайды
+        guides = [
+            {"title": "Термоформовка EVA: основы", "cat": "EVA",
+             "summary": "Как гнуть EVA феном и строить объёмные детали брони.",
+             "body": "Разогрев, формовка по болванке, фиксация формы, типичные ошибки новичков."},
+            {"title": "Стайлинг парика под персонажа", "cat": "Парики",
+             "summary": "Подбор, мытьё, укладка и фиксация причёски.",
+             "body": "Виды волокна, термоустойчивость, лак и пудра, крепёж шипов и хвостов."},
+            {"title": "Косплей-грим: контуринг и шрамы", "cat": "Грим",
+             "summary": "База, контуринг лица и накладные элементы.",
+             "body": "Праймер, тон, контур, латекс/желатин для шрамов, закрепление."},
+            {"title": "3D-печать реквизита: от STL до покраски", "cat": "3D-печать",
+             "summary": "Печать, постобработка и грунтовка деталей.",
+             "body": "Слайсинг, поддержки, шпатлёвка швов, грунт, покраска и лак."},
+        ]
+        for g in guides:
+            _, created = Guide.objects.get_or_create(
+                title=g["title"], defaults={"category": g["cat"], "summary": g["summary"],
+                                            "body": g["body"], "is_published": True},
+            )
+            if created:
+                n_guide += 1
+
         self.stdout.write(self.style.SUCCESS(
-            f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}, событий +{n_ev}. Пароль всех демо: {PWD}"
+            f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}, "
+            f"событий +{n_ev}, гайдов +{n_guide}. Пароль всех демо: {PWD}"
         ))

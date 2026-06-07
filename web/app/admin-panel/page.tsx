@@ -18,11 +18,12 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
+type TabId = "dashboard" | "news" | "events" | "guides" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
   ["events", "◈ События"],
+  ["guides", "❖ Гайды"],
   ["users", "◇ Пользователи"],
   ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
@@ -91,6 +92,7 @@ export default function AdminPanelPage() {
           {tab === "dashboard" && <Dashboard onGo={setTab} />}
           {tab === "news" && <NewsAdmin />}
           {tab === "events" && <EventsAdmin />}
+          {tab === "guides" && <GuidesAdmin />}
           {tab === "users" && <UsersAdmin roleFilter="" />}
           {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
@@ -668,6 +670,7 @@ function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
     { label: "Заказов (открытых)", value: s.orders_open, tab: "orders", accent: "var(--accent-3)" },
     { label: "Новостей", value: s.news, tab: "news" },
     { label: "Событий", value: s.events, tab: "events" },
+    { label: "Гайдов", value: s.guides, tab: "guides" },
   ] : [];
 
   return (
@@ -812,6 +815,83 @@ function EventsAdmin() {
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-ghost btn-sm" onClick={() => startEdit(e)}>Изменить</button>
               <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(e.id)}>Удалить</button>
+            </div>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ГАЙДЫ ───────────────────────────
+type GuideRow = { id: number; title: string; summary: string; body: string; category: string; created_at: string };
+function GuidesAdmin() {
+  const [items, setItems] = useState<GuideRow[]>([]);
+  const [show, setShow] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [f, setF] = useState({ title: "", summary: "", body: "", category: "" });
+  const [cover, setCover] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  function load() { api("/guides/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(d.results ?? d ?? [])); }
+  useEffect(load, []);
+  function reset() { setEditId(null); setF({ title: "", summary: "", body: "", category: "" }); setCover(null); setErr(""); }
+  function startEdit(g: GuideRow) {
+    setEditId(g.id); setF({ title: g.title, summary: g.summary || "", body: g.body || "", category: g.category || "" });
+    setCover(null); setErr(""); setShow(true);
+  }
+  async function save() {
+    if (!f.title.trim()) { setErr("Нужен заголовок"); return; }
+    setSaving(true); setErr("");
+    try {
+      const fd = new FormData();
+      fd.append("title", f.title); fd.append("summary", f.summary); fd.append("body", f.body); fd.append("category", f.category);
+      if (cover) fd.append("cover", cover);
+      const res = editId ? await api(`/guides/${editId}/`, { method: "PATCH", body: fd })
+                         : await api("/guides/", { method: "POST", body: fd });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || "Не удалось"); }
+      reset(); setShow(false); load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
+    finally { setSaving(false); }
+  }
+  async function remove(id: number) {
+    if (!confirm("Удалить гайд?")) return;
+    const res = await api(`/guides/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((g) => g.id !== id));
+  }
+  return (
+    <Card title="Гайды" sub="Туториалы по крафту. Видны всем на /guides.">
+      <button className="btn btn-primary btn-sm" style={{ marginBottom: 14 }}
+        onClick={() => { if (show) { reset(); setShow(false); } else { reset(); setShow(true); } }}>
+        {show ? "Отмена" : "+ Добавить гайд"}
+      </button>
+      {show && (
+        <div style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>{editId ? "Редактировать гайд" : "Новый гайд"}</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "0 14px" }}>
+            <div className="field"><label>Заголовок</label><input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Термоформовка EVA: основы" /></div>
+            <div className="field"><label>Категория</label><input value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} placeholder="EVA / Парики / Грим…" /></div>
+          </div>
+          <div className="field"><label>Кратко (анонс)</label><input value={f.summary} onChange={(e) => setF({ ...f, summary: e.target.value })} placeholder="О чём гайд в одну строку" /></div>
+          <div className="field"><label>Текст</label><textarea rows={5} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder="Полный текст гайда…" /></div>
+          <div className="field"><label>Обложка (опц.)</label><input type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] || null)} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Сохраняем…" : editId ? "Сохранить" : "Опубликовать"}</button>
+            {editId && <button className="btn btn-ghost" onClick={() => { reset(); setShow(false); }}>Отмена</button>}
+            {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
+          </div>
+        </div>
+      )}
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Гайдов пока нет.</p>
+        : items.map((g) => (
+          <div key={g.id} style={rowStyle}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <b style={{ fontSize: 14 }}>{g.category ? `[${g.category}] ` : ""}{g.title}</b>
+              {g.summary && <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>{g.summary}</div>}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => startEdit(g)}>Изменить</button>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(g.id)}>Удалить</button>
             </div>
           </div>
         ))}
