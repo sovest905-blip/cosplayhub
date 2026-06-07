@@ -479,28 +479,26 @@ export default function CabinetPage() {
         <button className="btn btn-primary btn-sm" onClick={() => saveRoleDetails(role)} disabled={rdSaving === role}>
           {rdSaving === role ? "Сохраняем..." : "Сохранить анкету"}
         </button>
+
+        {role === "location" && galleryBlock("Фотогалерея локации", "Покажи площадку: интерьер, свет, фоны.")}
+        {role === "photographer" && !roles.includes("location") &&
+          galleryBlock("Портфолио (фото)", "Покажи свои работы — лучшие кадры.")}
       </div>
     );
   }
 
-  // Единая фотогалерея профиля (для ролей Локация/Фотограф). Лимит зависит от ролей.
-  function renderGallery() {
+  // Блок фотогалереи ВНУТРИ анкеты роли (привязан к своей форме). title/hint зависят от роли.
+  function galleryBlock(title: string, hint: string) {
     const limit = galleryLimit(roles);
-    if (limit <= 0) return null;
-    const isPhotographer = roles.includes("photographer") && !roles.includes("location");
     return (
-      <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--line)" }}>
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <h3 style={{ margin: 0 }}>{isPhotographer ? "Портфолио (фото)" : "Фотогалерея"}</h3>
+          <h4 style={{ margin: 0, fontSize: 14 }}>{title}</h4>
           <span style={{ fontSize: 12, color: photos.length >= limit ? "var(--accent-3)" : "var(--ink-dim)" }}>
             {photos.length} / {limit}
           </span>
         </div>
-        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>
-          {isPhotographer
-            ? `Покажи свои работы — лучшие кадры. До ${limit} фото, каждое ≤5 МБ.`
-            : `Покажи площадку: интерьер, свет, фоны. До ${limit} фото, каждое ≤5 МБ.`}
-        </p>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>{hint} До {limit} фото, каждое ≤5 МБ.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 10 }}>
           {photos.map((p) => (
             <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
@@ -654,9 +652,6 @@ export default function CabinetPage() {
                 {roles.filter((r) => ROLE_FORMS[r]).map((r) => renderRoleForm(r))}
               </div>
             )}
-
-            {/* ─── Фотогалерея (роли Локация / Фотограф) ─── */}
-            {renderGallery()}
 
             {/* ─── Мои мастерские (только при роли «Мастерская») ─── */}
             {roles.includes("workshop") && (

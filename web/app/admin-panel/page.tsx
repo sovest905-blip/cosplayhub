@@ -399,6 +399,9 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
             </h4>
             <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>{cfg.hint}</p>
             <RoleFields role={role} values={details[role] || {}} onChange={(k, v) => setField(role, k, v)} />
+            {(role === "location" || (role === "photographer" && !roles.includes("location"))) && (
+              <AdminLocationGallery userId={user.id} roles={roles} />
+            )}
           </div>
         );
       })}
@@ -407,7 +410,6 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
       {saved && <span style={{ color: "var(--green)", fontSize: 12, marginLeft: 10 }}>✓ Сохранено</span>}
 
       {roles.includes("workshop") && <WorkshopEditor userId={user.id} />}
-      {galleryLimit(roles) > 0 && <AdminLocationGallery userId={user.id} roles={roles} />}
     </div>
   );
 }
