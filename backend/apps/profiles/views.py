@@ -4,8 +4,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
 from common.permissions import IsOwnerOrReadOnly
-from .models import Profile, Follow, Favorite
-from .serializers import ProfileSerializer
+from .models import Profile, Follow, Favorite, ProfilePhoto
+from .serializers import ProfileSerializer, ProfilePhotoSerializer
+
+MAX_PHOTOS = 20
+MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 МБ
 
 ROLE_ALIAS = {"photo": "photographer", "photographer": "photographer",
               "cosplayer": "cosplayer", "shop": "shop", "workshop": "workshop",
@@ -18,7 +21,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny, IsOwnerOrReadOnly]
 
     def get_queryset(self):
-        qs = Profile.objects.all().select_related("user").prefetch_related("socials")
+        qs = Profile.objects.all().select_related("user").prefetch_related("socials", "photos")
         role = self.request.query_params.get("role")
         if role:
             mapped = ROLE_ALIAS.get(role, role)
@@ -64,6 +67,56 @@ class ProfileViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
 
+# ─────────── Галерея фото профиля (фотозоны) ───────────
+
+def _my_profile(request):
+    prof, _ = Profile.objects.get_or_create(
+        user=request.user,
+        defaults={"display_name": request.user.username or request.user.email or "user", "roles": ["fan"]},
+    )
+    return prof
+
+
+class MyPhotosView(APIView):
+    """GET — мои фото. POST — загрузить (multipart 'file'), лимит 20 шт, ≤5МБ, только картинки."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def get(self, request):
+        prof = _my_profile(request)
+        return Response(ProfilePhotoSerializer(prof.photos.all(), many=True).data)
+
+    def post(self, request):
+        prof = _my_profile(request)
+        if prof.photos.count() >= MAX_PHOTOS:
+            return Response({"detail": f"Лимит {MAX_PHOTOS} фото достигнут"}, status=status.HTTP_400_BAD_REQUEST)
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)
+        if not file.content_type.startswith("image/"):
+            return Response({"detail": "Только изображения"}, status=status.HTTP_400_BAD_REQUEST)
+        if file.size > MAX_PHOTO_SIZE:
+            return Response({"detail": "Максимум 5 МБ"}, status=status.HTTP_400_BAD_REQUEST)
+        photo = ProfilePhoto.objects.create(profile=prof, image=file)
+        return Response(ProfilePhotoSerializer(photo).data, status=status.HTTP_201_CREATED)
+
+
+class MyPhotoDeleteView(APIView):
+    """DELETE — удалить своё фото."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def delete(self, request, photo_id):
+        prof = getattr(request.user, "profile", None)
+        if not prof:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        photo = ProfilePhoto.objects.filter(pk=photo_id, profile=prof).first()
+        if photo:
+            photo.image.delete(save=False)
+            photo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # ─────────── Подписки (фолловеры) ───────────
 
 def _user_or_none(pk):
@@ -72,7 +125,7 @@ def _user_or_none(pk):
 
 
 def _profiles_qs():
-    return Profile.objects.all().select_related("user").prefetch_related("socials")
+    return Profile.objects.all().select_related("user").prefetch_related("socials", "photos")
 
 
 class FollowDetailView(APIView):

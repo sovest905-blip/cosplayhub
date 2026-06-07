@@ -23,6 +23,7 @@ export type Person = {
   is_verified: boolean; available_for_work: boolean; is_pro: boolean;
   followers: number; looks: number; photo: string; specialization: string; bio: string;
   roles: string[]; role_details: Record<string, Record<string, any>>; socials: Social[];
+  photos: { id: number; url: string }[];
 };
 
 // Доступные соцсети: подпись, иконка-символ и база для ссылки (если ввели только ник).
@@ -79,6 +80,10 @@ export const ROLE_DETAIL_FIELDS: Record<string, { title: string; icon: string; f
       { key: "price_hour", label: "Цена", suffix: " ₸/час" },
       { key: "capacity", label: "Вместимость" },
       { key: "amenities", label: "Удобства" },
+      { key: "loc_instagram", label: "Instagram" },
+      { key: "loc_tiktok", label: "TikTok" },
+      { key: "loc_whatsapp", label: "WhatsApp" },
+      { key: "loc_site", label: "Сайт / 2GIS" },
     ],
   },
   fan: {
@@ -123,6 +128,9 @@ export function normalizeProfile(p: any): Person {
     role_details: (p.role_details && typeof p.role_details === "object") ? p.role_details : {},
     socials: Array.isArray(p.socials)
       ? p.socials.filter((s: any) => s && s.platform && s.handle).map((s: any) => ({ platform: s.platform, handle: s.handle }))
+      : [],
+    photos: Array.isArray(p.photos)
+      ? p.photos.filter((ph: any) => ph && ph.url).map((ph: any) => ({ id: ph.id, url: ph.url }))
       : [],
   };
 }

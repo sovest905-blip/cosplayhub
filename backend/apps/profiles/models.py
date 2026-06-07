@@ -33,6 +33,19 @@ class SocialLink(models.Model):
     is_connected = models.BooleanField(default=False)
 
 
+class ProfilePhoto(models.Model):
+    """Фото в галерее профиля (фотозоны/локации и др.). Лимит — в вьюхе (20)."""
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to="gallery/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"photo {self.id} of {self.profile_id}"
+
+
 class Favorite(models.Model):
     """Закладка: пользователь сохранил профиль или мастерскую."""
     KIND_CHOICES = [("profile", "Профиль"), ("workshop", "Мастерская")]

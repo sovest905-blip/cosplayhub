@@ -47,6 +47,11 @@ export const ROLE_FORMS: Record<string, { title: string; icon: string; hint: str
       { key: "price_hour", label: "Цена, ₸/час", type: "number", placeholder: "8000" },
       { key: "capacity", label: "Площадь / вместимость", type: "text", placeholder: "60 м², до 10 человек" },
       { key: "amenities", label: "Что есть", type: "text", placeholder: "Свет, фоны, гримёрка, парковка" },
+      // Соцсети/контакты именно локации (отдельно от личных соцсетей юзера)
+      { key: "loc_instagram", label: "Instagram локации", type: "text", placeholder: "@studio или ссылка" },
+      { key: "loc_tiktok", label: "TikTok локации", type: "text", placeholder: "@studio или ссылка" },
+      { key: "loc_whatsapp", label: "WhatsApp / телефон для брони", type: "text", placeholder: "+7 700 000 00 00" },
+      { key: "loc_site", label: "Сайт / 2GIS", type: "text", placeholder: "https://..." },
     ],
   },
   fan: {

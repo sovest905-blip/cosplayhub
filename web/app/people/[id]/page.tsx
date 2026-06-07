@@ -139,19 +139,33 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             );
           })}
 
-          <div className="about">
-            <h3>Образы</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
-              {[1,2,3,4,5,6].map((i) => (
-                <div key={i} style={{
-                  aspectRatio: "1", borderRadius: 10,
-                  backgroundImage: `url('${person.photo}')`,
-                  backgroundSize: "cover", backgroundPosition: "center",
-                  opacity: 0.6 + i * 0.04,
-                }} />
-              ))}
+          {person.photos?.length > 0 ? (
+            <div className="about">
+              <h3>Фотогалерея</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+                {person.photos.map((ph) => (
+                  <a key={ph.id} href={ph.url} target="_blank" rel="noopener noreferrer" style={{
+                    aspectRatio: "1", borderRadius: 10, display: "block",
+                    backgroundImage: `url('${ph.url}')`, backgroundSize: "cover", backgroundPosition: "center",
+                  }} />
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="about">
+              <h3>Образы</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+                {[1,2,3,4,5,6].map((i) => (
+                  <div key={i} style={{
+                    aspectRatio: "1", borderRadius: 10,
+                    backgroundImage: `url('${person.photo}')`,
+                    backgroundSize: "cover", backgroundPosition: "center",
+                    opacity: 0.6 + i * 0.04,
+                  }} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
