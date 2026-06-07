@@ -22,9 +22,15 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 X_FRAME_OPTIONS = "DENY"
 
-CORS_ALLOWED_ORIGINS = [os.getenv("FRONTEND_ORIGIN")]
+# Доверенные origin'ы для CORS и CSRF. Можно перечислить через запятую в
+# CSRF_TRUSTED_ORIGINS (приоритет) либо одним значением FRONTEND_ORIGIN.
+# ВАЖНО: origin включает порт. http://IP и http://IP:8080 — РАЗНЫЕ origin'ы.
+# Если не совпадает с тем, что шлёт браузер → "CSRF Failed: Origin checking failed".
+_raw_origins = os.getenv("CSRF_TRUSTED_ORIGINS") or os.getenv("FRONTEND_ORIGIN", "")
+_trusted = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+CORS_ALLOWED_ORIGINS = _trusted
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = [os.getenv("FRONTEND_ORIGIN")]
+CSRF_TRUSTED_ORIGINS = _trusted
 
 LOGGING = {
     "version": 1,
