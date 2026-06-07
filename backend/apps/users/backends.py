@@ -44,6 +44,8 @@ class IdentifierBackend(BaseBackend):
         user = resolve_user(username)
         if user is None:
             return None
+        if not user.is_active:
+            return None  # заблокированный аккаунт не пускаем
         if user.check_password(password):
             return user
         return None

@@ -12,7 +12,7 @@ const ROLE_RU: Record<string, string> = Object.fromEntries(ROLE_LIST.map((r) => 
 
 type AdminUser = {
   id: number; username: string; email: string; phone: string; city: string;
-  is_staff: boolean; is_verified: boolean; roles: string[]; role_details: Record<string, any>;
+  is_staff: boolean; is_active: boolean; is_verified: boolean; roles: string[]; role_details: Record<string, any>;
   profile_id: number | null; followers: number; following: number; avatar: string | null;
 };
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
@@ -181,15 +181,21 @@ function NewsAdmin() {
 function UsersAdmin() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [q, setQ] = useState("");
+  const [roleF, setRoleF] = useState("");
+  const [statusF, setStatusF] = useState("");
   const [expanded, setExpanded] = useState<{ id: number; mode: "roles" | "subs" | "pass" } | null>(null);
   const [showCreate, setShowCreate] = useState(false);
 
-  function load(query = "") {
-    api(`/admin-panel/users/${query ? `?q=${encodeURIComponent(query)}` : ""}`)
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (roleF) p.set("role", roleF);
+    if (statusF) p.set("status", statusF);
+    const qs = p.toString();
+    api(`/admin-panel/users/${qs ? `?${qs}` : ""}`)
       .then((r) => (r.ok ? r.json() : [])).then((d) => setUsers(Array.isArray(d) ? d : []));
   }
-  useEffect(() => { load(); }, []);
-  useEffect(() => { const t = setTimeout(() => load(q), 300); return () => clearTimeout(t); }, [q]);
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, roleF, statusF]);
 
   function patchUser(u: AdminUser) { setUsers((p) => p.map((x) => (x.id === u.id ? u : x))); }
 
@@ -203,28 +209,59 @@ function UsersAdmin() {
     else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
   }
 
+  async function toggleActive(u: AdminUser) {
+    const next = !u.is_active;
+    if (!confirm(next ? `Разблокировать ${u.username}?` : `Заблокировать ${u.username}? Он не сможет войти.`)) return;
+    const res = await api(`/admin-panel/users/${u.id}/set-active/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: next }),
+    });
+    if (res.ok) { patchUser(await res.json()); }
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
+  async function removeUser(u: AdminUser) {
+    if (!confirm(`Удалить аккаунт ${u.username} НАВСЕГДА? Восстановить нельзя.`)) return;
+    if (!confirm(`Точно удалить ${u.username}? Будут стёрты профиль, подписки, заказы.`)) return;
+    const res = await api(`/admin-panel/users/${u.id}/delete/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setUsers((p) => p.filter((x) => x.id !== u.id));
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
   return (
     <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Пользователи</h2>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 ник / email / телефон" style={{ maxWidth: 260 }} />
+      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Пользователи</h2>
+      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 14px" }}>Поиск и фильтры, создание аккаунтов, роли, блокировка и удаление.</p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 ник / email / телефон" style={{ flex: "1 1 200px", minWidth: 160 }} />
+        <select value={roleF} onChange={(e) => setRoleF(e.target.value)} style={{ maxWidth: 170 }}>
+          <option value="">Все роли</option>
+          {ROLE_LIST.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+        </select>
+        <select value={statusF} onChange={(e) => setStatusF(e.target.value)} style={{ maxWidth: 170 }}>
+          <option value="">Любой статус</option>
+          <option value="active">Активные</option>
+          <option value="blocked">Заблокированные</option>
+          <option value="staff">Админы</option>
+        </select>
       </div>
-      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>Создавай аккаунты вручную, меняй роли и подписки.</p>
 
       <button className="btn btn-primary btn-sm" style={{ marginBottom: 14 }} onClick={() => setShowCreate((v) => !v)}>
         {showCreate ? "Отмена" : "+ Создать пользователя"}
       </button>
-      {showCreate && <CreateUser onDone={() => { setShowCreate(false); load(q); }} />}
+      {showCreate && <CreateUser onDone={() => { setShowCreate(false); load(); }} />}
 
       {users.map((u) => (
-        <div key={u.id} style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
+        <div key={u.id} style={{ background: "var(--bg-3)", border: `1px solid ${u.is_active ? "var(--line)" : "rgba(255,84,112,.4)"}`, borderRadius: 14, padding: "14px 16px", marginBottom: 10, opacity: u.is_active ? 1 : 0.6 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <div style={{
               width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
               background: u.avatar ? `center/cover url('${u.avatar}')` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
             }} />
             <div style={{ flex: 1, minWidth: 150 }}>
-              <b style={{ fontSize: 14 }}>{u.username}{u.is_staff && <span style={{ color: "var(--accent-2)", fontSize: 11, marginLeft: 6 }}>admin</span>}</b>
+              <b style={{ fontSize: 14 }}>{u.username}
+                {u.is_staff && <span style={{ color: "var(--accent-2)", fontSize: 11, marginLeft: 6 }}>admin</span>}
+                {!u.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>заблокирован</span>}
+              </b>
               <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
                 {u.email || u.phone || "—"} · {u.followers} подп.
               </div>
@@ -246,6 +283,13 @@ function UsersAdmin() {
               <button className={`btn btn-sm ${u.is_staff ? "btn-primary" : "btn-ghost"}`}
                 onClick={() => toggleStaff(u)} title="Права администратора">
                 {u.is_staff ? "✓ Админ" : "Сделать админом"}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => toggleActive(u)}
+                style={{ color: u.is_active ? "var(--accent-3)" : "var(--green)" }}>
+                {u.is_active ? "Заблокировать" : "Разблокировать"}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => removeUser(u)} style={{ color: "var(--red)" }}>
+                Удалить
               </button>
             </div>
           </div>

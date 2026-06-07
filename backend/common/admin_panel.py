@@ -23,6 +23,7 @@ def _user_dict(u: User) -> dict:
         "phone": u.phone or "",
         "city": u.city or "",
         "is_staff": u.is_staff,
+        "is_active": u.is_active,
         "is_verified": u.is_verified,
         "roles": (prof.roles if prof else []) or [],
         "role_details": (prof.role_details if prof else {}) or {},
@@ -43,9 +44,23 @@ class AdminUsersView(_StaffView):
 
     def get(self, request):
         q = (request.query_params.get("q") or "").strip()
+        role = (request.query_params.get("role") or "").strip()
+        status_f = (request.query_params.get("status") or "").strip()  # active|blocked|staff
+        city = (request.query_params.get("city") or "").strip()
+
         qs = User.objects.filter(is_superuser=False).select_related("profile").order_by("-id")
         if q:
             qs = qs.filter(Q(username__icontains=q) | Q(email__icontains=q) | Q(phone__icontains=q))
+        if role in VALID_ROLES:
+            qs = qs.filter(profile__roles__contains=[role])
+        if city:
+            qs = qs.filter(city__icontains=city)
+        if status_f == "active":
+            qs = qs.filter(is_active=True)
+        elif status_f == "blocked":
+            qs = qs.filter(is_active=False)
+        elif status_f == "staff":
+            qs = qs.filter(is_staff=True)
         return Response([_user_dict(u) for u in qs[:100]])
 
     def post(self, request):
@@ -128,6 +143,34 @@ class AdminUserStaffView(_StaffView):
         user.is_staff = bool(request.data.get("is_staff"))
         user.save(update_fields=["is_staff"])
         return Response(_user_dict(user))
+
+
+class AdminUserActiveView(_StaffView):
+    """POST {is_active: bool} — заблокировать/разблокировать аккаунт.
+    Заблокированный (is_active=False) не может войти и его сессия становится недействительной."""
+
+    def post(self, request, pk):
+        user = _get_user(pk)
+        if not user:
+            return Response({"detail": "Не найдено"}, status=404)
+        if user == request.user:
+            return Response({"detail": "Нельзя блокировать самого себя"}, status=400)
+        user.is_active = bool(request.data.get("is_active"))
+        user.save(update_fields=["is_active"])
+        return Response(_user_dict(user))
+
+
+class AdminUserDeleteView(_StaffView):
+    """DELETE — полностью удалить аккаунт (со всеми связями: профиль, подписки, заказы)."""
+
+    def delete(self, request, pk):
+        user = _get_user(pk)
+        if not user:
+            return Response({"detail": "Не найдено"}, status=404)
+        if user == request.user:
+            return Response({"detail": "Нельзя удалить самого себя"}, status=400)
+        user.delete()
+        return Response(status=204)
 
 
 class AdminUserPasswordView(_StaffView):
