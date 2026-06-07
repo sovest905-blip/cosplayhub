@@ -37,6 +37,7 @@ export default function MobileMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [authed, setAuthed] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [q, setQ] = useState("");
   const [unreadMsg, setUnreadMsg] = useState(0);
@@ -47,9 +48,10 @@ export default function MobileMenu() {
   useEffect(() => {
     if (!open) return;
     fetch("/api/v1/auth/me/", { credentials: "include" })
-      .then((r) => {
+      .then(async (r) => {
         setAuthed(r.ok);
         if (r.ok) {
+          try { const me = await r.json(); setIsStaff(!!me.is_staff); } catch { /* ignore */ }
           // счётчики непрочитанного — только для залогиненных
           fetch("/api/v1/messages/unread-count/", { credentials: "include" })
             .then((x) => x.ok ? x.json() : { count: 0 }).then((d) => setUnreadMsg(d.count || 0)).catch(() => {});
@@ -172,6 +174,11 @@ export default function MobileMenu() {
                     🔔 Уведомления
                     {unreadNotif > 0 && <MobBadge n={unreadNotif} />}
                   </a>
+                  {isStaff && (
+                    <a href="/admin-panel" style={{ ...linkStyle, display: "flex", alignItems: "center", gap: 10, color: "var(--accent-2)" }} onClick={() => setOpen(false)}>
+                      ⚙ Админка
+                    </a>
+                  )}
                   <a href="/cabinet" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", margin: "16px 0 10px" }} onClick={() => setOpen(false)}>
                     Кабинет
                   </a>

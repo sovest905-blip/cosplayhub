@@ -18,11 +18,12 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "users" | "locations" | "workshops" | "listings" | "orders";
+type TabId = "dashboard" | "news" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
   ["users", "◇ Пользователи"],
+  ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
   ["workshops", "⚒ Мастерские"],
   ["listings", "⌂ Объявления"],
@@ -89,6 +90,7 @@ export default function AdminPanelPage() {
           {tab === "dashboard" && <Dashboard onGo={setTab} />}
           {tab === "news" && <NewsAdmin />}
           {tab === "users" && <UsersAdmin roleFilter="" />}
+          {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
           {tab === "workshops" && <WorkshopsAdmin />}
           {tab === "listings" && <ListingsAdmin />}
@@ -227,16 +229,6 @@ function UsersAdmin({ roleFilter = "" }: { roleFilter?: string }) {
 
   function patchUser(u: AdminUser) { setUsers((p) => p.map((x) => (x.id === u.id ? u : x))); }
 
-  async function toggleStaff(u: AdminUser) {
-    const next = !u.is_staff;
-    if (!confirm(next ? `Выдать ${u.username} права администратора?` : `Снять права администратора с ${u.username}?`)) return;
-    const res = await api(`/admin-panel/users/${u.id}/set-staff/`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_staff: next }),
-    });
-    if (res.ok) { patchUser(await res.json()); }
-    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
-  }
-
   async function toggleActive(u: AdminUser) {
     const next = !u.is_active;
     if (!confirm(next ? `Разблокировать ${u.username}?` : `Заблокировать ${u.username}? Он не сможет войти.`)) return;
@@ -313,10 +305,6 @@ function UsersAdmin({ roleFilter = "" }: { roleFilter?: string }) {
                   {m === "roles" ? "Роли" : m === "subs" ? "Подписки" : "Пароль"}
                 </button>
               ))}
-              <button className={`btn btn-sm ${u.is_staff ? "btn-primary" : "btn-ghost"}`}
-                onClick={() => toggleStaff(u)} title="Права администратора">
-                {u.is_staff ? "✓ Админ" : "Сделать админом"}
-              </button>
               <button className="btn btn-ghost btn-sm" onClick={() => toggleActive(u)}
                 style={{ color: u.is_active ? "var(--accent-3)" : "var(--green)" }}>
                 {u.is_active ? "Заблокировать" : "Разблокировать"}
@@ -668,6 +656,78 @@ function OrdersAdmin() {
             </select>
           </div>
         ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── АДМИНЫ ───────────────────────────
+function AdminsAdmin() {
+  const [admins, setAdmins] = useState<AdminUser[]>([]);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<AdminUser[]>([]);
+  const [msg, setMsg] = useState("");
+
+  function loadAdmins() {
+    api("/admin-panel/users/?status=staff").then((r) => (r.ok ? r.json() : [])).then((d) => setAdmins(Array.isArray(d) ? d : []));
+  }
+  useEffect(loadAdmins, []);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) { setResults([]); return; }
+    const t = setTimeout(() => {
+      api(`/admin-panel/users/?q=${encodeURIComponent(term)}`).then((r) => (r.ok ? r.json() : []))
+        .then((d) => setResults((Array.isArray(d) ? d : []).filter((u: AdminUser) => !u.is_staff)));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  async function setStaff(u: AdminUser, next: boolean) {
+    const word = next ? `Выдать ${u.username} права администратора?` : `Снять админа с ${u.username}?`;
+    if (!confirm(word)) return;
+    const res = await api(`/admin-panel/users/${u.id}/set-staff/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_staff: next }),
+    });
+    if (res.ok) {
+      loadAdmins(); setQ(""); setResults([]);
+      setMsg(next ? `${u.username} теперь админ ✓` : `${u.username} больше не админ`);
+      setTimeout(() => setMsg(""), 2500);
+    } else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
+  return (
+    <Card title="Админы" sub="Кто имеет доступ к этой панели. Назначай заместителей (напр. на отпуск) и снимай права.">
+      {msg && <div style={{ color: "var(--green)", fontSize: 13, marginBottom: 12 }}>{msg}</div>}
+
+      <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Текущие админы ({admins.length})</h3>
+      {admins.map((u) => (
+        <div key={u.id} style={rowStyle}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: "50%",
+              background: u.avatar ? `center/cover url('${u.avatar}')` : "linear-gradient(135deg,var(--accent),var(--accent-4))" }} />
+            <div>
+              <b style={{ fontSize: 14 }}>{u.username} <span style={{ color: "var(--accent-2)", fontSize: 11 }}>admin</span></b>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>{u.email || u.phone || "—"}</div>
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => setStaff(u, false)}>Снять админа</button>
+        </div>
+      ))}
+
+      <h3 style={{ margin: "22px 0 10px", fontSize: 15 }}>Назначить нового админа</h3>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 найди юзера по нику / email / телефону" style={{ marginBottom: 12 }} />
+      {q.trim().length >= 2 && results.length === 0 && (
+        <p style={{ color: "var(--ink-dim)", fontSize: 13 }}>Подходящих (не-админов) не найдено.</p>
+      )}
+      {results.map((u) => (
+        <div key={u.id} style={rowStyle}>
+          <div>
+            <b style={{ fontSize: 14 }}>{u.username}{!u.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>заблокирован</span>}</b>
+            <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>{u.email || u.phone || "—"}</div>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => setStaff(u, true)}>Сделать админом</button>
+        </div>
+      ))}
     </Card>
   );
 }

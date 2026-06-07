@@ -65,8 +65,9 @@ export default function AuthNav() {
   return (
     <div className="auth-nav">
       {me.is_staff && (
-        <a href="/admin-panel" className="icon-btn" title="Админ-панель" style={{ fontSize: 15 }}>
-          ⚙
+        <a href="/admin-panel" className="btn btn-ghost btn-sm" title="Админ-панель"
+          style={{ whiteSpace: "nowrap", borderColor: "rgba(124,249,255,.3)", color: "var(--accent-2)" }}>
+          ⚙ Админка
         </a>
       )}
       <a href="/messages" className="icon-btn" title="Сообщения" style={{ position: "relative" }}>
