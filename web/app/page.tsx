@@ -1,4 +1,5 @@
 import { PEOPLE, WORKSHOPS, EVENTS } from "../lib/mock";
+import { getProfiles, getWorkshops } from "../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,14 @@ async function fetchStats(): Promise<Stats> {
 }
 
 export default async function HomePage() {
-  const stats = await fetchStats();
+  const [stats, apiPeople, apiWs] = await Promise.all([
+    fetchStats(),
+    getProfiles("?role=cosplayer").catch(() => null),
+    getWorkshops().catch(() => null),
+  ]);
+  // Реальные данные из БД; фолбэк на мок, пока пусто.
+  const peopleList: any[] = apiPeople && apiPeople.length ? apiPeople : PEOPLE;
+  const wsList: any[] = apiWs && apiWs.length ? apiWs : WORKSHOPS;
   return (
     <>
       {/* HERO */}
@@ -119,7 +127,7 @@ export default async function HomePage() {
             <a href="/people" className="section-link">Все →</a>
           </div>
           <div className="people-grid">
-            {PEOPLE.slice(0, 4).map((p) => (
+            {peopleList.slice(0, 4).map((p) => (
               <a key={p.id} href={`/people/${p.id}`} className="person">
                 <div
                   className="person-img"
@@ -158,7 +166,7 @@ export default async function HomePage() {
             <a href="/workshops" className="section-link">Все →</a>
           </div>
           <div className="workshops-grid">
-            {WORKSHOPS.slice(0, 3).map((w) => (
+            {wsList.slice(0, 3).map((w) => (
               <a key={w.id} href={`/workshops/${w.id}`} className="ws-card">
                 <div className="ws-cover" style={{ backgroundImage: `url('${w.cover}')` }}>
                   {w.is_boosted && <div className="ws-boost">🔥 BOOST</div>}
