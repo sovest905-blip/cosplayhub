@@ -54,5 +54,6 @@ class LookViewSet(viewsets.ModelViewSet):
         else:
             LookLike.objects.filter(user=request.user, look=look).delete()
             liked = False
-        return Response({"likes_count": look.likes.count(), "is_liked": liked},
-                        status=status.HTTP_200_OK)
+        # Свежий счёт (не из prefetch-кэша get_object).
+        count = LookLike.objects.filter(look_id=look.pk).count()
+        return Response({"likes_count": count, "is_liked": liked}, status=status.HTTP_200_OK)
