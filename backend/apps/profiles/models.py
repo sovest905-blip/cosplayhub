@@ -33,8 +33,16 @@ class SocialLink(models.Model):
     is_connected = models.BooleanField(default=False)
 
 
+# Лимит фото в галерее по ролям. Берём максимум среди ролей профиля.
+GALLERY_LIMITS = {"location": 20, "photographer": 15}
+
+
+def gallery_limit(roles) -> int:
+    return max([GALLERY_LIMITS.get(r, 0) for r in (roles or [])] or [0])
+
+
 class ProfilePhoto(models.Model):
-    """Фото в галерее профиля (фотозоны/локации и др.). Лимит — в вьюхе (20)."""
+    """Фото в галерее профиля (локации/фотографы). Лимит зависит от ролей (gallery_limit)."""
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="photos")
     image = models.ImageField(upload_to="gallery/")
     created_at = models.DateTimeField(auto_now_add=True)

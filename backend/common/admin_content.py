@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from common.admin_panel import _StaffView
 from apps.users.models import User
-from apps.profiles.models import Profile, ProfilePhoto
+from apps.profiles.models import Profile, ProfilePhoto, gallery_limit
 from apps.profiles.serializers import ProfilePhotoSerializer
 from apps.workshops.models import Workshop
 from apps.workshops.serializers import WorkshopSerializer
@@ -186,8 +186,11 @@ class AdminUserPhotosView(_StaffView):
         prof = self._profile(pk)
         if not prof:
             return Response({"detail": "Не найдено"}, status=404)
-        if prof.photos.count() >= MAX_PHOTOS:
-            return Response({"detail": f"Лимит {MAX_PHOTOS} фото"}, status=400)
+        limit = gallery_limit(prof.roles)
+        if limit == 0:
+            return Response({"detail": "Галерея доступна для ролей «Локация» и «Фотограф»"}, status=400)
+        if prof.photos.count() >= limit:
+            return Response({"detail": f"Лимит {limit} фото"}, status=400)
         file = request.FILES.get("file")
         if not file:
             return Response({"detail": "Файл не передан"}, status=400)

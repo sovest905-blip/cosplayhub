@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { ROLE_FORMS, RoleFields } from "../../lib/roleForms";
+import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
 
 const ROLE_LIST: { slug: string; name: string }[] = [
   { slug: "cosplayer", name: "Косплеер" }, { slug: "photographer", name: "Фотограф" },
@@ -407,17 +407,18 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
       {saved && <span style={{ color: "var(--green)", fontSize: 12, marginLeft: 10 }}>✓ Сохранено</span>}
 
       {roles.includes("workshop") && <WorkshopEditor userId={user.id} />}
-      {roles.includes("location") && <AdminLocationGallery userId={user.id} />}
+      {galleryLimit(roles) > 0 && <AdminLocationGallery userId={user.id} roles={roles} />}
     </div>
   );
 }
 
-// Фотогалерея локации в админке (до 20 фото за юзера).
-function AdminLocationGallery({ userId }: { userId: number }) {
+// Фотогалерея в админке (за юзера). Лимит зависит от ролей (Локация 20 / Фотограф 15).
+function AdminLocationGallery({ userId, roles }: { userId: number; roles: string[] }) {
   const [photos, setPhotos] = useState<{ id: number; url: string }[]>([]);
   const [up, setUp] = useState(false);
   const [err, setErr] = useState("");
-  const MAX = 20;
+  const MAX = galleryLimit(roles);
+  const isPhotographer = roles.includes("photographer") && !roles.includes("location");
   function load() {
     api(`/admin-panel/users/${userId}/photos/`).then((r) => (r.ok ? r.json() : [])).then((d) => setPhotos(Array.isArray(d) ? d : []));
   }
@@ -441,10 +442,11 @@ function AdminLocationGallery({ userId }: { userId: number }) {
   return (
     <div style={{ marginTop: 16, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <h4 style={{ margin: 0, fontSize: 14 }}>⌖ Фотогалерея локации</h4>
+        <h4 style={{ margin: 0, fontSize: 14 }}>{isPhotographer ? "◐ Портфолио (фото)" : "⌖ Фотогалерея локации"}</h4>
         <span style={{ fontSize: 12, color: photos.length >= MAX ? "var(--accent-3)" : "var(--ink-dim)" }}>{photos.length} / {MAX}</span>
       </div>
-      <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Загрузи фото площадки за юзера. ≤5 МБ каждое.</p>
+      <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>
+        {isPhotographer ? "Загрузи работы фотографа за юзера." : "Загрузи фото площадки за юзера."} ≤5 МБ каждое.</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 10 }}>
         {photos.map((p) => (
           <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>

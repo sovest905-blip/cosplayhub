@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SOCIAL_META } from "../../lib/api";
-import { ROLE_FORMS, RoleFields } from "../../lib/roleForms";
+import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -76,7 +76,6 @@ export default function CabinetPage() {
   const [photos, setPhotos] = useState<{ id: number; url: string }[]>([]);
   const [photoUp, setPhotoUp] = useState(false);
   const [photoErr, setPhotoErr] = useState("");
-  const MAX_PHOTOS = 20;
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -359,7 +358,8 @@ export default function CabinetPage() {
 
   async function uploadGalleryPhoto(file: File) {
     setPhotoErr("");
-    if (photos.length >= MAX_PHOTOS) { setPhotoErr(`Лимит ${MAX_PHOTOS} фото`); return; }
+    const lim = galleryLimit(roles);
+    if (photos.length >= lim) { setPhotoErr(`Лимит ${lim} фото`); return; }
     if (file.size > 5 * 1024 * 1024) { setPhotoErr("Максимум 5 МБ"); return; }
     setPhotoUp(true);
     try {
@@ -479,39 +479,47 @@ export default function CabinetPage() {
         <button className="btn btn-primary btn-sm" onClick={() => saveRoleDetails(role)} disabled={rdSaving === role}>
           {rdSaving === role ? "Сохраняем..." : "Сохранить анкету"}
         </button>
+      </div>
+    );
+  }
 
-        {role === "location" && (
-          <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <h4 style={{ margin: 0, fontSize: 14 }}>Фотогалерея локации</h4>
-              <span style={{ fontSize: 12, color: photos.length >= MAX_PHOTOS ? "var(--accent-3)" : "var(--ink-dim)" }}>
-                {photos.length} / {MAX_PHOTOS}
-              </span>
+  // Единая фотогалерея профиля (для ролей Локация/Фотограф). Лимит зависит от ролей.
+  function renderGallery() {
+    const limit = galleryLimit(roles);
+    if (limit <= 0) return null;
+    const isPhotographer = roles.includes("photographer") && !roles.includes("location");
+    return (
+      <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <h3 style={{ margin: 0 }}>{isPhotographer ? "Портфолио (фото)" : "Фотогалерея"}</h3>
+          <span style={{ fontSize: 12, color: photos.length >= limit ? "var(--accent-3)" : "var(--ink-dim)" }}>
+            {photos.length} / {limit}
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>
+          {isPhotographer
+            ? `Покажи свои работы — лучшие кадры. До ${limit} фото, каждое ≤5 МБ.`
+            : `Покажи площадку: интерьер, свет, фоны. До ${limit} фото, каждое ≤5 МБ.`}
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 10 }}>
+          {photos.map((p) => (
+            <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
+              <div style={{ width: "100%", height: "100%", backgroundImage: `url('${p.url}')`, backgroundSize: "cover", backgroundPosition: "center" }} />
+              <button onClick={() => deleteGalleryPhoto(p.id)} title="Удалить"
+                style={{ position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: "50%",
+                  border: "none", background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>×</button>
             </div>
-            <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>
-              Покажи площадку: интерьер, свет, фоны. До {MAX_PHOTOS} фото, каждое ≤5 МБ.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 10 }}>
-              {photos.map((p) => (
-                <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
-                  <div style={{ width: "100%", height: "100%", backgroundImage: `url('${p.url}')`, backgroundSize: "cover", backgroundPosition: "center" }} />
-                  <button onClick={() => deleteGalleryPhoto(p.id)} title="Удалить"
-                    style={{ position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: "50%",
-                      border: "none", background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>×</button>
-                </div>
-              ))}
-              {photos.length < MAX_PHOTOS && (
-                <label style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--line)", display: "flex",
-                  alignItems: "center", justifyContent: "center", cursor: photoUp ? "wait" : "pointer", color: "var(--ink-dim)", fontSize: 26 }}>
-                  {photoUp ? "…" : "+"}
-                  <input type="file" accept="image/*" style={{ display: "none" }} disabled={photoUp}
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadGalleryPhoto(f); e.target.value = ""; }} />
-                </label>
-              )}
-            </div>
-            {photoErr && <p style={{ color: "var(--red)", fontSize: 12, marginTop: 8 }}>{photoErr}</p>}
-          </div>
-        )}
+          ))}
+          {photos.length < limit && (
+            <label style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--line)", display: "flex",
+              alignItems: "center", justifyContent: "center", cursor: photoUp ? "wait" : "pointer", color: "var(--ink-dim)", fontSize: 26 }}>
+              {photoUp ? "…" : "+"}
+              <input type="file" accept="image/*" style={{ display: "none" }} disabled={photoUp}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadGalleryPhoto(f); e.target.value = ""; }} />
+            </label>
+          )}
+        </div>
+        {photoErr && <p style={{ color: "var(--red)", fontSize: 12, marginTop: 8 }}>{photoErr}</p>}
       </div>
     );
   }
@@ -646,6 +654,9 @@ export default function CabinetPage() {
                 {roles.filter((r) => ROLE_FORMS[r]).map((r) => renderRoleForm(r))}
               </div>
             )}
+
+            {/* ─── Фотогалерея (роли Локация / Фотограф) ─── */}
+            {renderGallery()}
 
             {/* ─── Мои мастерские (только при роли «Мастерская») ─── */}
             {roles.includes("workshop") && (

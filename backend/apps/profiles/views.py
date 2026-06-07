@@ -4,10 +4,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
 from common.permissions import IsOwnerOrReadOnly
-from .models import Profile, Follow, Favorite, ProfilePhoto
+from .models import Profile, Follow, Favorite, ProfilePhoto, gallery_limit
 from .serializers import ProfileSerializer, ProfilePhotoSerializer
 
-MAX_PHOTOS = 20
 MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 МБ
 
 ROLE_ALIAS = {"photo": "photographer", "photographer": "photographer",
@@ -88,8 +87,11 @@ class MyPhotosView(APIView):
 
     def post(self, request):
         prof = _my_profile(request)
-        if prof.photos.count() >= MAX_PHOTOS:
-            return Response({"detail": f"Лимит {MAX_PHOTOS} фото достигнут"}, status=status.HTTP_400_BAD_REQUEST)
+        limit = gallery_limit(prof.roles)
+        if limit == 0:
+            return Response({"detail": "Галерея доступна для ролей «Локация» и «Фотограф»"}, status=status.HTTP_400_BAD_REQUEST)
+        if prof.photos.count() >= limit:
+            return Response({"detail": f"Лимит {limit} фото достигнут"}, status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES.get("file")
         if not file:
             return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)

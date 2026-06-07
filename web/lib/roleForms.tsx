@@ -2,6 +2,12 @@
 // редактирует свою анкету), и в админ-панели (админ правит анкету за юзера).
 "use client";
 
+// Лимит фотогалереи по ролям (макс среди ролей профиля). 0 = галерея недоступна.
+export const GALLERY_LIMITS: Record<string, number> = { location: 20, photographer: 15 };
+export function galleryLimit(roles: string[]): number {
+  return Math.max(0, ...(roles || []).map((r) => GALLERY_LIMITS[r] || 0));
+}
+
 export type RoleField = {
   key: string; label: string;
   type: "text" | "number" | "select" | "multi" | "toggle" | "textarea";
