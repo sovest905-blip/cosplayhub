@@ -475,7 +475,7 @@ function WorkshopEditor({ userId }: { userId: number }) {
       <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Мастерская — отдельная сущность с услугами. Заполни за юзера, если он не может.</p>
       {msg && <div style={{ color: "var(--green)", fontSize: 12, marginBottom: 8 }}>{msg}</div>}
 
-      {showNew && <WsForm v={nw} onChange={setNw as any} onSubmit={createWs} submitLabel="Создать мастерскую" />}
+      {showNew && <WsForm v={nw} onChange={(patch) => setNw((p) => ({ ...p, ...patch }))} onSubmit={createWs} submitLabel="Создать мастерскую" />}
 
       {items.map((w) => draft[w.id] && (
         <div key={w.id} style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, marginBottom: 10 }}>
