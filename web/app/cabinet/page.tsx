@@ -77,7 +77,8 @@ export default function CabinetPage() {
   const [photoUp, setPhotoUp] = useState(false);
   const [photoErr, setPhotoErr] = useState("");
   const [myLooks, setMyLooks] = useState<any[]>([]);
-  const [lookForm, setLookForm] = useState({ title: "", character: "" });
+  const [myTeams, setMyTeams] = useState<any[]>([]);
+  const [lookForm, setLookForm] = useState({ title: "", character: "", team: "" });
   const [lookImg, setLookImg] = useState<File | null>(null);
   const [lookUp, setLookUp] = useState(false);
   const [lookErr, setLookErr] = useState("");
@@ -189,6 +190,14 @@ export default function CabinetPage() {
         if (cancelled) return;
         const list = data?.results ?? data;
         if (Array.isArray(list)) setMyLooks(list);
+      }).catch(() => {});
+
+    fetch(`/api/v1/teams/?mine=1`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled) return;
+        const list = data?.results ?? data;
+        if (Array.isArray(list)) setMyTeams(list);
       }).catch(() => {});
 
     fetch(`/api/v1/workshops/mine/`, { credentials: "include" })
@@ -400,10 +409,11 @@ export default function CabinetPage() {
       const fd = new FormData();
       fd.append("title", lookForm.title);
       fd.append("character", lookForm.character);
+      if (lookForm.team) fd.append("team", lookForm.team);
       fd.append("image", lookImg);
       const res = await fetch(`/api/v1/looks/`, { method: "POST", credentials: "include", body: fd });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) { setMyLooks((prev) => [data, ...prev]); setLookForm({ title: "", character: "" }); setLookImg(null); }
+      if (res.ok) { setMyLooks((prev) => [data, ...prev]); setLookForm({ title: "", character: "", team: "" }); setLookImg(null); }
       else setLookErr(data.detail || data.image?.[0] || "Не удалось");
     } finally { setLookUp(false); }
   }
@@ -537,6 +547,14 @@ export default function CabinetPage() {
           <div className="field"><label>Название образа</label><input value={lookForm.title} onChange={(e) => setLookForm({ ...lookForm, title: e.target.value })} placeholder="Райден Сёгун" /></div>
           <div className="field"><label>Персонаж / фандом</label><input value={lookForm.character} onChange={(e) => setLookForm({ ...lookForm, character: e.target.value })} placeholder="Genshin Impact" /></div>
         </div>
+        {myTeams.length > 0 && (
+          <div className="field"><label>Команда (необязательно)</label>
+            <select value={lookForm.team} onChange={(e) => setLookForm({ ...lookForm, team: e.target.value })}>
+              <option value="">— без команды —</option>
+              {myTeams.map((tm) => <option key={tm.id} value={tm.id}>{tm.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="field"><label>Фото образа</label><input type="file" accept="image/*" onChange={(e) => setLookImg(e.target.files?.[0] || null)} /></div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <button className="btn btn-primary btn-sm" onClick={addLook} disabled={lookUp}>{lookUp ? "Загружаем…" : "+ Добавить образ"}</button>

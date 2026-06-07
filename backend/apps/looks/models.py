@@ -6,6 +6,8 @@ class Look(models.Model):
     """Образ косплеера (фото-пост). Лента /looks, лайки, модерация из админки."""
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                null=True, blank=True, related_name="looks")
+    team = models.ForeignKey("teams.Team", on_delete=models.SET_NULL, null=True, blank=True,
+                             related_name="looks")
     title = models.CharField("название", max_length=200)
     character = models.CharField("персонаж / фандом", max_length=160, blank=True)
     description = models.TextField("описание", blank=True)

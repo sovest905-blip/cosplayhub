@@ -8,12 +8,27 @@ class LookSerializer(serializers.ModelSerializer):
     author_id = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
+    team_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Look
         fields = ["id", "title", "character", "description", "image", "is_published",
-                  "author_name", "author_id", "likes_count", "is_liked", "created_at"]
-        read_only_fields = ["author_name", "author_id", "likes_count", "is_liked", "created_at"]
+                  "author_name", "author_id", "team", "team_name",
+                  "likes_count", "is_liked", "created_at"]
+        read_only_fields = ["author_name", "author_id", "team_name", "likes_count", "is_liked", "created_at"]
+
+    def get_team_name(self, obj):
+        return obj.team.name if obj.team else ""
+
+    def validate_team(self, team):
+        # Привязать образ можно только к своей команде (где ты участник).
+        if team is None:
+            return team
+        request = self.context.get("request")
+        user = request.user if request else None
+        if not user or not team.members.filter(user=user, status="member").exists():
+            raise serializers.ValidationError("Можно привязать только к своей команде")
+        return team
 
     def get_author_name(self, obj):
         return obj.author.username if obj.author else ""

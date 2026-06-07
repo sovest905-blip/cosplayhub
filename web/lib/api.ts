@@ -241,6 +241,23 @@ export async function getLooks(): Promise<LookItem[] | null> {
   return Array.isArray(list) ? list : [];
 }
 
+export type TeamListItem = {
+  id: number; name: string; city: string; avatar: string | null; cover: string | null;
+  is_open: boolean; members_count: number; likes_count: number;
+};
+
+export async function getTeams(): Promise<TeamListItem[] | null> {
+  const data = await get(`/teams/`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+export async function getTeam(id: string | number): Promise<any | null> {
+  const data = await get(`/teams/${id}/`);
+  return data && data.id ? data : null;
+}
+
 export type PublicListing = {
   id: number; title: string; description: string; type: string; type_display: string;
   city: string; price: number | null; owner: string; owner_id: number; created_at: string;

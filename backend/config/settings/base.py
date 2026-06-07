@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "apps.events",
     "apps.guides",
     "apps.looks",
+    "apps.teams",
 ]
 
 MIDDLEWARE = [

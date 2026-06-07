@@ -18,13 +18,14 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
+type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
   ["events", "◈ События"],
   ["guides", "❖ Гайды"],
   ["looks", "✧ Образы"],
+  ["teams", "♛ Команды"],
   ["users", "◇ Пользователи"],
   ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
@@ -95,6 +96,7 @@ export default function AdminPanelPage() {
           {tab === "events" && <EventsAdmin />}
           {tab === "guides" && <GuidesAdmin />}
           {tab === "looks" && <LooksAdmin />}
+          {tab === "teams" && <TeamsAdmin />}
           {tab === "users" && <UsersAdmin roleFilter="" />}
           {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
@@ -674,6 +676,7 @@ function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
     { label: "Событий", value: s.events, tab: "events" },
     { label: "Гайдов", value: s.guides, tab: "guides" },
     { label: "Образов", value: s.looks, tab: "looks" },
+    { label: "Команд", value: s.teams, tab: "teams" },
   ] : [];
 
   return (
@@ -940,6 +943,43 @@ function LooksAdmin() {
           ))}
         </div>
       )}
+    </Card>
+  );
+}
+
+// ─────────────────────────── КОМАНДЫ (модерация) ───────────────────────────
+type TeamRow = { id: number; name: string; city: string; captain_name: string; members_count: number; likes_count: number; is_active: boolean; is_open: boolean };
+function TeamsAdmin() {
+  const [items, setItems] = useState<TeamRow[]>([]);
+  function load() { api("/teams/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(d.results ?? d ?? [])); }
+  useEffect(load, []);
+  async function toggle(t: TeamRow) {
+    const res = await api(`/teams/${t.id}/`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !t.is_active }) });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === t.id ? { ...x, is_active: d.is_active } : x))); }
+  }
+  async function remove(t: TeamRow) {
+    if (!confirm(`Удалить команду «${t.name}»?`)) return;
+    const res = await api(`/teams/${t.id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== t.id));
+  }
+  return (
+    <Card title="Команды" sub="Косплей-команды (/teams). Модерация: скрыть или удалить.">
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Команд пока нет.</p>
+        : items.map((t) => (
+          <div key={t.id} style={{ ...rowStyle, opacity: t.is_active ? 1 : 0.55 }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <b style={{ fontSize: 14 }}>{t.name}{!t.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>скрыта</span>}</b>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                капитан @{t.captain_name || "—"} · {t.city || "—"} · {t.members_count} участн. · ♥ {t.likes_count}{t.is_open ? " · набор открыт" : ""}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a className="btn btn-ghost btn-sm" href={`/teams/${t.id}`} target="_blank" rel="noopener noreferrer">Открыть</a>
+              <button className="btn btn-ghost btn-sm" onClick={() => toggle(t)}>{t.is_active ? "Скрыть" : "Показать"}</button>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(t)}>Удалить</button>
+            </div>
+          </div>
+        ))}
     </Card>
   );
 }

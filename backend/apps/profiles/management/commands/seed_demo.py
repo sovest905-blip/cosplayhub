@@ -13,6 +13,7 @@ from apps.events.models import Event
 from apps.guides.models import Guide
 from apps.listings.models import Listing
 from apps.looks.models import Look
+from apps.teams.models import Team, TeamMember
 from apps.news.models import News
 from apps.profiles.models import Profile
 from apps.workshops.models import Service, Workshop
@@ -161,7 +162,7 @@ class Command(BaseCommand):
         return u
 
     def handle(self, *args, **opts):
-        n_prof = n_ws = n_list = n_news = n_ev = n_guide = n_look = 0
+        n_prof = n_ws = n_list = n_news = n_ev = n_guide = n_look = n_team = 0
         today = timezone.localdate()
 
         # Профили
@@ -315,7 +316,37 @@ class Command(BaseCommand):
             if created:
                 n_look += 1
 
+        # Команды (капитан + участники, привязка образов и событий)
+        teams = [
+            {"name": "Team Mondstadt", "captain": "yuki_cos", "city": "Алматы", "is_open": True,
+             "about": "Команда по вселенной Genshin Impact: групповые сеты и конвенты.",
+             "members": [("rin_kz", "Гримёр"), ("akira_lens", "Фотограф")]},
+            {"name": "Dark Continent", "captain": "darkmage", "city": "Шымкент", "is_open": False,
+             "about": "Тёмное фэнтези: Ведьмак, Берсерк, Диабло. Набор по заявке.",
+             "members": [("mangafan", "Реквизитор")]},
+        ]
+        for td in teams:
+            cap = User.objects.filter(username=td["captain"]).first()
+            if not cap:
+                continue
+            team, created = Team.objects.get_or_create(
+                name=td["name"], defaults={"captain": cap, "city": td["city"], "is_open": td["is_open"], "about": td["about"]},
+            )
+            TeamMember.objects.get_or_create(team=team, user=cap, defaults={"role_in_team": "Капитан", "status": "member"})
+            for uname, role in td["members"]:
+                u = User.objects.filter(username=uname).first()
+                if u:
+                    TeamMember.objects.get_or_create(team=team, user=u, defaults={"role_in_team": role, "status": "member"})
+            if created:
+                n_team += 1
+            # Привязать образы капитана к команде (портфолио)
+            if td["name"] == "Team Mondstadt":
+                Look.objects.filter(author=cap, team__isnull=True).update(team=team)
+                ev = Event.objects.filter(city="Алматы").first()
+                if ev:
+                    team.events.add(ev)
+
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}, "
-            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}. Пароль всех демо: {PWD}"
+            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}. Пароль всех демо: {PWD}"
         ))
