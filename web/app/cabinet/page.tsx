@@ -76,6 +76,11 @@ export default function CabinetPage() {
   const [photos, setPhotos] = useState<{ id: number; url: string }[]>([]);
   const [photoUp, setPhotoUp] = useState(false);
   const [photoErr, setPhotoErr] = useState("");
+  const [myLooks, setMyLooks] = useState<any[]>([]);
+  const [lookForm, setLookForm] = useState({ title: "", character: "" });
+  const [lookImg, setLookImg] = useState<File | null>(null);
+  const [lookUp, setLookUp] = useState(false);
+  const [lookErr, setLookErr] = useState("");
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -177,6 +182,14 @@ export default function CabinetPage() {
     fetch(`/api/v1/profiles/me/photos/`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (!cancelled && Array.isArray(data)) setPhotos(data); }).catch(() => {});
+
+    fetch(`/api/v1/looks/?mine=1`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled) return;
+        const list = data?.results ?? data;
+        if (Array.isArray(list)) setMyLooks(list);
+      }).catch(() => {});
 
     fetch(`/api/v1/workshops/mine/`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
@@ -377,6 +390,29 @@ export default function CabinetPage() {
     if (res.ok || res.status === 204) setPhotos((prev) => prev.filter((p) => p.id !== id));
   }
 
+  async function addLook() {
+    setLookErr("");
+    if (!lookForm.title.trim()) { setLookErr("Введите название образа"); return; }
+    if (!lookImg) { setLookErr("Добавьте фото"); return; }
+    if (lookImg.size > 5 * 1024 * 1024) { setLookErr("Максимум 5 МБ"); return; }
+    setLookUp(true);
+    try {
+      const fd = new FormData();
+      fd.append("title", lookForm.title);
+      fd.append("character", lookForm.character);
+      fd.append("image", lookImg);
+      const res = await fetch(`/api/v1/looks/`, { method: "POST", credentials: "include", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { setMyLooks((prev) => [data, ...prev]); setLookForm({ title: "", character: "" }); setLookImg(null); }
+      else setLookErr(data.detail || data.image?.[0] || "Не удалось");
+    } finally { setLookUp(false); }
+  }
+
+  async function delLook(id: number) {
+    const res = await fetch(`/api/v1/looks/${id}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok || res.status === 204) setMyLooks((prev) => prev.filter((l) => l.id !== id));
+  }
+
   async function createWorkshop() {
     if (!wsForm.name.trim() || !wsForm.city.trim()) {
       setWsErr("Заполни название и город"); return;
@@ -483,6 +519,43 @@ export default function CabinetPage() {
         {role === "location" && galleryBlock("Фотогалерея локации", "Покажи площадку: интерьер, свет, фоны.")}
         {role === "photographer" && !roles.includes("location") &&
           galleryBlock("Портфолио (фото)", "Покажи свои работы — лучшие кадры.")}
+        {role === "cosplayer" && looksBlock()}
+      </div>
+    );
+  }
+
+  // Блок «Мои образы» внутри анкеты косплеера. Образы видны в ленте /looks.
+  function looksBlock() {
+    return (
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <h4 style={{ margin: 0, fontSize: 14 }}>Мои образы</h4>
+          <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{myLooks.length} в ленте</span>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Покажи свои косплеи — они появятся в разделе «Образы» с лайками.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px", marginBottom: 8 }}>
+          <div className="field"><label>Название образа</label><input value={lookForm.title} onChange={(e) => setLookForm({ ...lookForm, title: e.target.value })} placeholder="Райден Сёгун" /></div>
+          <div className="field"><label>Персонаж / фандом</label><input value={lookForm.character} onChange={(e) => setLookForm({ ...lookForm, character: e.target.value })} placeholder="Genshin Impact" /></div>
+        </div>
+        <div className="field"><label>Фото образа</label><input type="file" accept="image/*" onChange={(e) => setLookImg(e.target.files?.[0] || null)} /></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <button className="btn btn-primary btn-sm" onClick={addLook} disabled={lookUp}>{lookUp ? "Загружаем…" : "+ Добавить образ"}</button>
+          {lookErr && <span style={{ color: "var(--red)", fontSize: 12 }}>{lookErr}</span>}
+        </div>
+        {myLooks.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 10 }}>
+            {myLooks.map((l) => (
+              <div key={l.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
+                <div style={{ aspectRatio: "3/4", backgroundSize: "cover", backgroundPosition: "center",
+                  backgroundImage: `url('${l.image || "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=300&q=80"}')` }} />
+                <div style={{ fontSize: 10, padding: "4px 6px", color: "var(--ink-dim)" }}>{l.title} · ♥ {l.likes_count}</div>
+                <button onClick={() => delLook(l.id)} title="Удалить"
+                  style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none",
+                    background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

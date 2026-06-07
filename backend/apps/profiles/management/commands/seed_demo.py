@@ -12,6 +12,7 @@ from django.utils import timezone
 from apps.events.models import Event
 from apps.guides.models import Guide
 from apps.listings.models import Listing
+from apps.looks.models import Look
 from apps.news.models import News
 from apps.profiles.models import Profile
 from apps.workshops.models import Service, Workshop
@@ -160,7 +161,7 @@ class Command(BaseCommand):
         return u
 
     def handle(self, *args, **opts):
-        n_prof = n_ws = n_list = n_news = n_ev = n_guide = 0
+        n_prof = n_ws = n_list = n_news = n_ev = n_guide = n_look = 0
         today = timezone.localdate()
 
         # Профили
@@ -265,7 +266,27 @@ class Command(BaseCommand):
             if created:
                 n_guide += 1
 
+        # Образы (фото — плейсхолдер на фронте, без файлов)
+        looks = [
+            ("yuki_cos", "Райден Сёгун", "Genshin Impact"),
+            ("yuki_cos", "Люси", "Cyberpunk: Edgerunners"),
+            ("rin_kz", "Годжо Сатору", "Jujutsu Kaisen"),
+            ("rin_kz", "Незуко", "Demon Slayer"),
+            ("darkmage", "Геральт", "The Witcher"),
+            ("darkmage", "Йеннифэр", "The Witcher"),
+        ]
+        for username, title, char in looks:
+            author = User.objects.filter(username=username).first()
+            if not author:
+                continue
+            _, created = Look.objects.get_or_create(
+                author=author, title=title,
+                defaults={"character": char, "is_published": True},
+            )
+            if created:
+                n_look += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}, "
-            f"событий +{n_ev}, гайдов +{n_guide}. Пароль всех демо: {PWD}"
+            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}. Пароль всех демо: {PWD}"
         ))

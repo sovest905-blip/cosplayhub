@@ -18,12 +18,13 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
+type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
   ["events", "◈ События"],
   ["guides", "❖ Гайды"],
+  ["looks", "✧ Образы"],
   ["users", "◇ Пользователи"],
   ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
@@ -93,6 +94,7 @@ export default function AdminPanelPage() {
           {tab === "news" && <NewsAdmin />}
           {tab === "events" && <EventsAdmin />}
           {tab === "guides" && <GuidesAdmin />}
+          {tab === "looks" && <LooksAdmin />}
           {tab === "users" && <UsersAdmin roleFilter="" />}
           {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
@@ -671,6 +673,7 @@ function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
     { label: "Новостей", value: s.news, tab: "news" },
     { label: "Событий", value: s.events, tab: "events" },
     { label: "Гайдов", value: s.guides, tab: "guides" },
+    { label: "Образов", value: s.looks, tab: "looks" },
   ] : [];
 
   return (
@@ -895,6 +898,46 @@ function GuidesAdmin() {
             </div>
           </div>
         ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ОБРАЗЫ (модерация) ───────────────────────────
+type LookRow = { id: number; title: string; character: string; image: string | null; is_published: boolean; author_name: string; likes_count: number };
+function LooksAdmin() {
+  const [items, setItems] = useState<LookRow[]>([]);
+  function load() { api("/looks/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(d.results ?? d ?? [])); }
+  useEffect(load, []);
+  async function togglePub(l: LookRow) {
+    const res = await api(`/looks/${l.id}/`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_published: !l.is_published }) });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === l.id ? { ...x, is_published: d.is_published } : x))); }
+  }
+  async function remove(l: LookRow) {
+    if (!confirm(`Удалить образ «${l.title}»?`)) return;
+    const res = await api(`/looks/${l.id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== l.id));
+  }
+  return (
+    <Card title="Образы" sub="Лента образов косплееров (/looks). Модерация: скрыть или удалить.">
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Образов пока нет.</p>
+        : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 12 }}>
+          {items.map((l) => (
+            <div key={l.id} style={{ background: "var(--bg-3)", border: `1px solid ${l.is_published ? "var(--line)" : "rgba(255,84,112,.4)"}`, borderRadius: 12, overflow: "hidden", opacity: l.is_published ? 1 : 0.6 }}>
+              <div style={{ aspectRatio: "3/4", backgroundSize: "cover", backgroundPosition: "center",
+                backgroundImage: `url('${l.image || "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=300&q=80"}')` }} />
+              <div style={{ padding: "8px 10px" }}>
+                <b style={{ fontSize: 13 }}>{l.title}</b>
+                <div style={{ fontSize: 11, color: "var(--ink-dim)", margin: "2px 0 8px" }}>@{l.author_name} · ♥ {l.likes_count}{!l.is_published ? " · скрыт" : ""}</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button className="btn btn-ghost btn-sm" style={{ flex: 1, padding: "5px 6px" }} onClick={() => togglePub(l)}>{l.is_published ? "Скрыть" : "Показать"}</button>
+                  <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)", padding: "5px 8px" }} onClick={() => remove(l)}>✕</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

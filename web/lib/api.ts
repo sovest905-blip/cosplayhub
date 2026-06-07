@@ -223,6 +223,19 @@ export async function getGuides(): Promise<GuideItem[] | null> {
   return Array.isArray(list) ? list : [];
 }
 
+export type LookItem = {
+  id: number; title: string; character: string; description: string; image: string | null;
+  is_published: boolean; author_name: string; author_id: number | null;
+  likes_count: number; is_liked: boolean; created_at: string;
+};
+
+export async function getLooks(): Promise<LookItem[] | null> {
+  const data = await get(`/looks/`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
 export type PublicListing = {
   id: number; title: string; description: string; type: string; type_display: string;
   city: string; price: number | null; owner: string; owner_id: number; created_at: string;
