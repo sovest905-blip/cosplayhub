@@ -1029,12 +1029,30 @@ function MoodboardsAdmin() {
 }
 
 // ─────────────────────────── ОБЪЯВЛЕНИЯ ───────────────────────────
-type ListRow = { id: number; title: string; type: string; city: string; price: number | null; is_active: boolean; owner: string; created_at: string };
+type ListRow = { id: number; title: string; type: string; city: string; price: number | null; description?: string; is_active: boolean; owner: string; created_at: string };
 function ListingsAdmin() {
   const [items, setItems] = useState<ListRow[]>([]);
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [form, setForm] = useState({ title: "", type: "job", city: "", description: "", price: "" });
+  const [saving, setSaving] = useState(false);
+  function startEdit(l: ListRow) {
+    setEditId(l.id);
+    setForm({ title: l.title || "", type: l.type || "job", city: l.city || "", description: l.description || "", price: l.price != null ? String(l.price) : "" });
+  }
+  async function saveEdit() {
+    if (editId === null) return;
+    setSaving(true);
+    try {
+      const res = await api(`/admin-panel/listings/${editId}/update/`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: form.title, type: form.type, city: form.city, description: form.description, price: form.price ? parseInt(form.price) : null }),
+      });
+      if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === editId ? { ...x, ...d } : x))); setEditId(null); }
+    } finally { setSaving(false); }
+  }
   function load() {
     const p = new URLSearchParams();
     if (q.trim()) p.set("q", q.trim());
@@ -1070,6 +1088,23 @@ function ListingsAdmin() {
       </div>
       {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Ничего не найдено.</p>
         : items.map((l) => (
+          editId === l.id ? (
+            <div key={l.id} style={{ ...rowStyle, flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ maxWidth: 150 }}>
+                  {Object.entries(LISTING_TYPE_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Город" style={{ flex: "1 1 120px" }} />
+                <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="₸" style={{ maxWidth: 110 }} />
+              </div>
+              <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Заголовок" />
+              <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Описание" />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={saving || !form.title.trim()}>{saving ? "Сохраняем…" : "Сохранить"}</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>Отмена</button>
+              </div>
+            </div>
+          ) : (
           <div key={l.id} style={{ ...rowStyle, opacity: l.is_active ? 1 : 0.55 }}>
             <div style={{ flex: 1, minWidth: 180 }}>
               <b style={{ fontSize: 14 }}>{l.title}{!l.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>скрыто</span>}</b>
@@ -1078,10 +1113,12 @@ function ListingsAdmin() {
               </div>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => startEdit(l)}>Изменить</button>
               <button className="btn btn-ghost btn-sm" onClick={() => toggle(l)}>{l.is_active ? "Скрыть" : "Показать"}</button>
               <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(l)}>Удалить</button>
             </div>
           </div>
+          )
         ))}
     </Card>
   );

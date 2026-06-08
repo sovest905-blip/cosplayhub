@@ -141,6 +141,7 @@ class AdminListingsView(_StaffView):
             "type": l.type,
             "city": l.city,
             "price": l.price,
+            "description": l.description,
             "is_active": l.is_active,
             "owner": l.user.username if l.user else "",
             "owner_id": l.user_id,
@@ -158,6 +159,34 @@ class AdminListingActiveView(_StaffView):
         l.is_active = bool(request.data.get("is_active"))
         l.save(update_fields=["is_active"])
         return Response({"id": l.id, "is_active": l.is_active})
+
+
+class AdminListingUpdateView(_StaffView):
+    """PATCH {title,type,city,description,price} — редактировать объявление."""
+
+    def patch(self, request, pk):
+        l = Listing.objects.filter(pk=pk).first()
+        if not l:
+            return Response({"detail": "Не найдено"}, status=404)
+        data = request.data
+        if "title" in data:
+            l.title = (data.get("title") or "").strip()
+        if "type" in data and data.get("type") in dict(Listing.TYPE_CHOICES):
+            l.type = data.get("type")
+        if "city" in data:
+            l.city = (data.get("city") or "").strip()
+        if "description" in data:
+            l.description = (data.get("description") or "").strip()
+        if "price" in data:
+            price = data.get("price")
+            l.price = int(price) if price not in (None, "", "null") else None
+        l.save()
+        return Response({
+            "id": l.id, "title": l.title, "type": l.type, "city": l.city,
+            "price": l.price, "description": l.description, "is_active": l.is_active,
+            "owner": l.user.username if l.user else "", "owner_id": l.user_id,
+            "created_at": l.created_at,
+        })
 
 
 class AdminListingDeleteView(_StaffView):

@@ -90,6 +90,7 @@ export default function CabinetPage() {
   const [listingForm, setListingForm] = useState({ title: "", type: "job", city: "", description: "", price: "" });
   const [showListingForm, setShowListingForm] = useState(false);
   const [listingSaving, setListingSaving] = useState(false);
+  const [editingListingId, setEditingListingId] = useState<number | null>(null);
   // Под-вкладка раздела «Объявления»: мои или общие (все публичные).
   const [listingScope, setListingScope] = useState<"mine" | "all">("mine");
   const [publicListings, setPublicListings] = useState<any[] | null>(null);
@@ -316,8 +317,9 @@ export default function CabinetPage() {
     if (!listingForm.title.trim()) return;
     setListingSaving(true);
     try {
-      const res = await fetch(`/api/v1/listings/`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const editing = editingListingId !== null;
+      const res = await fetch(editing ? `/api/v1/listings/${editingListingId}/` : `/api/v1/listings/`, {
+        method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
           title: listingForm.title,
@@ -329,11 +331,32 @@ export default function CabinetPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setListings((prev) => [data, ...prev]);
+        setListings((prev) => editing ? prev.map((l) => l.id === editingListingId ? data : l) : [data, ...prev]);
         setListingForm({ title: "", type: "job", city: "", description: "", price: "" });
         setShowListingForm(false);
+        setEditingListingId(null);
       }
     } finally { setListingSaving(false); }
+  }
+
+  // Открыть форму на редактирование объявления (заполнить полями).
+  function startEditListing(listing: Listing) {
+    setEditingListingId(listing.id);
+    setListingForm({
+      title: listing.title || "",
+      type: listing.type || "job",
+      city: listing.city || "",
+      description: listing.description || "",
+      price: listing.price != null ? String(listing.price) : "",
+    });
+    setShowListingForm(true);
+  }
+
+  // Сброс формы (отмена создания/редактирования).
+  function cancelListingForm() {
+    setShowListingForm(false);
+    setEditingListingId(null);
+    setListingForm({ title: "", type: "job", city: "", description: "", price: "" });
   }
 
   async function toggleListingActive(id: number, current: boolean) {
@@ -990,7 +1013,7 @@ export default function CabinetPage() {
               <h3 style={{ margin: 0 }}>Объявления</h3>
               {listingScope === "mine" && (
                 <button className="btn btn-primary btn-sm"
-                  onClick={() => setShowListingForm((v) => !v)}>
+                  onClick={() => showListingForm ? cancelListingForm() : setShowListingForm(true)}>
                   {showListingForm ? "Отмена" : "+ Создать"}
                 </button>
               )}
@@ -1077,7 +1100,7 @@ export default function CabinetPage() {
                     onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })} />
                 </div>
                 <button className="btn btn-primary" onClick={createListing} disabled={listingSaving || !listingForm.title.trim()}>
-                  {listingSaving ? "Публикуем..." : "Опубликовать"}
+                  {listingSaving ? "Сохраняем..." : editingListingId !== null ? "Сохранить" : "Опубликовать"}
                 </button>
               </div>
             )}
@@ -1119,6 +1142,11 @@ export default function CabinetPage() {
                             background: listing.is_active ? "rgba(124,249,255,.1)" : "rgba(255,255,255,.05)",
                             border: "1px solid var(--line)", color: listing.is_active ? "var(--accent-2)" : "var(--ink-dim)" }}>
                           {listing.is_active ? "Активно" : "Закрыто"}
+                        </button>
+                        <button onClick={() => startEditListing(listing)}
+                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                            background: "rgba(157,124,255,.1)", border: "1px solid rgba(157,124,255,.25)", color: "var(--accent-4)" }}>
+                          Изменить
                         </button>
                         <button onClick={() => deleteListing(listing.id)}
                           style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
