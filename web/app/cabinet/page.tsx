@@ -90,6 +90,9 @@ export default function CabinetPage() {
   const [listingForm, setListingForm] = useState({ title: "", type: "job", city: "", description: "", price: "" });
   const [showListingForm, setShowListingForm] = useState(false);
   const [listingSaving, setListingSaving] = useState(false);
+  // Под-вкладка раздела «Объявления»: мои или общие (все публичные).
+  const [listingScope, setListingScope] = useState<"mine" | "all">("mine");
+  const [publicListings, setPublicListings] = useState<any[] | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState<"avatar" | "cover" | null>(null);
@@ -376,6 +379,17 @@ export default function CabinetPage() {
   async function deleteListing(id: number) {
     const res = await fetch(`/api/v1/listings/${id}/`, { method: "DELETE", credentials: "include" });
     if (res.ok) setListings((prev) => prev.filter((l) => l.id !== id));
+  }
+
+  // Переключение под-вкладки. «Общие» подгружаем один раз (лениво).
+  function switchListingScope(scope: "mine" | "all") {
+    setListingScope(scope);
+    if (scope === "all" && publicListings === null) {
+      fetch(`/api/v1/listings/public/`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((d) => setPublicListings(Array.isArray(d) ? d : []))
+        .catch(() => setPublicListings([]));
+    }
   }
 
   async function uploadGalleryPhoto(file: File) {
@@ -972,14 +986,64 @@ export default function CabinetPage() {
       case "listings":
         return (
           <div className="acc-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0 }}>Объявления{listings.length > 0 ? ` (${listings.length})` : ""}</h3>
-              <button className="btn btn-primary btn-sm"
-                onClick={() => setShowListingForm((v) => !v)}>
-                {showListingForm ? "Отмена" : "+ Создать"}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h3 style={{ margin: 0 }}>Объявления</h3>
+              {listingScope === "mine" && (
+                <button className="btn btn-primary btn-sm"
+                  onClick={() => setShowListingForm((v) => !v)}>
+                  {showListingForm ? "Отмена" : "+ Создать"}
+                </button>
+              )}
+            </div>
+
+            {/* Под-вкладки: мои / общие */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              <button onClick={() => switchListingScope("mine")}
+                className={`chip${listingScope === "mine" ? " on" : ""}`}>
+                Мои{listings.length > 0 ? ` · ${listings.length}` : ""}
+              </button>
+              <button onClick={() => switchListingScope("all")}
+                className={`chip${listingScope === "all" ? " on" : ""}`}>
+                Общие{publicListings ? ` · ${publicListings.length}` : ""}
               </button>
             </div>
 
+            {listingScope === "all" ? (
+              publicListings === null ? (
+                <div style={{ color: "var(--ink-dim)", fontSize: 13, padding: "8px 0" }}>Загрузка…</div>
+              ) : publicListings.length === 0 ? (
+                <EmptyBlock icon="⌂" title="Объявлений пока нет"
+                  sub="Здесь появляются все активные объявления платформы — слоты, коллабы, барахолка." />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {publicListings.map((l) => (
+                    <div key={l.id} style={{
+                      padding: "12px 14px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 11,
+                    }}>
+                      <div>
+                        <span style={{
+                          fontSize: 10, padding: "2px 8px", borderRadius: 20, marginRight: 8,
+                          background: "rgba(157,124,255,.15)", color: "var(--accent-4)", border: "1px solid rgba(157,124,255,.25)",
+                        }}>
+                          {l.type_display || LISTING_TYPES[l.type] || l.type}
+                        </span>
+                        {l.city && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>📍 {l.city}</span>}
+                        {me.id && l.owner_id === me.id && (
+                          <span style={{ fontSize: 10, color: "var(--accent-2)", marginLeft: 8 }}>· моё</span>
+                        )}
+                        <div style={{ fontWeight: 600, fontSize: 14, marginTop: 6 }}>{l.title}</div>
+                        {l.description && <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>{l.description}</div>}
+                        <div style={{ display: "flex", gap: 12, marginTop: 6, alignItems: "center" }}>
+                          {l.price && <span style={{ fontSize: 12, color: "var(--accent-3)" }}>{Number(l.price).toLocaleString()} ₸</span>}
+                          {l.owner && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>@{l.owner}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+            <>
             {showListingForm && (
               <div style={{ padding: "16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 16 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
@@ -1066,6 +1130,8 @@ export default function CabinetPage() {
                   </div>
                 ))}
               </div>
+            )}
+            </>
             )}
           </div>
         );
