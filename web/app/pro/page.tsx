@@ -19,6 +19,7 @@ const PLANS = [
     name: PRICE_PLANS.pro.name,
     price: fmtPrice(PRICE_PLANS.pro.price),
     period: PRICE_PLANS.pro.period,
+    freeNote: `Первые ${PRO_FREE_BETA.months} месяцев бесплатно`,
     accent: "var(--accent)",
     features: [
       "Всё из бесплатного",
@@ -63,7 +64,7 @@ export default function ProPage() {
           Прокачай <span className="accent">профиль.</span>
         </h1>
         <p className="hero-sub" style={{ marginLeft: "auto", marginRight: "auto" }}>
-          Первые {PRO_FREE_BETA.slots} участников беты получают <strong style={{ color: "var(--ink)" }}>Pro бесплатно на {PRO_FREE_BETA.months} месяца</strong>.
+          Первые {PRO_FREE_BETA.months} месяцев <strong style={{ color: "var(--ink)" }}>Pro бесплатно</strong>, потом {fmtPrice(PRICE_PLANS.pro.price)}/мес.
           Платежи подключим после запуска ТОО — сейчас оформление бесплатное.
         </p>
       </section>
@@ -109,6 +110,9 @@ export default function ProPage() {
               <span style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 30, letterSpacing: "-.02em" }}>{p.price}</span>
               <span style={{ color: "var(--ink-dim)", fontSize: 12 }}>/ {p.period}</span>
             </div>
+            {p.freeNote && (
+              <div style={{ fontSize: 12, color: "var(--green)", fontWeight: 600, marginBottom: 4 }}>{p.freeNote}</div>
+            )}
             <ul style={{ listStyle: "none", padding: 0, margin: "18px 0 22px", display: "flex", flexDirection: "column", gap: 10 }}>
               {p.features.map((f) => (
                 <li key={f} style={{ display: "flex", gap: 9, fontSize: 13, color: "var(--ink)", lineHeight: 1.4 }}>

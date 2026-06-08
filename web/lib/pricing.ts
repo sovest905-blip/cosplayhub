@@ -20,14 +20,14 @@ export type Plan = {
 export const PLANS: Record<Plan["key"], Plan> = {
   free:     { key: "free",     name: "Бесплатный", price: 0,    period: "навсегда" },
   pro:      { key: "pro",      name: "Pro",        price: 1990, period: "в месяц" },
-  workshop: { key: "workshop", name: "Мастерская", price: 4990, period: "в месяц" },
+  workshop: { key: "workshop", name: "Мастерская", price: 1990, period: "в месяц" },
 };
 
 // Подписка фанатов («Поддержать · от N₸») на странице косплеера.
 export const FAN_SUPPORT_FROM = 500;
 
-// Бета-акция: сколько месяцев Pro бесплатно и для скольких первых участников.
-export const PRO_FREE_BETA = { months: 3, slots: 200 };
+// Стартовая акция: Pro бесплатно первые N месяцев, потом обычная цена.
+export const PRO_FREE_BETA = { months: 6 };
 
 // Формат суммы: 1990 → «1 990 ₸», 0 → «0 ₸».
 export function fmtPrice(n: number, currency = CURRENCY): string {
