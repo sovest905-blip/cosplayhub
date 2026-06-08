@@ -17,8 +17,13 @@ class Workshop(models.Model):
     eta = models.CharField("срок", max_length=40, blank=True)   # "7-14д"
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0)
     orders_count = models.PositiveIntegerField(default=0)
-    is_pro = models.BooleanField("PRO-тариф", default=False)    # 0% комиссии
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_pro(self) -> bool:
+        """PRO-тариф мастерской — вычисляется из активной подписки (billing)."""
+        sub = self.subscriptions.filter(plan="workshop").first()
+        return bool(sub and sub.is_active)
 
     def __str__(self):
         return self.name

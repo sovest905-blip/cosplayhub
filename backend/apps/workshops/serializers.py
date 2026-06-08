@@ -9,11 +9,12 @@ class ServiceSerializer(serializers.ModelSerializer):
 class WorkshopSerializer(serializers.ModelSerializer):
     services = ServiceSerializer(many=True, required=False)
     is_owner = serializers.SerializerMethodField()
+    is_pro = serializers.BooleanField(read_only=True)  # вычисляемое свойство модели
     class Meta:
         model = Workshop
         fields = ["id", "name", "type", "city", "about", "cover", "eta",
                   "rating", "orders_count", "is_pro", "services", "is_owner", "created_at"]
-        read_only_fields = ["rating", "orders_count", "is_pro", "created_at"]
+        read_only_fields = ["rating", "orders_count", "created_at"]
 
     def to_representation(self, instance):
         # Относительный URL обложки (/media/...): корректен и в браузере, и при SSR.

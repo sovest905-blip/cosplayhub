@@ -110,6 +110,10 @@ class MeSerializer(serializers.ModelSerializer):
         )
         data["avatar"] = prof.avatar.url if prof and prof.avatar else None
         data["cover"] = prof.cover.url if prof and prof.cover else None
+        # Pro-статус из billing (вычисляется по сроку)
+        pro_sub = instance.subscriptions.filter(plan="pro", workshop__isnull=True).first()
+        data["is_pro"] = bool(pro_sub and pro_sub.is_active)
+        data["pro_active_until"] = pro_sub.active_until if (pro_sub and pro_sub.is_active) else None
         return data
 
     def update(self, instance, validated_data):

@@ -30,5 +30,11 @@ class User(AbstractUser):
         """Аккаунт активен если хотя бы один идентификатор подтверждён."""
         return self.is_email_verified or self.is_phone_verified
 
+    @property
+    def is_pro(self) -> bool:
+        """Pro профиля — вычисляется из активной подписки (billing)."""
+        sub = self.subscriptions.filter(plan="pro", workshop__isnull=True).first()
+        return bool(sub and sub.is_active)
+
     def __str__(self):
         return self.email or self.phone or self.username

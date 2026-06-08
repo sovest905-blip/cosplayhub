@@ -14,7 +14,7 @@ class WorkshopViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny, IsOwnerOrReadOnly]
     authentication_classes = [CsrfExemptSessionAuthentication]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["type", "city", "is_pro"]
+    filterset_fields = ["type", "city"]  # is_pro теперь вычисляемое (billing), не фильтруется в БД
 
     def get_permissions(self):
         if self.action in ("create", "mine"):

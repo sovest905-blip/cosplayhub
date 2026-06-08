@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "apps.users",
     "apps.profiles",
     "apps.workshops",
+    "apps.billing",
     "apps.orders",
     "apps.listings",
     "apps.messaging",

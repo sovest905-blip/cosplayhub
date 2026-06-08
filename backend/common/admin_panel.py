@@ -16,6 +16,7 @@ VALID_ROLES = {"cosplayer", "photographer", "workshop", "shop", "location", "fan
 
 def _user_dict(u: User) -> dict:
     prof = getattr(u, "profile", None)
+    pro_sub = u.subscriptions.filter(plan="pro", workshop__isnull=True).first()
     return {
         "id": u.id,
         "username": u.username,
@@ -25,6 +26,8 @@ def _user_dict(u: User) -> dict:
         "is_staff": u.is_staff,
         "is_active": u.is_active,
         "is_verified": u.is_verified,
+        "is_pro": bool(pro_sub and pro_sub.is_active),
+        "pro_active_until": pro_sub.active_until if (pro_sub and pro_sub.is_active) else None,
         "roles": (prof.roles if prof else []) or [],
         "role_details": (prof.role_details if prof else {}) or {},
         "profile_id": prof.id if prof else None,

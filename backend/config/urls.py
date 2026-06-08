@@ -19,6 +19,7 @@ from common.admin_content import (
     AdminOrdersView, AdminOrderStatusView,
     AdminUserPhotosView, AdminUserPhotoDeleteView,
 )
+from common.admin_billing import AdminSubscriptionsView, AdminSubscriptionUpdateView
 
 api_v1 = [
     path("stats/", StatsView.as_view(), name="stats"),
@@ -26,6 +27,7 @@ api_v1 = [
     path("auth/", include("apps.users.urls")),
     path("", include("apps.profiles.urls")),
     path("", include("apps.workshops.urls")),
+    path("", include("apps.billing.urls")),
     path("", include("apps.orders.urls")),
     path("", include("apps.listings.urls")),
     path("", include("apps.messaging.urls")),
@@ -58,6 +60,9 @@ api_v1 = [
     path("admin-panel/listings/<int:pk>/delete/", AdminListingDeleteView.as_view(), name="ap-listing-del"),
     path("admin-panel/orders/", AdminOrdersView.as_view(), name="ap-orders"),
     path("admin-panel/orders/<int:pk>/set-status/", AdminOrderStatusView.as_view(), name="ap-order-status"),
+    # ── Подписки и тарифы (Pro / мастерские) ──
+    path("admin-panel/subscriptions/", AdminSubscriptionsView.as_view(), name="ap-subscriptions"),
+    path("admin-panel/subscriptions/<int:pk>/", AdminSubscriptionUpdateView.as_view(), name="ap-subscription-update"),
     # документация API — только для staff (раскрывает всю карту API)
     path("schema/", SpectacularAPIView.as_view(permission_classes=[IsAdminUser]), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema", permission_classes=[IsAdminUser]), name="docs"),
