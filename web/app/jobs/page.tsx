@@ -1,5 +1,6 @@
 import { getPublicListings, type PublicListing } from "../../lib/api";
 import ComingSoon from "../components/ComingSoon";
+import PostListingButton from "../components/PostListingButton";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function JobsPage() {
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, margin: "8px 0 24px" }}>
         <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 30, margin: 0 }}>Слоты и коллабы</h1>
-        <a href="/cabinet?tab=listings" className="btn btn-primary btn-sm">+ Разместить</a>
+        <PostListingButton />
       </div>
 
       <div style={{ display: "grid", gap: 12 }}>
