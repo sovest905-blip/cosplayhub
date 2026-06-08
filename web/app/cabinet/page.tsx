@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SOCIAL_META } from "../../lib/api";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
+import MessagesPanel from "../components/MessagesPanel";
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -66,6 +67,8 @@ type Listing = {
 export default function CabinetPage() {
   const router = useRouter();
   const [tab, setTab] = useState("dashboard");
+  const [msgTo, setMsgTo] = useState<string | null>(null);
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [me, setMe] = useState<any>(null);
   const [authed, setAuthed] = useState(false);
   const [form, setForm] = useState({ username: "", city: "", experience: "", bio: "" });
@@ -119,10 +122,21 @@ export default function CabinetPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setTab(params.get("tab") || "dashboard");
+    if (params.get("to")) setMsgTo(params.get("to"));
     if (params.get("new") === "workshop") {
       setTab("roles");
       setShowWsForm(true);
     }
+  }, []);
+
+  // Счётчик непрочитанных для бейджа вкладки «Сообщения» (до её открытия).
+  useEffect(() => {
+    fetch("/api/v1/conversations/", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((list) => Array.isArray(list)
+        ? setUnreadMsgs(list.reduce((s: number, c: any) => s + (c.unread || 0), 0))
+        : null)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -554,6 +568,7 @@ export default function CabinetPage() {
     { id: "socials",   icon: "⌘", label: "Соцсети" },
     { id: "orders",    icon: "⚒", label: "Заказы",     num: ordersCount || undefined },
     { id: "responses", icon: "↗", label: "Отклики",    num: newIncoming || undefined },
+    { id: "messages",  icon: "✉", label: "Сообщения",  num: unreadMsgs || undefined },
     { id: "favs",      icon: "♥", label: "Избранное" },
     { id: "listings",  icon: "⌂", label: "Объявления", num: activeListings || undefined },
     { id: "settings",  icon: "⚙", label: "Настройки" },
@@ -1014,6 +1029,17 @@ export default function CabinetPage() {
                 ))}
               </div>
             )}
+          </div>
+        );
+
+      case "messages":
+        return (
+          <div className="acc-card" style={{ padding: 0, overflow: "hidden" }}>
+            <MessagesPanel
+              toUser={msgTo}
+              onToConsumed={() => { setMsgTo(null); window.history.replaceState({}, "", "/cabinet?tab=messages"); }}
+              onUnreadChange={setUnreadMsgs}
+            />
           </div>
         );
 
