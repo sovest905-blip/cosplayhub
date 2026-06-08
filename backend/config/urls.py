@@ -4,6 +4,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from rest_framework.permissions import IsAdminUser
 
 from common.views import StatsView, SearchView
 from common.admin_panel import (
@@ -57,9 +58,9 @@ api_v1 = [
     path("admin-panel/listings/<int:pk>/delete/", AdminListingDeleteView.as_view(), name="ap-listing-del"),
     path("admin-panel/orders/", AdminOrdersView.as_view(), name="ap-orders"),
     path("admin-panel/orders/<int:pk>/set-status/", AdminOrderStatusView.as_view(), name="ap-order-status"),
-    # документация API
-    path("schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    # документация API — только для staff (раскрывает всю карту API)
+    path("schema/", SpectacularAPIView.as_view(permission_classes=[IsAdminUser]), name="schema"),
+    path("docs/", SpectacularSwaggerView.as_view(url_name="schema", permission_classes=[IsAdminUser]), name="docs"),
 ]
 
 urlpatterns = [
