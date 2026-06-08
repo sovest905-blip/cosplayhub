@@ -24,6 +24,14 @@ const LISTING_TYPES: Record<string, string> = {
   job: "Ищу специалиста", collab: "Коллаборация", sell: "Продаю", buy: "Куплю",
 };
 
+// Куда попадёт объявление в зависимости от типа (для подсказок юзеру).
+const LISTING_SECTION: Record<string, { name: string; href: string }> = {
+  sell:   { name: "Барахолка", href: "/market" },
+  buy:    { name: "Барахолка", href: "/market" },
+  job:    { name: "Слоты", href: "/jobs" },
+  collab: { name: "Слоты", href: "/jobs" },
+};
+
 const WORKSHOP_TYPES: Record<string, string> = {
   print3d: "3D-печать", eva: "EVA-броня", sewing: "Пошив", wigs: "Парики",
 };
@@ -1019,6 +1027,11 @@ export default function CabinetPage() {
               )}
             </div>
 
+            <p style={{ color: "var(--ink-dim)", fontSize: 12, margin: "0 0 14px", lineHeight: 1.5 }}>
+              «Продаю / Куплю» попадают в <a href="/market" style={{ color: "var(--accent-2)" }}>Барахолку</a>,
+              «Ищу спеца / Коллаб» — в <a href="/jobs" style={{ color: "var(--accent-2)" }}>Слоты</a>.
+            </p>
+
             {/* Под-вкладки: мои / общие */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <button onClick={() => switchListingScope("mine")}
@@ -1075,6 +1088,11 @@ export default function CabinetPage() {
                     <select value={listingForm.type} onChange={(e) => setListingForm({ ...listingForm, type: e.target.value })}>
                       {Object.entries(LISTING_TYPES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
+                    {LISTING_SECTION[listingForm.type] && (
+                      <small style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--ink-dim)" }}>
+                        Появится в разделе «<b style={{ color: "var(--accent-2)" }}>{LISTING_SECTION[listingForm.type].name}</b>»
+                      </small>
+                    )}
                   </div>
                   <div className="field" style={{ margin: 0 }}>
                     <label>Город</label>
@@ -1125,6 +1143,11 @@ export default function CabinetPage() {
                         }}>
                           {LISTING_TYPES[listing.type] || listing.type}
                         </span>
+                        {LISTING_SECTION[listing.type] && (
+                          <a href={LISTING_SECTION[listing.type].href} style={{ fontSize: 11, color: "var(--accent-2)", marginRight: 8 }}>
+                            → {LISTING_SECTION[listing.type].name}
+                          </a>
+                        )}
                         {listing.city && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>📍 {listing.city}</span>}
                         <div style={{ fontWeight: 600, fontSize: 14, marginTop: 6 }}>{listing.title}</div>
                         {listing.description && (

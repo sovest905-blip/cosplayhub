@@ -1073,7 +1073,7 @@ function ListingsAdmin() {
     if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== l.id));
   }
   return (
-    <Card title="Объявления (барахолка)" sub="Все объявления юзеров. Скрывай спам/нарушения или удаляй.">
+    <Card title="Объявления" sub="Все объявления юзеров (барахолка + слоты/коллабы). Скрывай спам/нарушения, редактируй или удаляй.">
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 заголовок / город / автор" style={{ flex: "1 1 180px" }} />
         <select value={type} onChange={(e) => setType(e.target.value)} style={{ maxWidth: 150 }}>
