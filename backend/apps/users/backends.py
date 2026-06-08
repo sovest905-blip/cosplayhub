@@ -7,10 +7,14 @@ from .models import User
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
-    """Сессионная авторизация без CSRF (для API, вызываемого своим фронтом).
-    Защита от CSRF обеспечивается SameSite=Lax на сессионной куке."""
-    def enforce_csrf(self, request):
-        return
+    """ИСТОРИЧЕСКОЕ имя: теперь CSRF ПРОВЕРЯЕТСЯ штатно (поведение = SessionAuthentication).
+
+    Раньше enforce_csrf был отключён и защита держалась ТОЛЬКО на SameSite=Lax —
+    это не закрывало форджинг с скомпрометированного same-site поддомена (напр. webmail).
+    Теперь фронт шлёт заголовок X-CSRFToken (из не-HttpOnly cookie csrftoken) на все мутации.
+    Имя класса оставлено, чтобы не трогать ~14 импортов; CSRF для анонимных запросов
+    DRF не требует (нет session-пользователя), поэтому login/register/verify работают как раньше."""
+    pass
 
 
 def _normalize_phone(raw: str) -> str:

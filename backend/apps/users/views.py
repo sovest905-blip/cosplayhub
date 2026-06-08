@@ -2,6 +2,8 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import login, logout
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import generics, status
@@ -100,10 +102,13 @@ class LogoutView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(ensure_csrf_cookie, name="dispatch")
 class MeView(generics.RetrieveUpdateAPIView):
     serializer_class = MeSerializer
     permission_classes = [IsAuthenticated]
-    authentication_classes = [CsrfExemptSessionAuthentication]  # PATCH из кабинета без CSRF-токена
+    authentication_classes = [CsrfExemptSessionAuthentication]
+    # ensure_csrf_cookie: GET /auth/me/ (дёргается AuthNav на каждой странице)
+    # гарантирует, что у залогиненного всегда свежая csrftoken-cookie для X-CSRFToken.
 
     def get_object(self):
         return self.request.user
