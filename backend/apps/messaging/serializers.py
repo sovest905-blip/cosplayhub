@@ -21,10 +21,20 @@ class ConversationSerializer(serializers.ModelSerializer):
     other = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread = serializers.SerializerMethodField()
+    listing = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
-        fields = ["id", "other", "last_message", "unread", "updated_at"]
+        fields = ["id", "other", "last_message", "unread", "listing", "updated_at"]
+
+    def get_listing(self, obj):
+        if not obj.listing_id and not obj.listing_title:
+            return None
+        return {
+            # id есть, только если объявление ещё не удалено
+            "id": obj.listing_id,
+            "title": obj.listing_title or (obj.listing.title if obj.listing else ""),
+        }
 
     def _other_user(self, obj):
         request = self.context.get("request")

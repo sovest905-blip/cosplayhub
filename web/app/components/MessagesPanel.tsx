@@ -6,6 +6,7 @@ export type Conversation = {
   other: { user_id: number; username: string; avatar: string | null } | null;
   last_message: { text: string; created_at: string; sender_id: number } | null;
   unread: number;
+  listing: { id: number | null; title: string } | null;
   updated_at: string;
 };
 
@@ -29,10 +30,12 @@ function timeShort(iso: string) {
 // toUser — начать/открыть диалог с этим пользователем (из барахолки, профиля и т.п.).
 export default function MessagesPanel({
   toUser = null,
+  listingId = null,
   onToConsumed,
   onUnreadChange,
 }: {
   toUser?: string | null;
+  listingId?: string | null;
   onToConsumed?: () => void;
   onUnreadChange?: (total: number) => void;
 }) {
@@ -71,7 +74,9 @@ export default function MessagesPanel({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ user: Number(toUser) }),
+          body: JSON.stringify(listingId
+            ? { user: Number(toUser), listing: Number(listingId) }
+            : { user: Number(toUser) }),
         });
         if (r.ok) {
           const conv = await r.json();
@@ -170,6 +175,15 @@ export default function MessagesPanel({
                 {c.other?.username || "Пользователь"}
                 {c.unread > 0 && <span className="msg-unread-dot">{c.unread}</span>}
               </div>
+              {c.listing && (
+                <div style={{
+                  display: "inline-block", maxWidth: "100%", marginTop: 2,
+                  fontSize: 11, color: "var(--accent-2)", whiteSpace: "nowrap",
+                  overflow: "hidden", textOverflow: "ellipsis",
+                }}>
+                  🏷 {c.listing.title}
+                </div>
+              )}
               <div className="msg-conv-last">{c.last_message?.text || "Нет сообщений"}</div>
             </div>
           </button>
@@ -190,6 +204,19 @@ export default function MessagesPanel({
                 <b>{active.other?.username || "Пользователь"}</b>
               </a>
             </div>
+
+            {active.listing && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "8px 14px",
+                background: "rgba(124,249,255,.08)", borderBottom: "1px solid var(--line)",
+                fontSize: 12, color: "var(--ink-dim)",
+              }}>
+                <span>🏷 По объявлению:</span>
+                {active.listing.id
+                  ? <a href="/market" style={{ color: "var(--accent-2)", fontWeight: 600 }}>{active.listing.title}</a>
+                  : <span style={{ color: "var(--ink)", fontWeight: 600 }}>{active.listing.title} <span style={{ color: "var(--ink-dim)", fontWeight: 400 }}>(снято)</span></span>}
+              </div>
+            )}
 
             <div className="msg-thread" ref={threadRef}>
               {messages.length === 0 ? (

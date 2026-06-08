@@ -68,6 +68,7 @@ export default function CabinetPage() {
   const router = useRouter();
   const [tab, setTab] = useState("dashboard");
   const [msgTo, setMsgTo] = useState<string | null>(null);
+  const [msgListing, setMsgListing] = useState<string | null>(null);
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [me, setMe] = useState<any>(null);
   const [authed, setAuthed] = useState(false);
@@ -123,6 +124,7 @@ export default function CabinetPage() {
     const params = new URLSearchParams(window.location.search);
     setTab(params.get("tab") || "dashboard");
     if (params.get("to")) setMsgTo(params.get("to"));
+    if (params.get("listing")) setMsgListing(params.get("listing"));
     if (params.get("new") === "workshop") {
       setTab("roles");
       setShowWsForm(true);
@@ -1037,7 +1039,8 @@ export default function CabinetPage() {
           <div className="acc-card" style={{ padding: 0, overflow: "hidden" }}>
             <MessagesPanel
               toUser={msgTo}
-              onToConsumed={() => { setMsgTo(null); window.history.replaceState({}, "", "/cabinet?tab=messages"); }}
+              listingId={msgListing}
+              onToConsumed={() => { setMsgTo(null); setMsgListing(null); window.history.replaceState({}, "", "/cabinet?tab=messages"); }}
               onUnreadChange={setUnreadMsgs}
             />
           </div>

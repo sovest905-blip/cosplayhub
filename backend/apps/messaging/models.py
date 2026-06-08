@@ -7,6 +7,14 @@ class Conversation(models.Model):
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name="conversations"
     )
+    # Если диалог начат по объявлению барахолки — помечаем его, чтобы не терялся.
+    listing = models.ForeignKey(
+        "listings.Listing", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="conversations",
+    )
+    listing_title = models.CharField(  # снимок названия — переживёт удаление объявления
+        "объявление", max_length=120, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)  # время последнего сообщения — для сортировки
 

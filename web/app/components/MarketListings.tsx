@@ -16,11 +16,11 @@ export default function MarketListings({ items }: { items: PublicListing[] }) {
     setWriting(true);
     try {
       const r = await fetch("/api/v1/auth/me/", { credentials: "include" });
-      const target = `/cabinet?tab=messages&to=${l.owner_id}`;
+      const target = `/cabinet?tab=messages&to=${l.owner_id}&listing=${l.id}`;
       if (r.ok) router.push(target);
       else router.push(`/auth/login?next=${encodeURIComponent(target)}`);
     } catch {
-      router.push(`/auth/login?next=${encodeURIComponent(`/cabinet?tab=messages&to=${l.owner_id}`)}`);
+      router.push(`/auth/login?next=${encodeURIComponent(`/cabinet?tab=messages&to=${l.owner_id}&listing=${l.id}`)}`);
     } finally {
       setWriting(false);
     }

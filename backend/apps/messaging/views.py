@@ -47,6 +47,18 @@ class ConversationListView(APIView):
         if not conv:
             conv = Conversation.objects.create()
             conv.participants.add(request.user, other)
+
+        # Привязка к объявлению барахолки (если диалог начат оттуда),
+        # чтобы переписка по объявлению не терялась среди чатов.
+        listing_id = request.data.get("listing")
+        if listing_id and not conv.listing_id:
+            from apps.listings.models import Listing
+            lst = Listing.objects.filter(pk=listing_id).first()
+            if lst:
+                conv.listing = lst
+                conv.listing_title = lst.title
+                conv.save(update_fields=["listing", "listing_title"])
+
         return Response(
             ConversationSerializer(conv, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
