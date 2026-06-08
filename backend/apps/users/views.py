@@ -125,15 +125,16 @@ class SendEmailOTPView(APIView):
         email = (request.data.get("email") or "").strip().lower()
         if not email:
             return Response({"detail": "Укажите email"}, status=400)
+        # Не раскрываем, существует ли аккаунт (защита от перечисления юзеров):
+        # ответ одинаков для существующего и несуществующего email; письмо шлём
+        # только если юзер реально есть.
         user = User.objects.filter(email=email).first()
-        if not user:
-            return Response({"detail": "Пользователь не найден"}, status=404)
-        try:
-            send_email_otp(email)
-        except Exception as e:
-            logger.error("send_email_otp failed for %s: %s", email, e)
-            return Response({"detail": "Не удалось отправить письмо"}, status=502)
-        return Response({"detail": "Код отправлен"})
+        if user:
+            try:
+                send_email_otp(email)
+            except Exception as e:
+                logger.error("send_email_otp failed for %s: %s", email, e)
+        return Response({"detail": "Если аккаунт существует, код отправлен"})
 
 
 class VerifyEmailOTPView(APIView):
@@ -164,15 +165,16 @@ class ForgotPasswordView(APIView):
         identifier = (request.data.get("identifier") or "").strip()
         user = resolve_user(identifier)
 
-        # Email-аккаунт → код на почту
+        # Email-аккаунт → код на почту. НЕ эхопим реальный email (защита от
+        # перечисления): фронт использует введённый идентификатор. Ответ для
+        # существующего и несуществующего email идентичен (см. ветку «не найден»).
         if user and user.email:
             try:
                 send_reset_otp(user.email)
             except Exception as e:
                 logger.error("send_reset_otp failed: %s", e)
-                return Response({"detail": "Не удалось отправить письмо"}, status=502)
-            return Response({"method": "email", "email": user.email,
-                             "detail": "Код отправлен на почту"})
+            return Response({"method": "email", "email": "",
+                             "detail": "Если аккаунт существует, код отправлен"})
 
         # Телефонный аккаунт → код в Telegram
         if user and user.phone:
