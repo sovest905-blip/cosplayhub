@@ -60,7 +60,7 @@ type IncomingOrder = {
 
 type Listing = {
   id: number; title: string; description: string; type: string;
-  city: string; price: number | null; is_active: boolean; created_at: string;
+  city: string; price: number | null; contact: string; is_active: boolean; created_at: string;
 };
 
 export default function CabinetPage() {
@@ -95,7 +95,7 @@ export default function CabinetPage() {
   const [ordersCount, setOrdersCount] = useState(0);
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
-  const [listingForm, setListingForm] = useState({ title: "", type: "", city: "", description: "", price: "" });
+  const [listingForm, setListingForm] = useState({ title: "", type: "", city: "", description: "", price: "", contact: "" });
   const [showListingForm, setShowListingForm] = useState(false);
   const [listingSaving, setListingSaving] = useState(false);
   const [editingListingId, setEditingListingId] = useState<number | null>(null);
@@ -336,12 +336,13 @@ export default function CabinetPage() {
           city: listingForm.city,
           description: listingForm.description,
           price: listingForm.price ? parseInt(listingForm.price) : null,
+          contact: listingForm.contact,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         setListings((prev) => editing ? prev.map((l) => l.id === editingListingId ? data : l) : [data, ...prev]);
-        setListingForm({ title: "", type: "", city: "", description: "", price: "" });
+        setListingForm({ title: "", type: "", city: "", description: "", price: "", contact: "" });
         setShowListingForm(false);
         setEditingListingId(null);
       }
@@ -357,6 +358,7 @@ export default function CabinetPage() {
       city: listing.city || "",
       description: listing.description || "",
       price: listing.price != null ? String(listing.price) : "",
+      contact: listing.contact || "",
     });
     setShowListingForm(true);
   }
@@ -365,7 +367,7 @@ export default function CabinetPage() {
   function cancelListingForm() {
     setShowListingForm(false);
     setEditingListingId(null);
-    setListingForm({ title: "", type: "", city: "", description: "", price: "" });
+    setListingForm({ title: "", type: "", city: "", description: "", price: "", contact: "" });
   }
 
   async function toggleListingActive(id: number, current: boolean) {
@@ -1122,6 +1124,11 @@ export default function CabinetPage() {
                   <label>Бюджет ₸ (необязательно)</label>
                   <input type="number" value={listingForm.price} placeholder="15000"
                     onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Контакты для связи (необязательно)</label>
+                  <input value={listingForm.contact} placeholder="@telegram, +7 700 000 00 00, почта"
+                    onChange={(e) => setListingForm({ ...listingForm, contact: e.target.value })} />
                 </div>
                 <button className="btn btn-primary" onClick={createListing}
                   disabled={listingSaving || !listingForm.title.trim() || !listingForm.type || !listingForm.city}>

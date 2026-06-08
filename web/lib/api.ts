@@ -284,7 +284,7 @@ export async function getMoodboard(id: string | number): Promise<any | null> {
 
 export type PublicListing = {
   id: number; title: string; description: string; type: string; type_display: string;
-  city: string; price: number | null; owner: string; owner_id: number; created_at: string;
+  city: string; price: number | null; contact?: string; owner: string; owner_id: number; created_at: string;
 };
 
 export async function getPublicListings(types = ""): Promise<PublicListing[] | null> {

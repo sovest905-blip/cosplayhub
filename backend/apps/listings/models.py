@@ -17,6 +17,10 @@ class Listing(models.Model):
     type = models.CharField("тип", max_length=20, choices=TYPE_CHOICES)
     city = models.CharField("город", max_length=80, blank=True)
     price = models.PositiveIntegerField("цена ₸", null=True, blank=True)
+    contact = models.CharField(
+        "контакты для связи", max_length=200, blank=True,
+        help_text="Telegram, телефон, почта и т.п. Показывается в объявлении.",
+    )
     is_active = models.BooleanField("активно", default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

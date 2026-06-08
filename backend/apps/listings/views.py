@@ -39,6 +39,7 @@ class PublicListingsView(APIView):
         return Response([{
             "id": l.id, "title": l.title, "description": l.description, "type": l.type,
             "type_display": TYPE_RU.get(l.type, l.type), "city": l.city, "price": l.price,
+            "contact": l.contact,
             "owner": l.user.username if l.user else "", "owner_id": l.user_id,
             "created_at": l.created_at,
         } for l in qs[:120]])
