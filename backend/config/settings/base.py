@@ -132,7 +132,10 @@ SPECTACULAR_SETTINGS = {
 }
 
 # ── Email (SMTP) ──────────────────────────────────────────────────────────────
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# Свой почтовик (Postfix на той же машине) отдаёт самоподписанный Plesk-сертификат,
+# поэтому для него используем backend без проверки серта (config.email_backend).
+# Через env, чтобы dev/mailhog/Brevo оставались на стандартном backend.
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
 EMAIL_HOST = os.getenv("EMAIL_HOST", "mailhog")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "1025"))
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
