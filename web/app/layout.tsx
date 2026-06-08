@@ -4,6 +4,7 @@ import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import AuthNav from "./components/AuthNav";
 import MobileMenu from "./components/MobileMenu";
 import SearchBox from "./components/SearchBox";
+import { getNavStats, pl } from "../lib/api";
 import "./globals.css";
 
 // Самохостинг шрифтов: скачиваются при сборке, без зависимости от CDN в рантайме.
@@ -43,7 +44,8 @@ export const viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const s = await getNavStats();
   return (
     <html lang="ru" className={`${unbounded.variable} ${jetbrainsMono.variable} ${manrope.variable}`}>
       <body>
@@ -63,19 +65,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <div className="drop">
                   <a href="/people">
                     <div className="drop-ic">◉</div>
-                    <div><b>Косплееры</b><small>1 248 анкет</small></div>
+                    <div><b>Косплееры</b><small>{pl(s?.cosplayer_profiles ?? 0, ["анкета", "анкеты", "анкет"])}</small></div>
                   </a>
                   <a href="/people?role=photo">
                     <div className="drop-ic">◐</div>
-                    <div><b>Фотографы</b><small>340 профилей</small></div>
+                    <div><b>Фотографы</b><small>{pl(s?.photographers ?? 0, ["профиль", "профиля", "профилей"])}</small></div>
                   </a>
                   <a href="/looks">
                     <div className="drop-ic">✧</div>
-                    <div><b>Образы</b><small>3 400 работ</small></div>
+                    <div><b>Образы</b><small>{pl(s?.looks ?? 0, ["работа", "работы", "работ"])}</small></div>
                   </a>
                   <a href="/teams">
                     <div className="drop-ic">♛</div>
-                    <div><b>Команды</b><small>86 объявлений</small></div>
+                    <div><b>Команды</b><small>{pl(s?.teams ?? 0, ["команда", "команды", "команд"])}</small></div>
                   </a>
                 </div>
               </div>
@@ -84,19 +86,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <div className="drop">
                   <a href="/workshops">
                     <div className="drop-ic">◆</div>
-                    <div><b>Мастерские</b><small>180 студий</small></div>
+                    <div><b>Мастерские</b><small>{pl(s?.workshops ?? 0, ["студия", "студии", "студий"])}</small></div>
                   </a>
                   <a href="/shops">
                     <div className="drop-ic">⌂</div>
-                    <div><b>Магазины</b><small>62 точки</small></div>
+                    <div><b>Магазины</b><small>{pl(s?.shops ?? 0, ["точка", "точки", "точек"])}</small></div>
                   </a>
                   <a href="/jobs">
                     <div className="drop-ic">⚒</div>
-                    <div><b>Слоты</b><small>54 заказа</small></div>
+                    <div><b>Слоты</b><small>{pl(s?.jobs ?? 0, ["заказ", "заказа", "заказов"])}</small></div>
                   </a>
                   <a href="/locations">
                     <div className="drop-ic">⌖</div>
-                    <div><b>Локации</b><small>120 мест</small></div>
+                    <div><b>Локации</b><small>{pl(s?.locations ?? 0, ["место", "места", "мест"])}</small></div>
                   </a>
                 </div>
               </div>
@@ -105,19 +107,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <div className="drop">
                   <a href="/events">
                     <div className="drop-ic">◈</div>
-                    <div><b>События</b><small>38 ближайших</small></div>
+                    <div><b>События</b><small>{pl(s?.events ?? 0, ["ближайшее", "ближайших", "ближайших"])}</small></div>
                   </a>
                   <a href="/guides">
                     <div className="drop-ic">▤</div>
-                    <div><b>Гайды</b><small>230 материалов</small></div>
+                    <div><b>Гайды</b><small>{pl(s?.guides ?? 0, ["материал", "материала", "материалов"])}</small></div>
                   </a>
                   <a href="/market">
                     <div className="drop-ic">✄</div>
-                    <div><b>Барахолка</b><small>420 объявлений</small></div>
+                    <div><b>Барахолка</b><small>{pl(s?.market ?? 0, ["объявление", "объявления", "объявлений"])}</small></div>
                   </a>
                   <a href="/moodboards">
                     <div className="drop-ic">◇</div>
-                    <div><b>Доски</b><small>Мудборды</small></div>
+                    <div><b>Доски</b><small>{pl(s?.moodboards ?? 0, ["доска", "доски", "досок"])}</small></div>
                   </a>
                 </div>
               </div>

@@ -1,16 +1,22 @@
 from django.db.models import Q
+from django.utils import timezone
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.events.models import Event
+from apps.guides.models import Guide
 from apps.listings.models import Listing
+from apps.looks.models import Look
+from apps.moodboards.models import Moodboard
 from apps.profiles.models import Profile
+from apps.teams.models import Team
 from apps.users.models import User
 from apps.workshops.models import Workshop
 
 
 class StatsView(APIView):
-    """Публичная статистика для главной — реальные счётчики из БД."""
+    """Публичная статистика для главной и навигации — реальные счётчики из БД."""
     authentication_classes = []
     permission_classes = [AllowAny]
 
@@ -24,11 +30,22 @@ class StatsView(APIView):
         members = User.objects.filter(is_superuser=False, is_active=True).count()
 
         return Response({
+            # — главная (hero) —
             "cosplayers": members,
             "photographers": Profile.objects.filter(roles__contains=["photographer"]).count(),
             "shops": Profile.objects.filter(roles__contains=["shop"]).count(),
             "workshops": Workshop.objects.count(),
             "cities": len(cities),
+            # — навигация (выпадающие меню), всё из реальной БД —
+            "cosplayer_profiles": Profile.objects.filter(roles__contains=["cosplayer"]).count(),
+            "looks": Look.objects.filter(is_published=True).count(),
+            "teams": Team.objects.filter(is_active=True).count(),
+            "locations": Profile.objects.filter(roles__contains=["location"]).count(),
+            "jobs": Listing.objects.filter(is_active=True, type__in=["job", "collab"]).count(),
+            "market": Listing.objects.filter(is_active=True, type__in=["sell", "buy"]).count(),
+            "events": Event.objects.filter(is_published=True, date__gte=timezone.now().date()).count(),
+            "guides": Guide.objects.filter(is_published=True).count(),
+            "moodboards": Moodboard.objects.filter(is_public=True, is_active=True).count(),
         })
 
 

@@ -292,3 +292,26 @@ export async function getProfilesByRole(role: string): Promise<Person[] | null> 
   if (!Array.isArray(list)) return [];
   return list.map(normalizeProfile);
 }
+
+// ── Навигационная статистика (выпадающие меню в шапке) ──────────────────────
+export type NavStats = {
+  cosplayer_profiles: number; photographers: number; looks: number; teams: number;
+  workshops: number; shops: number; jobs: number; locations: number;
+  events: number; guides: number; market: number; moodboards: number;
+};
+
+export async function getNavStats(): Promise<NavStats | null> {
+  return await get(`/stats/`);
+}
+
+// Русское число + склонение: pl(5, ["анкета","анкеты","анкет"]) → "5 анкет".
+export function pl(n: number, forms: [string, string, string]): string {
+  const num = Number(n) || 0;
+  const n10 = num % 10, n100 = num % 100;
+  let form: string;
+  if (n10 === 1 && n100 !== 11) form = forms[0];
+  else if (n10 >= 2 && n10 <= 4 && (n100 < 10 || n100 >= 20)) form = forms[1];
+  else form = forms[2];
+  const pretty = num.toLocaleString("ru-RU").replace(/,/g, " ");
+  return `${pretty} ${form}`;
+}
