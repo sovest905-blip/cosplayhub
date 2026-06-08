@@ -95,7 +95,7 @@ export default function CabinetPage() {
   const [ordersCount, setOrdersCount] = useState(0);
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
-  const [listingForm, setListingForm] = useState({ title: "", type: "job", city: "", description: "", price: "" });
+  const [listingForm, setListingForm] = useState({ title: "", type: "", city: "", description: "", price: "" });
   const [showListingForm, setShowListingForm] = useState(false);
   const [listingSaving, setListingSaving] = useState(false);
   const [editingListingId, setEditingListingId] = useState<number | null>(null);
@@ -322,7 +322,8 @@ export default function CabinetPage() {
   }
 
   async function createListing() {
-    if (!listingForm.title.trim()) return;
+    // Обязательны: тип (куда распределить), город и заголовок.
+    if (!listingForm.title.trim() || !listingForm.type || !listingForm.city) return;
     setListingSaving(true);
     try {
       const editing = editingListingId !== null;
@@ -340,7 +341,7 @@ export default function CabinetPage() {
       if (res.ok) {
         const data = await res.json();
         setListings((prev) => editing ? prev.map((l) => l.id === editingListingId ? data : l) : [data, ...prev]);
-        setListingForm({ title: "", type: "job", city: "", description: "", price: "" });
+        setListingForm({ title: "", type: "", city: "", description: "", price: "" });
         setShowListingForm(false);
         setEditingListingId(null);
       }
@@ -364,7 +365,7 @@ export default function CabinetPage() {
   function cancelListingForm() {
     setShowListingForm(false);
     setEditingListingId(null);
-    setListingForm({ title: "", type: "job", city: "", description: "", price: "" });
+    setListingForm({ title: "", type: "", city: "", description: "", price: "" });
   }
 
   async function toggleListingActive(id: number, current: boolean) {
@@ -1084,20 +1085,25 @@ export default function CabinetPage() {
               <div style={{ padding: "16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 16 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
                   <div className="field" style={{ margin: 0 }}>
-                    <label>Тип</label>
+                    <label>Тип <span style={{ color: "var(--accent)" }}>*</span></label>
                     <select value={listingForm.type} onChange={(e) => setListingForm({ ...listingForm, type: e.target.value })}>
+                      <option value="">— выберите тип —</option>
                       {Object.entries(LISTING_TYPES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
-                    {LISTING_SECTION[listingForm.type] && (
+                    {LISTING_SECTION[listingForm.type] ? (
                       <small style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--ink-dim)" }}>
                         Появится в разделе «<b style={{ color: "var(--accent-2)" }}>{LISTING_SECTION[listingForm.type].name}</b>»
+                      </small>
+                    ) : (
+                      <small style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--ink-dim)" }}>
+                        Определяет раздел: Продаю/Куплю → Барахолка, Ищу спеца/Коллаб → Слоты
                       </small>
                     )}
                   </div>
                   <div className="field" style={{ margin: 0 }}>
-                    <label>Город</label>
+                    <label>Город <span style={{ color: "var(--accent)" }}>*</span></label>
                     <select value={listingForm.city} onChange={(e) => setListingForm({ ...listingForm, city: e.target.value })}>
-                      <option value="">Не важно</option>
+                      <option value="">— выберите город —</option>
                       {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
@@ -1117,7 +1123,8 @@ export default function CabinetPage() {
                   <input type="number" value={listingForm.price} placeholder="15000"
                     onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })} />
                 </div>
-                <button className="btn btn-primary" onClick={createListing} disabled={listingSaving || !listingForm.title.trim()}>
+                <button className="btn btn-primary" onClick={createListing}
+                  disabled={listingSaving || !listingForm.title.trim() || !listingForm.type || !listingForm.city}>
                   {listingSaving ? "Сохраняем..." : editingListingId !== null ? "Сохранить" : "Опубликовать"}
                 </button>
               </div>
