@@ -489,10 +489,14 @@ export default function CabinetPage() {
 
   const newIncoming = incomingOrders.filter((o) => o.status === "request").length;
   const activeListings = listings.filter((l) => l.is_active).length;
-  // Всего лайков на контенте пользователя: образы + команды (всё, что лайкается).
-  const totalLikes =
-    myLooks.reduce((s, l) => s + (Number(l.likes_count) || 0), 0) +
-    myTeams.reduce((s, t) => s + (Number(t.likes_count) || 0), 0);
+  // Лайки на контенте пользователя — с разбивкой по разделам (всё, что лайкается).
+  const likesLooks = myLooks.reduce((s, l) => s + (Number(l.likes_count) || 0), 0);
+  const likesTeams = myTeams.reduce((s, t) => s + (Number(t.likes_count) || 0), 0);
+  const totalLikes = likesLooks + likesTeams;
+  const likeBreakdown = [
+    { label: "За образы", val: likesLooks, count: myLooks.length, icon: "✧" },
+    { label: "За команды", val: likesTeams, count: myTeams.length, icon: "♛" },
+  ];
 
   const NAV_ITEMS = [
     { id: "dashboard", icon: "▤", label: "Обзор" },
@@ -1232,6 +1236,26 @@ export default function CabinetPage() {
                   <div key={s.label} style={{ background: "rgba(0,0,0,.25)", borderRadius: 10, padding: "12px 14px" }}>
                     <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 22, letterSpacing: "-.03em" }}>{s.val}</div>
                     <div style={{ fontFamily: "var(--font-mono),monospace", fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", marginTop: 3 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="acc-card">
+              <h3>Лайки по разделам</h3>
+              <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: "0 0 14px" }}>
+                Сколько лайков набрал твой контент — всего <b style={{ color: "var(--ink)" }}>{totalLikes}</b> ♥
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+                {likeBreakdown.map((b) => (
+                  <div key={b.label} style={{ background: "rgba(0,0,0,.25)", borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 22, color: "var(--accent-2)" }}>{b.icon}</span>
+                    <div>
+                      <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: "-.03em" }}>♥ {b.val}</div>
+                      <div style={{ fontFamily: "var(--font-mono),monospace", fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", marginTop: 3 }}>
+                        {b.label} · {b.count} шт
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
