@@ -18,7 +18,7 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
+type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "moodboards" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
@@ -26,6 +26,7 @@ const TABS: [TabId, string][] = [
   ["guides", "❖ Гайды"],
   ["looks", "✧ Образы"],
   ["teams", "♛ Команды"],
+  ["moodboards", "◇ Доски"],
   ["users", "◇ Пользователи"],
   ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
@@ -97,6 +98,7 @@ export default function AdminPanelPage() {
           {tab === "guides" && <GuidesAdmin />}
           {tab === "looks" && <LooksAdmin />}
           {tab === "teams" && <TeamsAdmin />}
+          {tab === "moodboards" && <MoodboardsAdmin />}
           {tab === "users" && <UsersAdmin roleFilter="" />}
           {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
@@ -677,6 +679,7 @@ function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
     { label: "Гайдов", value: s.guides, tab: "guides" },
     { label: "Образов", value: s.looks, tab: "looks" },
     { label: "Команд", value: s.teams, tab: "teams" },
+    { label: "Досок", value: s.moodboards, tab: "moodboards" },
   ] : [];
 
   return (
@@ -977,6 +980,45 @@ function TeamsAdmin() {
               <a className="btn btn-ghost btn-sm" href={`/teams/${t.id}`} target="_blank" rel="noopener noreferrer">Открыть</a>
               <button className="btn btn-ghost btn-sm" onClick={() => toggle(t)}>{t.is_active ? "Скрыть" : "Показать"}</button>
               <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(t)}>Удалить</button>
+            </div>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ДОСКИ (модерация) ───────────────────────────
+type BoardRow = { id: number; title: string; owner_name: string; items_count: number; cover_url: string | null; is_public: boolean; is_active: boolean };
+function MoodboardsAdmin() {
+  const [items, setItems] = useState<BoardRow[]>([]);
+  function load() { api("/moodboards/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(d.results ?? d ?? [])); }
+  useEffect(load, []);
+  async function toggle(b: BoardRow) {
+    const res = await api(`/moodboards/${b.id}/`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !b.is_active }) });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === b.id ? { ...x, is_active: d.is_active } : x))); }
+  }
+  async function remove(b: BoardRow) {
+    if (!confirm(`Удалить доску «${b.title}»?`)) return;
+    const res = await api(`/moodboards/${b.id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== b.id));
+  }
+  return (
+    <Card title="Доски" sub="Мудборды (/moodboards). Модерация: скрыть или удалить.">
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Досок пока нет.</p>
+        : items.map((b) => (
+          <div key={b.id} style={{ ...rowStyle, opacity: b.is_active ? 1 : 0.55 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flex: 1, minWidth: 180 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 8, flexShrink: 0, backgroundSize: "cover", backgroundPosition: "center",
+                background: b.cover_url ? `center/cover url('${b.cover_url}')` : "var(--bg)" }} />
+              <div>
+                <b style={{ fontSize: 14 }}>{b.title}{!b.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>скрыта</span>}{!b.is_public && <span style={{ color: "var(--ink-dim)", fontSize: 11, marginLeft: 6 }}>приватная</span>}</b>
+                <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>@{b.owner_name || "—"} · {b.items_count} картинок</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a className="btn btn-ghost btn-sm" href={`/moodboards/${b.id}`} target="_blank" rel="noopener noreferrer">Открыть</a>
+              <button className="btn btn-ghost btn-sm" onClick={() => toggle(b)}>{b.is_active ? "Скрыть" : "Показать"}</button>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(b)}>Удалить</button>
             </div>
           </div>
         ))}

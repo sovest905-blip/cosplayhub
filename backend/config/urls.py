@@ -34,6 +34,7 @@ api_v1 = [
     path("", include("apps.guides.urls")),
     path("", include("apps.looks.urls")),
     path("", include("apps.teams.urls")),
+    path("", include("apps.moodboards.urls")),
     # ── Веб админ-панель (только staff) ──
     path("admin-panel/users/", AdminUsersView.as_view(), name="ap-users"),
     path("admin-panel/users/<int:pk>/set-roles/", AdminUserRolesView.as_view(), name="ap-roles"),

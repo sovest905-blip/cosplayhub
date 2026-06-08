@@ -258,6 +258,22 @@ export async function getTeam(id: string | number): Promise<any | null> {
   return data && data.id ? data : null;
 }
 
+export type MoodboardListItem = {
+  id: number; title: string; owner_name: string; items_count: number; cover_url: string | null; is_public: boolean;
+};
+
+export async function getMoodboards(): Promise<MoodboardListItem[] | null> {
+  const data = await get(`/moodboards/`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+export async function getMoodboard(id: string | number): Promise<any | null> {
+  const data = await get(`/moodboards/${id}/`);
+  return data && data.id ? data : null;
+}
+
 export type PublicListing = {
   id: number; title: string; description: string; type: string; type_display: string;
   city: string; price: number | null; owner: string; owner_id: number; created_at: string;
