@@ -53,6 +53,16 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
   shipped: "#7cf9ff", done: "var(--green)", cancelled: "var(--ink-dim)",
 };
 
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  request: "Заявка", accepted: "Принят", in_work: "В работе",
+  shipped: "Отправлен", done: "Получен", cancelled: "Отменён",
+};
+
+type MyOrder = {
+  id: number; workshop_name: string; description: string;
+  budget: number | null; deadline: string | null; status: string; created_at: string;
+};
+
 type IncomingOrder = {
   id: number; workshop_name: string; customer_username: string;
   description: string; budget: number | null; status: string; status_display: string;
@@ -97,6 +107,7 @@ export default function CabinetPage() {
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
+  const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [listingForm, setListingForm] = useState({ title: "", type: "", city: "", description: "", price: "", contact: "" });
@@ -178,7 +189,7 @@ export default function CabinetPage() {
       .then((data) => {
         if (cancelled || !data) return;
         const list = data.results ?? data;
-        setOrdersCount(Array.isArray(list) ? list.length : 0);
+        if (Array.isArray(list)) { setMyOrders(list); setOrdersCount(list.length); }
       }).catch(() => {});
 
     fetch(`/api/v1/orders/incoming/`, { credentials: "include" })
@@ -953,9 +964,40 @@ export default function CabinetPage() {
       case "orders":
         return (
           <div className="acc-card">
-            <h3>Мои заказы{ordersCount > 0 ? ` (${ordersCount})` : ""}</h3>
-            <EmptyBlock icon="⚒" title="Заказов пока нет"
-              sub="Когда ты сделаешь заказ в мастерскую — он появится здесь." />
+            <h3 style={{ marginBottom: 14 }}>Мои заказы{ordersCount > 0 ? ` (${ordersCount})` : ""}</h3>
+            {myOrders.length === 0 ? (
+              <EmptyBlock icon="⚒" title="Заказов пока нет"
+                sub="Когда ты сделаешь заказ в мастерскую — он появится здесь." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {myOrders.map((o) => (
+                  <div key={o.id} style={{
+                    padding: "14px 16px", background: "var(--bg-2)",
+                    border: "1px solid var(--line)", borderRadius: 12,
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, marginBottom: 8 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>→ {o.workshop_name}</div>
+                      <span style={{
+                        fontSize: 11, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap",
+                        background: "rgba(0,0,0,.3)",
+                        color: ORDER_STATUS_COLORS[o.status] || "var(--ink)",
+                        border: `1px solid ${ORDER_STATUS_COLORS[o.status] || "var(--line)"}33`,
+                      }}>
+                        {ORDER_STATUS_LABELS[o.status] || o.status}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 10px", lineHeight: 1.5 }}>
+                      {o.description}
+                    </p>
+                    <div style={{ display: "flex", gap: 14, fontSize: 12, color: "var(--ink-dim)", flexWrap: "wrap" }}>
+                      {o.budget ? <span>Бюджет: <b style={{ color: "var(--accent-3)" }}>{o.budget.toLocaleString()} ₸</b></span> : null}
+                      {o.deadline ? <span>Дедлайн: {o.deadline}</span> : null}
+                      <span>{new Date(o.created_at).toLocaleDateString("ru-RU")}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 

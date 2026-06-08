@@ -1,6 +1,7 @@
 import { WORKSHOPS } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
+import OrderButton from "../../components/OrderButton";
 import SaveButton from "../../components/SaveButton";
 import { getWorkshop, type Shop } from "../../../lib/api";
 
@@ -58,7 +59,9 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <div className="profile-actions">
-          <GatedButton className="btn btn-primary">Заказать</GatedButton>
+          {apiWorkshop
+            ? <OrderButton workshopId={w.id} label="Заказать" className="btn btn-primary" />
+            : <GatedButton className="btn btn-primary">Заказать</GatedButton>}
           <SaveButton kind="workshop" objectId={apiWorkshop ? w.id : null} className="btn btn-ghost" />
         </div>
       </div>
@@ -107,9 +110,9 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
             <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
               Безопасная оплата: деньги хранятся на платформе до завершения заказа.
             </p>
-            <GatedButton className="btn btn-primary" fullWidth>
-              Оставить заявку
-            </GatedButton>
+            {apiWorkshop
+              ? <OrderButton workshopId={w.id} label="Оставить заявку" className="btn btn-primary" fullWidth />
+              : <GatedButton className="btn btn-primary" fullWidth>Оставить заявку</GatedButton>}
           </div>
         </div>
       </div>
