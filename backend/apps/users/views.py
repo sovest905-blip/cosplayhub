@@ -5,6 +5,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -296,10 +297,13 @@ class _PhotoUploadBase(APIView):
         file = request.FILES.get("file")
         if not file:
             return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)
-        if not file.content_type.startswith("image/"):
-            return Response({"detail": "Только изображения (jpg/png/webp)"}, status=status.HTTP_400_BAD_REQUEST)
-        if file.size > self.max_size:
-            return Response({"detail": "Максимальный размер — 5 МБ"}, status=status.HTTP_400_BAD_REQUEST)
+        # Реальная проверка через Pillow + безопасное расширение (не доверяем content_type)
+        from common.uploads import validate_image, safe_image_name
+        try:
+            ext = validate_image(file, max_size=self.max_size)
+        except DRFValidationError as e:
+            return Response({"detail": e.detail[0] if isinstance(e.detail, list) else str(e.detail)},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         from apps.profiles.models import Profile
         prof, _ = Profile.objects.get_or_create(
@@ -309,7 +313,7 @@ class _PhotoUploadBase(APIView):
         old = getattr(prof, self.field_name)
         if old:
             old.delete(save=False)
-        getattr(prof, self.field_name).save(file.name, file, save=True)
+        getattr(prof, self.field_name).save(safe_image_name(self.field_name, ext), file, save=True)
         return Response({"url": getattr(prof, self.field_name).url})
 
 

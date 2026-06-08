@@ -95,10 +95,14 @@ class MyPhotosView(APIView):
         file = request.FILES.get("file")
         if not file:
             return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)
-        if not file.content_type.startswith("image/"):
-            return Response({"detail": "Только изображения"}, status=status.HTTP_400_BAD_REQUEST)
-        if file.size > MAX_PHOTO_SIZE:
-            return Response({"detail": "Максимум 5 МБ"}, status=status.HTTP_400_BAD_REQUEST)
+        from common.uploads import validate_image, safe_image_name
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        try:
+            ext = validate_image(file, max_size=MAX_PHOTO_SIZE)
+        except DRFValidationError as e:
+            return Response({"detail": e.detail[0] if isinstance(e.detail, list) else str(e.detail)},
+                            status=status.HTTP_400_BAD_REQUEST)
+        file.name = safe_image_name("photo", ext)
         photo = ProfilePhoto.objects.create(profile=prof, image=file)
         return Response(ProfilePhotoSerializer(photo).data, status=status.HTTP_201_CREATED)
 

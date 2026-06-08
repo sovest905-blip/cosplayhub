@@ -233,10 +233,14 @@ class AdminUserPhotosView(_StaffView):
         file = request.FILES.get("file")
         if not file:
             return Response({"detail": "Файл не передан"}, status=400)
-        if not file.content_type.startswith("image/"):
-            return Response({"detail": "Только изображения"}, status=400)
-        if file.size > 5 * 1024 * 1024:
-            return Response({"detail": "Максимум 5 МБ"}, status=400)
+        from common.uploads import validate_image, safe_image_name
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        try:
+            ext = validate_image(file)
+        except DRFValidationError as e:
+            return Response({"detail": e.detail[0] if isinstance(e.detail, list) else str(e.detail)},
+                            status=400)
+        file.name = safe_image_name("photo", ext)
         photo = ProfilePhoto.objects.create(profile=prof, image=file)
         return Response(ProfilePhotoSerializer(photo).data, status=201)
 
