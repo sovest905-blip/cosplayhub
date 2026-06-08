@@ -28,6 +28,10 @@ class LookViewSet(viewsets.ModelViewSet):
         # ?mine=1 — только образы текущего пользователя (для кабинета)
         if self.request.query_params.get("mine") and user.is_authenticated:
             return qs.filter(author=user)
+        # ?author=<user_id> — опубликованные образы конкретного автора (страница профиля)
+        author_id = self.request.query_params.get("author")
+        if author_id:
+            return qs.filter(author_id=author_id, is_published=True)
         if user.is_authenticated and user.is_staff:
             return qs
         if user.is_authenticated:

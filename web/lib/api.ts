@@ -241,6 +241,14 @@ export async function getLooks(): Promise<LookItem[] | null> {
   return Array.isArray(list) ? list : [];
 }
 
+// Опубликованные образы конкретного автора (user_id) — для страницы профиля.
+export async function getLooksByAuthor(userId: number): Promise<LookItem[]> {
+  const data = await get(`/looks/?author=${userId}`);
+  if (!data) return [];
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
 export type TeamListItem = {
   id: number; name: string; city: string; avatar: string | null; cover: string | null;
   is_open: boolean; members_count: number; likes_count: number;

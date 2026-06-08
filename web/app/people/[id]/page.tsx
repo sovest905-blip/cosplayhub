@@ -4,7 +4,7 @@ import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
-import { getProfile, type Person, ROLE_DETAIL_FIELDS, fmtDetailValue, SOCIAL_META, socialUrl } from "../../../lib/api";
+import { getProfile, getLooksByAuthor, type Person, type LookItem, ROLE_DETAIL_FIELDS, fmtDetailValue, SOCIAL_META, socialUrl } from "../../../lib/api";
 
 const ROLE_RU: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -20,6 +20,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   const mockPerson = PEOPLE.find((p) => p.id === Number(id));
   const person = (apiPerson || (mockPerson as unknown as Person)) as Person & { bio?: string };
   if (!person) notFound();
+
+  // Реальные образы автора (модель Look) — для блока «Образы».
+  const looks: LookItem[] = person.user_id ? await getLooksByAuthor(person.user_id).catch(() => []) : [];
 
   // Профиль существует, но ещё не заполнен
   const isEmpty = !!apiPerson && !person.bio && person.experience === "—" && !person.available_for_work;
@@ -139,7 +142,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             );
           })}
 
-          {person.photos?.length > 0 ? (
+          {person.photos?.length > 0 && (
             <div className="about">
               <h3>Фотогалерея</h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
@@ -151,19 +154,24 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                 ))}
               </div>
             </div>
-          ) : (
+          )}
+
+          {looks.length > 0 ? (
             <div className="about">
-              <h3>Образы</h3>
+              <h3>Образы <span style={{ color: "var(--ink-dim)", fontWeight: 400, fontSize: 13 }}>· {looks.length}</span></h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
-                {[1,2,3,4,5,6].map((i) => (
-                  <div key={i} style={{
-                    aspectRatio: "1", borderRadius: 10,
-                    backgroundImage: `url('${person.photo}')`,
-                    backgroundSize: "cover", backgroundPosition: "center",
-                    opacity: 0.6 + i * 0.04,
+                {looks.map((l) => (
+                  <a key={l.id} href="/looks" title={l.title} style={{
+                    aspectRatio: "1", borderRadius: 10, display: "block", position: "relative",
+                    backgroundImage: `url('${l.image || person.photo}')`, backgroundSize: "cover", backgroundPosition: "center",
                   }} />
                 ))}
               </div>
+            </div>
+          ) : (
+            <div className="about">
+              <h3>Образы</h3>
+              <p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>Пока нет образов.</p>
             </div>
           )}
         </div>
