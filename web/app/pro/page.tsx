@@ -36,6 +36,7 @@ const PLANS = [
     name: PRICE_PLANS.workshop.name,
     price: fmtPrice(PRICE_PLANS.workshop.price),
     period: PRICE_PLANS.workshop.period,
+    freeNote: `Первые ${PRO_FREE_BETA.months} месяцев бесплатно`,
     accent: "var(--accent-3)",
     features: [
       "Витрина мастерской с услугами",
