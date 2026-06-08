@@ -530,6 +530,8 @@ export default function CabinetPage() {
         {role === "photographer" && !roles.includes("location") &&
           galleryBlock("Портфолио (фото)", "Покажи свои работы — лучшие кадры.")}
         {role === "cosplayer" && looksBlock()}
+        {role === "cosplayer" && !roles.includes("location") && !roles.includes("photographer") &&
+          galleryBlock("Фотогалерея", "Добавь до 15 фото своих образов и портретов.")}
       </div>
     );
   }

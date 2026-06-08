@@ -198,7 +198,7 @@ class AdminUserPhotosView(_StaffView):
             return Response({"detail": "Не найдено"}, status=404)
         limit = gallery_limit(prof.roles)
         if limit == 0:
-            return Response({"detail": "Галерея доступна для ролей «Локация» и «Фотограф»"}, status=400)
+            return Response({"detail": "Галерея недоступна для ролей этого пользователя"}, status=400)
         if prof.photos.count() >= limit:
             return Response({"detail": f"Лимит {limit} фото"}, status=400)
         file = request.FILES.get("file")

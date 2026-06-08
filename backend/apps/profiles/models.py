@@ -34,7 +34,7 @@ class SocialLink(models.Model):
 
 
 # Лимит фото в галерее по ролям. Берём максимум среди ролей профиля.
-GALLERY_LIMITS = {"location": 20, "photographer": 15}
+GALLERY_LIMITS = {"location": 20, "photographer": 15, "cosplayer": 15}
 
 
 def gallery_limit(roles) -> int:

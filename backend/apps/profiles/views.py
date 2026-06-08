@@ -89,7 +89,7 @@ class MyPhotosView(APIView):
         prof = _my_profile(request)
         limit = gallery_limit(prof.roles)
         if limit == 0:
-            return Response({"detail": "Галерея доступна для ролей «Локация» и «Фотограф»"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Галерея недоступна для ваших ролей"}, status=status.HTTP_400_BAD_REQUEST)
         if prof.photos.count() >= limit:
             return Response({"detail": f"Лимит {limit} фото достигнут"}, status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES.get("file")

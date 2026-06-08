@@ -409,7 +409,9 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
             </h4>
             <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>{cfg.hint}</p>
             <RoleFields role={role} values={details[role] || {}} onChange={(k, v) => setField(role, k, v)} />
-            {(role === "location" || (role === "photographer" && !roles.includes("location"))) && (
+            {(role === "location"
+              || (role === "photographer" && !roles.includes("location"))
+              || (role === "cosplayer" && !roles.includes("location") && !roles.includes("photographer"))) && (
               <AdminLocationGallery userId={user.id} roles={roles} />
             )}
           </div>
