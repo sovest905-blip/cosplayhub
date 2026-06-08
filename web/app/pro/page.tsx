@@ -65,7 +65,6 @@ export default function ProPage() {
         </h1>
         <p className="hero-sub" style={{ marginLeft: "auto", marginRight: "auto" }}>
           Первые {PRO_FREE_BETA.months} месяцев <strong style={{ color: "var(--ink)" }}>Pro бесплатно</strong>, потом {fmtPrice(PRICE_PLANS.pro.price)}/мес.
-          Платежи подключим после запуска ТОО — сейчас оформление бесплатное.
         </p>
       </section>
 
