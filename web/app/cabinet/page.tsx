@@ -1494,11 +1494,14 @@ export default function CabinetPage() {
               background: user.photo ? `url('${user.photo}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
               flexShrink: 0, border: "2px solid var(--accent)",
             }} />
-            <div>
-              <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 700, fontSize: 13 }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 700, fontSize: 13,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                title={user.display_name}>
                 {user.display_name}
               </div>
-              <div style={{ fontSize: 10, color: "var(--ink-dim)", fontFamily: "var(--font-mono),monospace" }}>
+              <div style={{ fontSize: 10, color: "var(--ink-dim)", fontFamily: "var(--font-mono),monospace",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {user.is_pro ? "PRO · " : ""}{user.city}
               </div>
             </div>
