@@ -1,5 +1,4 @@
-import random
-import string
+import secrets
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.conf import settings
@@ -13,7 +12,8 @@ def _email_key(email: str) -> str:
 
 
 def generate_otp() -> str:
-    return "".join(random.choices(string.digits, k=6))
+    # secrets — криптостойкий ГСЧ (не предсказуемый Mersenne Twister из random)
+    return f"{secrets.randbelow(1_000_000):06d}"
 
 
 def save_email_otp(email: str) -> str:
