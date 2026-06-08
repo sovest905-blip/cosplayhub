@@ -47,7 +47,10 @@ class LookViewSet(viewsets.ModelViewSet):
         return [IsOwnerOrStaffOrReadOnly()]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        # Новый образ публикуется сразу. is_published нельзя доверять из multipart-формы:
+        # DRF BooleanField.get_value для HTML-инпута при отсутствии поля возвращает False.
+        # Скрывают образы потом из админки (JSON-PATCH). Поэтому форсим True здесь.
+        serializer.save(author=self.request.user, is_published=True)
 
     @action(detail=True, methods=["post", "delete"], permission_classes=[IsAuthenticated])
     def like(self, request, pk=None):
