@@ -489,6 +489,10 @@ export default function CabinetPage() {
 
   const newIncoming = incomingOrders.filter((o) => o.status === "request").length;
   const activeListings = listings.filter((l) => l.is_active).length;
+  // Всего лайков на контенте пользователя: образы + команды (всё, что лайкается).
+  const totalLikes =
+    myLooks.reduce((s, l) => s + (Number(l.likes_count) || 0), 0) +
+    myTeams.reduce((s, t) => s + (Number(t.likes_count) || 0), 0);
 
   const NAV_ITEMS = [
     { id: "dashboard", icon: "▤", label: "Обзор" },
@@ -1220,6 +1224,7 @@ export default function CabinetPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 14, marginTop: 20 }}>
                 {[
                   { val: followersCount, label: "Подписчиков" },
+                  { val: totalLikes, label: "Лайков" },
                   { val: following.length, label: "Подписок" },
                   { val: ordersCount, label: "Заказов" },
                   { val: newIncoming, label: "Откликов" },
