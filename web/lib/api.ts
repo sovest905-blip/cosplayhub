@@ -120,7 +120,7 @@ export function normalizeProfile(p: any): Person {
     available_for_work: !!p.available_for_work,
     is_pro: false,
     followers: p.followers_count ?? 0,
-    looks: 0,
+    looks: p.looks_count ?? 0,
     photo: p.avatar || PLACEHOLDER_PERSON,
     specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Косплеер",
     bio: p.bio || "",
@@ -302,6 +302,13 @@ export type NavStats = {
 
 export async function getNavStats(): Promise<NavStats | null> {
   return await get(`/stats/`);
+}
+
+// Компактный счётчик: до 1000 — как есть, дальше «1.2k» (без хвоста «.0»).
+export function fmtCount(n: number): string {
+  const num = Number(n) || 0;
+  if (num < 1000) return String(num);
+  return (num / 1000).toFixed(1).replace(/\.0$/, "") + "k";
 }
 
 // Русское число + склонение: pl(5, ["анкета","анкеты","анкет"]) → "5 анкет".

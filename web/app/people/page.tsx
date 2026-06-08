@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import { PEOPLE } from "../../lib/mock";
-import { getProfiles, type Person } from "../../lib/api";
+import { getProfiles, fmtCount, type Person } from "../../lib/api";
 
 export default async function PeoplePage({
   searchParams,
@@ -55,7 +55,7 @@ export default async function PeoplePage({
                 </div>
               </div>
               <div className="person-stats">
-                <span>♥ {p.followers ? (p.followers / 1000).toFixed(1) + "k" : "0"}</span>
+                <span>♥ {fmtCount(p.followers)}</span>
                 <span>✧ {p.looks} образов</span>
                 <span>{p.experience}</span>
               </div>

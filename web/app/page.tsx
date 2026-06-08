@@ -1,5 +1,5 @@
 import { PEOPLE, WORKSHOPS, EVENTS } from "../lib/mock";
-import { getProfiles, getWorkshops, getEvents } from "../lib/api";
+import { getProfiles, getWorkshops, getEvents, fmtCount } from "../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -152,7 +152,7 @@ export default async function HomePage() {
                   </div>
                 </div>
                 <div className="person-stats">
-                  <span>♥ {(p.followers / 1000).toFixed(1)}k</span>
+                  <span>♥ {fmtCount(p.followers)}</span>
                   <span>✧ {p.looks} образов</span>
                   <span>{p.experience}</span>
                 </div>

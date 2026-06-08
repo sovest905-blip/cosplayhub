@@ -24,17 +24,22 @@ class ProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True, default="")
     user_id = serializers.IntegerField(source="user.id", read_only=True)
     followers_count = serializers.SerializerMethodField()
+    looks_count = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "user_id", "display_name", "username", "bio", "roles", "role_details",
                   "avatar", "cover", "available_for_work", "experience", "rating", "accent_color",
-                  "city", "is_verified", "socials", "photos", "followers_count", "is_following", "created_at"]
+                  "city", "is_verified", "socials", "photos", "followers_count", "looks_count",
+                  "is_following", "created_at"]
         read_only_fields = ["rating", "created_at"]
 
     def get_followers_count(self, obj):
         return obj.user.follower_set.count()
+
+    def get_looks_count(self, obj):
+        return obj.user.looks.filter(is_published=True).count()
 
     def get_is_following(self, obj):
         request = self.context.get("request")
