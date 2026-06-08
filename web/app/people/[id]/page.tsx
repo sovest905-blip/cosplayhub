@@ -5,6 +5,7 @@ import MessageButton from "../../components/MessageButton";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
 import { getProfile, getLooksByAuthor, type Person, type LookItem, ROLE_DETAIL_FIELDS, fmtDetailValue, SOCIAL_META, socialUrl } from "../../../lib/api";
+import { FAN_SUPPORT_FROM } from "../../../lib/pricing";
 
 const ROLE_RU: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -235,7 +236,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                 Подпишитесь, чтобы получить эксклюзивные образы и ранний доступ.
               </p>
               <GatedButton className="btn btn-primary" fullWidth>
-                Подписаться · от 500₸
+                Подписаться · от {FAN_SUPPORT_FROM}₸
               </GatedButton>
             </div>
           )}

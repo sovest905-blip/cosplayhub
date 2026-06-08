@@ -1,8 +1,10 @@
+import { PLANS as PRICE_PLANS, fmtPrice, PRO_FREE_BETA } from "../../lib/pricing";
+
 const PLANS = [
   {
-    name: "Бесплатный",
-    price: "0 ₸",
-    period: "навсегда",
+    name: PRICE_PLANS.free.name,
+    price: fmtPrice(PRICE_PLANS.free.price),
+    period: PRICE_PLANS.free.period,
     accent: "var(--ink-dim)",
     features: [
       "Профиль косплеера",
@@ -14,9 +16,9 @@ const PLANS = [
     highlight: false,
   },
   {
-    name: "Pro",
-    price: "1 990 ₸",
-    period: "в месяц",
+    name: PRICE_PLANS.pro.name,
+    price: fmtPrice(PRICE_PLANS.pro.price),
+    period: PRICE_PLANS.pro.period,
     accent: "var(--accent)",
     features: [
       "Всё из бесплатного",
@@ -30,9 +32,9 @@ const PLANS = [
     highlight: true,
   },
   {
-    name: "Мастерская",
-    price: "4 990 ₸",
-    period: "в месяц",
+    name: PRICE_PLANS.workshop.name,
+    price: fmtPrice(PRICE_PLANS.workshop.price),
+    period: PRICE_PLANS.workshop.period,
     accent: "var(--accent-3)",
     features: [
       "Витрина мастерской с услугами",
@@ -61,7 +63,7 @@ export default function ProPage() {
           Прокачай <span className="accent">профиль.</span>
         </h1>
         <p className="hero-sub" style={{ marginLeft: "auto", marginRight: "auto" }}>
-          Первые 200 участников беты получают <strong style={{ color: "var(--ink)" }}>Pro бесплатно на 3 месяца</strong>.
+          Первые {PRO_FREE_BETA.slots} участников беты получают <strong style={{ color: "var(--ink)" }}>Pro бесплатно на {PRO_FREE_BETA.months} месяца</strong>.
           Платежи подключим после запуска ТОО — сейчас оформление бесплатное.
         </p>
       </section>
