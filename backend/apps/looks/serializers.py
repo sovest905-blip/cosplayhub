@@ -17,6 +17,14 @@ class LookSerializer(serializers.ModelSerializer):
                   "likes_count", "is_liked", "created_at"]
         read_only_fields = ["author_name", "author_id", "team_name", "likes_count", "is_liked", "created_at"]
 
+    def to_representation(self, instance):
+        # Относительный URL картинки (/media/...): работает на любом origin —
+        # и в браузере (IP:8080), и при SSR. Абсолютный (build_absolute_uri) ломался:
+        # порт терялся (http://IP без :8080), а при SSR подставлялся http://web:8000.
+        data = super().to_representation(instance)
+        data["image"] = instance.image.url if instance.image else None
+        return data
+
     def get_team_name(self, obj):
         return obj.team.name if obj.team else ""
 

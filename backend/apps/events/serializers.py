@@ -15,6 +15,11 @@ class EventSerializer(serializers.ModelSerializer):
                   "going", "is_published", "day", "month", "created_at"]
         read_only_fields = ["day", "month", "created_at"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["cover"] = instance.cover.url if instance.cover else None
+        return data
+
     def get_day(self, obj):
         return obj.date.day if obj.date else ""
 

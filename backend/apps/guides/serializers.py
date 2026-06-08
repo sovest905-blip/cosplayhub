@@ -13,6 +13,11 @@ class GuideSerializer(serializers.ModelSerializer):
                   "author_name", "author_id", "created_at"]
         read_only_fields = ["author_name", "author_id", "created_at"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["cover"] = instance.cover.url if instance.cover else None
+        return data
+
     def get_author_name(self, obj):
         return obj.author.username if obj.author else ""
 

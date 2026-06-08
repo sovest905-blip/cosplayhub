@@ -15,6 +15,12 @@ class WorkshopSerializer(serializers.ModelSerializer):
                   "rating", "orders_count", "is_pro", "services", "is_owner", "created_at"]
         read_only_fields = ["rating", "orders_count", "is_pro", "created_at"]
 
+    def to_representation(self, instance):
+        # Относительный URL обложки (/media/...): корректен и в браузере, и при SSR.
+        data = super().to_representation(instance)
+        data["cover"] = instance.cover.url if instance.cover else None
+        return data
+
     def get_is_owner(self, obj):
         request = self.context.get("request")
         return bool(request and request.user.is_authenticated and obj.owner_id == request.user.id)

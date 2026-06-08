@@ -35,6 +35,14 @@ class ProfileSerializer(serializers.ModelSerializer):
                   "is_following", "created_at"]
         read_only_fields = ["rating", "created_at"]
 
+    def to_representation(self, instance):
+        # Относительные URL медиа (/media/...): корректны и в браузере, и при SSR.
+        # Абсолютные (build_absolute_uri) теряли порт :8080 / подставляли web:8000.
+        data = super().to_representation(instance)
+        data["avatar"] = instance.avatar.url if instance.avatar else None
+        data["cover"] = instance.cover.url if instance.cover else None
+        return data
+
     def get_followers_count(self, obj):
         return obj.user.follower_set.count()
 
