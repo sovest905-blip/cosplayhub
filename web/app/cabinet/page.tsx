@@ -63,6 +63,11 @@ type MyOrder = {
   budget: number | null; deadline: string | null; status: string; created_at: string;
 };
 
+type BillingSub = {
+  id: number; plan: string; workshop: number | null; workshop_name: string | null;
+  active_until: string | null; is_active: boolean; status: string;
+};
+
 type IncomingOrder = {
   id: number; workshop_name: string; customer_username: string;
   description: string; budget: number | null; status: string; status_display: string;
@@ -124,6 +129,8 @@ export default function CabinetPage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [billingSubs, setBillingSubs] = useState<BillingSub[]>([]);
+  const [activating, setActivating] = useState<string | null>(null);
   const [showWsForm, setShowWsForm] = useState(false);
   const [wsSaving, setWsSaving] = useState(false);
   const [wsErr, setWsErr] = useState("");
@@ -247,12 +254,47 @@ export default function CabinetPage() {
         setWorkshops(Array.isArray(list) ? list : []);
       }).catch(() => {});
 
+    fetch(`/api/v1/billing/me/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && Array.isArray(data)) setBillingSubs(data); })
+      .catch(() => {});
+
     return () => { cancelled = true; };
   }, [router]);
 
   function goTab(id: string) {
     setTab(id);
     window.history.pushState({}, "", `/cabinet?tab=${id}`);
+  }
+
+  // Активировать Pro/тариф мастерской (6 мес бесплатно). После — обновляем статусы.
+  async function activatePlan(plan: "pro" | "workshop", workshopId?: number) {
+    const key = plan === "workshop" ? `ws-${workshopId}` : "pro";
+    setActivating(key);
+    try {
+      const res = await fetch("/api/v1/billing/activate/", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify(plan === "workshop" ? { plan, workshop: workshopId } : { plan }),
+      });
+      if (res.ok) {
+        const [bill, meR] = await Promise.all([
+          fetch("/api/v1/billing/me/", { credentials: "include" }).then((r) => r.ok ? r.json() : []),
+          fetch("/api/v1/auth/me/", { credentials: "include" }).then((r) => r.ok ? r.json() : null),
+        ]);
+        if (Array.isArray(bill)) setBillingSubs(bill);
+        if (meR) setMe(meR);
+        if (workshopId) {
+          fetch("/api/v1/workshops/mine/", { credentials: "include" })
+            .then((r) => r.ok ? r.json() : null)
+            .then((d) => { const l = d?.results ?? d; if (Array.isArray(l)) setWorkshops(l); });
+        }
+      } else {
+        const e = await res.json().catch(() => ({}));
+        alert(e.detail || "Не удалось активировать");
+      }
+    } finally {
+      setActivating(null);
+    }
   }
 
   function openWorkshopForm() {
@@ -556,6 +598,7 @@ export default function CabinetPage() {
     display_name: me.username || me.email?.split("@")[0] || me.phone || "Пользователь",
     photo: avatarUrl || null,
     is_pro: me.is_pro ?? false,
+    pro_active_until: me.pro_active_until ?? null,
     city: me.city || "—",
     specialization: roles.length > 0 ? roles.map((r) => ROLE_MAP[r] || r).join(" · ") : "Фанат",
     experience: me.experience || "—",
@@ -1322,8 +1365,59 @@ export default function CabinetPage() {
           </div>
         );
 
-      case "subs":
+      case "subs": {
+        const fmt = (s: string | null) => { try { return s ? new Date(s).toLocaleDateString("ru-RU") : ""; } catch { return ""; } };
+        const wsSub = (wid: number) => billingSubs.find((b) => b.plan === "workshop" && b.workshop === wid);
         return (
+          <>
+          <div className="acc-card" style={{ marginBottom: 18 }}>
+            <h3 style={{ margin: "0 0 4px" }}>Pro и тарифы</h3>
+            <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 16px" }}>
+              Первые 6 месяцев бесплатно. Оплата подключится позже — продление будет автоматическим.
+            </p>
+
+            {/* Pro профиля */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
+              padding: "13px 16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 10 }}>
+              <div>
+                <b style={{ fontSize: 14 }}>Pro профиля</b>
+                <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                  {user.is_pro
+                    ? <span style={{ color: "var(--green)" }}>Активен{user.pro_active_until ? ` до ${fmt(user.pro_active_until)}` : " · бессрочно"}</span>
+                    : "Синяя галочка, приоритет в каталоге, монетизация"}
+                </div>
+              </div>
+              {user.is_pro
+                ? <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, background: "rgba(124,249,255,.12)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.3)" }}>✓ Pro</span>
+                : <button className="btn btn-primary btn-sm" disabled={activating === "pro"} onClick={() => activatePlan("pro")}>
+                    {activating === "pro" ? "..." : "Активировать · 6 мес бесплатно"}
+                  </button>}
+            </div>
+
+            {/* Тарифы мастерских */}
+            {workshops.map((w) => {
+              const sub = wsSub(w.id);
+              return (
+                <div key={w.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
+                  padding: "13px 16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 10 }}>
+                  <div>
+                    <b style={{ fontSize: 14 }}>Тариф «Мастерская» · {w.name}</b>
+                    <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                      {w.is_pro
+                        ? <span style={{ color: "var(--green)" }}>Активен{sub?.active_until ? ` до ${fmt(sub.active_until)}` : " · бессрочно"}</span>
+                        : "Boost в каталоге, бизнес-аналитика, 0% комиссии"}
+                    </div>
+                  </div>
+                  {w.is_pro
+                    ? <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, background: "rgba(255,210,74,.12)", color: "var(--accent-3)", border: "1px solid rgba(255,210,74,.3)" }}>✓ PRO</span>
+                    : <button className="btn btn-primary btn-sm" disabled={activating === `ws-${w.id}`} onClick={() => activatePlan("workshop", w.id)}>
+                        {activating === `ws-${w.id}` ? "..." : "Активировать · 6 мес"}
+                      </button>}
+                </div>
+              );
+            })}
+          </div>
+
           <div className="acc-card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
               <h3 style={{ margin: 0 }}>Мои подписки{following.length > 0 ? ` (${following.length})` : ""}</h3>
@@ -1360,7 +1454,9 @@ export default function CabinetPage() {
               </div>
             )}
           </div>
+          </>
         );
+      }
 
       case "socials":
         return (

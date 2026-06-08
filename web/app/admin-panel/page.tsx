@@ -12,13 +12,14 @@ const ROLE_RU: Record<string, string> = Object.fromEntries(ROLE_LIST.map((r) => 
 
 type AdminUser = {
   id: number; username: string; email: string; phone: string; city: string;
-  is_staff: boolean; is_active: boolean; is_verified: boolean; roles: string[]; role_details: Record<string, any>;
+  is_staff: boolean; is_active: boolean; is_verified: boolean; is_pro?: boolean; pro_active_until?: string | null;
+  roles: string[]; role_details: Record<string, any>;
   profile_id: number | null; followers: number; following: number; avatar: string | null;
 };
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "moodboards" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders";
+type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "moodboards" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
@@ -33,7 +34,12 @@ const TABS: [TabId, string][] = [
   ["workshops", "⚒ Мастерские"],
   ["listings", "⌂ Объявления"],
   ["orders", "↗ Заказы"],
+  ["subscriptions", "♛ Подписки Pro"],
 ];
+
+const PLAN_RU: Record<string, string> = { pro: "Pro профиля", workshop: "Тариф мастерской" };
+const SUB_STATUS_RU: Record<string, string> = { active: "Активна", expired: "Истекла", disabled: "Отключена" };
+const SUB_STATUS_COLOR: Record<string, string> = { active: "var(--green)", expired: "var(--ink-dim)", disabled: "var(--red)" };
 
 const WS_TYPE_RU: Record<string, string> = { print3d: "3D-печать", eva: "EVA", sewing: "Швейная", wigs: "Парики" };
 const LISTING_TYPE_RU: Record<string, string> = { job: "Ищу спеца", collab: "Коллаб", sell: "Продаю", buy: "Куплю" };
@@ -105,6 +111,7 @@ export default function AdminPanelPage() {
           {tab === "workshops" && <WorkshopsAdmin />}
           {tab === "listings" && <ListingsAdmin />}
           {tab === "orders" && <OrdersAdmin />}
+          {tab === "subscriptions" && <SubscriptionsAdmin />}
         </div>
       </div>
     </div>
@@ -1164,6 +1171,141 @@ function OrdersAdmin() {
             <select value={o.status} onChange={(e) => setOrderStatus(o, e.target.value)} style={{ maxWidth: 150 }}>
               {Object.entries(ORDER_STATUS_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ПОДПИСКИ PRO ───────────────────────────
+type SubRow = {
+  id: number; plan: string; plan_display: string; workshop: number | null; workshop_name: string | null;
+  user_id: number; user_username: string; source: string; active_until: string | null;
+  disabled: boolean; status: string; note: string; price: number;
+};
+
+function SubscriptionsAdmin() {
+  const [items, setItems] = useState<SubRow[]>([]);
+  const [q, setQ] = useState("");
+  const [plan, setPlan] = useState("");
+  const [status, setStatus] = useState("");
+  const [msg, setMsg] = useState("");
+
+  // выдача Pro
+  const [userQ, setUserQ] = useState("");
+  const [userRes, setUserRes] = useState<AdminUser[]>([]);
+
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (plan) p.set("plan", plan);
+    if (status) p.set("status", status);
+    api(`/admin-panel/subscriptions/${p.toString() ? `?${p}` : ""}`)
+      .then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, plan, status]);
+
+  useEffect(() => {
+    const term = userQ.trim();
+    if (term.length < 2) { setUserRes([]); return; }
+    const t = setTimeout(() => {
+      api(`/admin-panel/users/?q=${encodeURIComponent(term)}`).then((r) => (r.ok ? r.json() : []))
+        .then((d) => setUserRes(Array.isArray(d) ? d : []));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [userQ]);
+
+  function flash(t: string) { setMsg(t); setTimeout(() => setMsg(""), 2500); }
+
+  async function patch(id: number, body: Record<string, unknown>, ok: string) {
+    const res = await api(`/admin-panel/subscriptions/${id}/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (res.ok) { load(); flash(ok); }
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
+  async function grantPro(u: AdminUser, unlimited: boolean) {
+    const res = await api(`/admin-panel/subscriptions/`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: u.id, plan: "pro", unlimited, months: unlimited ? undefined : 6 }),
+    });
+    if (res.ok) { setUserQ(""); setUserRes([]); load(); flash(`Pro выдан @${u.username}`); }
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
+  async function del(s: SubRow) {
+    if (!confirm(`Удалить подписку #${s.id} (${PLAN_RU[s.plan]}) у @${s.user_username}?`)) return;
+    const res = await api(`/admin-panel/subscriptions/${s.id}/`, { method: "DELETE" });
+    if (res.ok) { load(); flash("Подписка удалена"); }
+  }
+
+  return (
+    <Card title="Подписки Pro и тарифы" sub="Контроль сроков Pro-профилей и тарифов мастерских. Активна, пока не истёк срок (пусто = бессрочно). После подключения оплаты продление будет автоматическим.">
+      {msg && <div style={{ color: "var(--green)", fontSize: 13, marginBottom: 12 }}>{msg}</div>}
+
+      {/* Выдать Pro вручную */}
+      <h3 style={{ margin: "0 0 10px", fontSize: 15 }}>Выдать Pro профилю</h3>
+      <input value={userQ} onChange={(e) => setUserQ(e.target.value)} placeholder="🔍 найди юзера по нику / email / телефону" style={{ marginBottom: 10 }} />
+      {userRes.map((u) => (
+        <div key={u.id} style={rowStyle}>
+          <div>
+            <b style={{ fontSize: 14 }}>{u.username}{u.is_pro && <span style={{ color: "var(--accent-3)", fontSize: 11, marginLeft: 6 }}>уже Pro</span>}</b>
+            <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>{u.email || u.phone || "—"}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={() => grantPro(u, false)}>+6 мес</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => grantPro(u, true)}>Бессрочно</button>
+          </div>
+        </div>
+      ))}
+
+      {/* Фильтры списка */}
+      <h3 style={{ margin: "22px 0 10px", fontSize: 15 }}>Все подписки ({items.length})</h3>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 юзер / мастерская" style={{ flex: "1 1 200px" }} />
+        <select value={plan} onChange={(e) => setPlan(e.target.value)} style={{ maxWidth: 180 }}>
+          <option value="">Все тарифы</option>
+          <option value="pro">Pro профиля</option>
+          <option value="workshop">Тариф мастерской</option>
+        </select>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 160 }}>
+          <option value="">Любой статус</option>
+          {Object.entries(SUB_STATUS_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Подписок нет.</p>
+        : items.map((s) => (
+          <div key={s.id} style={{ ...rowStyle, alignItems: "flex-start", flexDirection: "column" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 12, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 200 }}>
+                <b style={{ fontSize: 14 }}>
+                  {PLAN_RU[s.plan] || s.plan}{s.workshop_name ? ` · ${s.workshop_name}` : ""}
+                </b>
+                <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                  @{s.user_username} · {s.active_until ? `до ${fmtDate(s.active_until)}` : "бессрочно"} · {s.source}
+                </div>
+              </div>
+              <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", height: "fit-content",
+                background: "rgba(0,0,0,.3)", color: SUB_STATUS_COLOR[s.status] || "var(--ink)",
+                border: `1px solid ${SUB_STATUS_COLOR[s.status] || "var(--line)"}33` }}>
+                {SUB_STATUS_RU[s.status] || s.status}
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => patch(s.id, { add_months: 1 }, "Продлено на месяц")}>+1 мес</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => patch(s.id, { add_months: 6 }, "Продлено на 6 мес")}>+6 мес</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => patch(s.id, { active_until: "" }, "Сделано бессрочной")}>Бессрочно</button>
+              <input type="date" defaultValue={s.active_until ? s.active_until.slice(0, 10) : ""}
+                onChange={(e) => patch(s.id, { active_until: e.target.value }, "Дата обновлена")}
+                style={{ maxWidth: 150 }} title="Активна до" />
+              <button className="btn btn-ghost btn-sm" style={{ color: s.disabled ? "var(--green)" : "var(--accent-3)" }}
+                onClick={() => patch(s.id, { disabled: !s.disabled }, s.disabled ? "Включена" : "Отключена")}>
+                {s.disabled ? "Включить" : "Отключить"}
+              </button>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => del(s)}>Удалить</button>
+            </div>
           </div>
         ))}
     </Card>

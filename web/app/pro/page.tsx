@@ -1,7 +1,9 @@
 import { PLANS as PRICE_PLANS, fmtPrice, PRO_FREE_BETA } from "../../lib/pricing";
+import ProCta from "../components/ProCta";
 
 const PLANS = [
   {
+    key: PRICE_PLANS.free.key,
     name: PRICE_PLANS.free.name,
     price: fmtPrice(PRICE_PLANS.free.price),
     period: PRICE_PLANS.free.period,
@@ -16,6 +18,7 @@ const PLANS = [
     highlight: false,
   },
   {
+    key: PRICE_PLANS.pro.key,
     name: PRICE_PLANS.pro.name,
     price: fmtPrice(PRICE_PLANS.pro.price),
     period: PRICE_PLANS.pro.period,
@@ -33,6 +36,7 @@ const PLANS = [
     highlight: true,
   },
   {
+    key: PRICE_PLANS.workshop.key,
     name: PRICE_PLANS.workshop.name,
     price: fmtPrice(PRICE_PLANS.workshop.price),
     period: PRICE_PLANS.workshop.period,
@@ -121,13 +125,7 @@ export default function ProPage() {
                 </li>
               ))}
             </ul>
-            <a
-              href="/auth/register"
-              className={p.highlight ? "btn btn-primary" : "btn btn-ghost"}
-              style={{ width: "100%", justifyContent: "center" }}
-            >
-              {p.cta}
-            </a>
+            <ProCta planKey={p.key} label={p.cta} highlight={p.highlight} />
           </div>
         ))}
       </div>
