@@ -26,6 +26,7 @@ class MoodboardItem(models.Model):
     image = models.ImageField("картинка", upload_to="moodboards/items/", blank=True, null=True)
     image_url = models.URLField("ссылка на картинку", blank=True)
     caption = models.CharField("подпись", max_length=200, blank=True)
+    price = models.CharField("цена", max_length=40, blank=True)  # витрина магазина/локации (текст: «5 000 ₸»)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

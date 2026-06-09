@@ -282,6 +282,14 @@ export async function getMoodboard(id: string | number): Promise<any | null> {
   return data && data.id ? data : null;
 }
 
+// Витрина магазина/локации = публичные доски владельца.
+export async function getMoodboardsByOwner(userId: number): Promise<MoodboardListItem[]> {
+  const data = await get(`/moodboards/?owner=${userId}`);
+  if (!data) return [];
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
 export type PublicListing = {
   id: number; title: string; description: string; type: string; type_display: string;
   city: string; price: number | null; contact?: string; owner: string; owner_id: number; created_at: string;

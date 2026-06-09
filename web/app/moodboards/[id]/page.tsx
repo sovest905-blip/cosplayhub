@@ -15,6 +15,7 @@ export default function MoodboardDetailPage({ params }: { params: Promise<{ id: 
   const [nf, setNf] = useState(false);
   const [url, setUrl] = useState("");
   const [caption, setCaption] = useState("");
+  const [price, setPrice] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -40,9 +41,10 @@ export default function MoodboardDetailPage({ params }: { params: Promise<{ id: 
       const fd = new FormData();
       if (file) fd.append("image", file); else fd.append("image_url", url.trim());
       if (caption.trim()) fd.append("caption", caption.trim());
+      if (price.trim()) fd.append("price", price.trim());
       const res = await api(`/moodboards/${id}/items/`, { method: "POST", body: fd });
       const d = await res.json().catch(() => ({}));
-      if (res.ok) { setUrl(""); setCaption(""); setFile(null); load(); }
+      if (res.ok) { setUrl(""); setCaption(""); setPrice(""); setFile(null); load(); }
       else setErr(d.detail || "Не удалось");
     } finally { setBusy(false); }
   }
@@ -100,6 +102,7 @@ export default function MoodboardDetailPage({ params }: { params: Promise<{ id: 
           <div className="field" style={{ flex: "1 1 240px", marginBottom: 0 }}><label>Ссылка на картинку</label><input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://...jpg" /></div>
           <div className="field" style={{ flex: "0 0 auto", marginBottom: 0 }}><label>или файл</label><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
           <div className="field" style={{ flex: "1 1 160px", marginBottom: 0 }}><label>Подпись</label><input value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="опц." /></div>
+          <div className="field" style={{ flex: "0 0 120px", marginBottom: 0 }}><label>Цена</label><input value={price} onChange={(e) => setPrice(e.target.value)} placeholder="напр. 5 000 ₸" /></div>
           <button className="btn btn-primary btn-sm" onClick={addItem} disabled={busy}>{busy ? "…" : "+ Добавить"}</button>
           {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
         </div>
@@ -112,7 +115,12 @@ export default function MoodboardDetailPage({ params }: { params: Promise<{ id: 
           {b.items.map((it: any) => (
             <div key={it.id} style={{ breakInside: "avoid", marginBottom: 12, position: "relative", borderRadius: 12, overflow: "hidden", border: "1px solid var(--line)" }}>
               <img src={it.url || PH} alt={it.caption || ""} style={{ width: "100%", display: "block" }} />
-              {it.caption && <div style={{ fontSize: 11, color: "var(--ink-dim)", padding: "6px 8px" }}>{it.caption}</div>}
+              {(it.caption || it.price) && (
+                <div style={{ padding: "6px 8px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
+                  {it.caption && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>{it.caption}</span>}
+                  {it.price && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-3)", whiteSpace: "nowrap" }}>{it.price}</span>}
+                </div>
+              )}
               {b.can_edit && (
                 <button onClick={() => delItem(it.id)} title="Удалить"
                   style={{ position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: "50%", border: "none",

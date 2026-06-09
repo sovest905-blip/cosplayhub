@@ -4,7 +4,7 @@ import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
-import { getProfile, getLooksByAuthor, type Person, type LookItem, ROLE_DETAIL_FIELDS, fmtDetailValue, SOCIAL_META, socialUrl } from "../../../lib/api";
+import { getProfile, getLooksByAuthor, getMoodboardsByOwner, type Person, type LookItem, type MoodboardListItem, ROLE_DETAIL_FIELDS, fmtDetailValue, SOCIAL_META, socialUrl } from "../../../lib/api";
 import { FAN_SUPPORT_FROM } from "../../../lib/pricing";
 
 const ROLE_RU: Record<string, string> = {
@@ -24,6 +24,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
   // Реальные образы автора (модель Look) — для блока «Образы».
   const looks: LookItem[] = person.user_id ? await getLooksByAuthor(person.user_id).catch(() => []) : [];
+
+  // Витрина магазина/локации = публичные доски владельца (товары/фото).
+  const isVendor = (person.roles || []).some((r) => r === "shop" || r === "location");
+  const showcase: MoodboardListItem[] = (isVendor && person.user_id)
+    ? await getMoodboardsByOwner(person.user_id).catch(() => [])
+    : [];
 
   // Профиль существует, но ещё не заполнен
   const isEmpty = !!apiPerson && !person.bio && person.experience === "—" && !person.available_for_work;
@@ -142,6 +148,36 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               </div>
             );
           })}
+
+          {isVendor && (
+            <div className="about">
+              <h3>Витрина <span style={{ color: "var(--ink-dim)", fontWeight: 400, fontSize: 13 }}>· {person.roles?.includes("shop") ? "товары и фото" : "фото и услуги"}</span></h3>
+              {showcase.length > 0 ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12 }}>
+                  {showcase.map((bd) => (
+                    <a key={bd.id} href={`/moodboards/${bd.id}`} style={{
+                      display: "block", borderRadius: 12, overflow: "hidden",
+                      border: "1px solid var(--line)", background: "var(--bg-2)",
+                    }}>
+                      <div style={{
+                        aspectRatio: "4/3", backgroundSize: "cover", backgroundPosition: "center",
+                        backgroundImage: `url('${bd.cover_url || "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=400&q=80"}')`,
+                      }} />
+                      <div style={{ padding: "8px 10px" }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{bd.title}</div>
+                        <div style={{ fontSize: 11, color: "var(--ink-dim)" }}>{bd.items_count} позиц.</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>
+                  Витрина пока пуста. Добавьте товары и фото через доски в разделе{" "}
+                  <a href="/moodboards/new" style={{ color: "var(--accent-2)" }}>«Доски»</a>.
+                </p>
+              )}
+            </div>
+          )}
 
           {person.photos?.length > 0 && (
             <div className="about">

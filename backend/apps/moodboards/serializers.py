@@ -13,7 +13,7 @@ class MoodboardItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MoodboardItem
-        fields = ["id", "url", "image_url", "caption"]
+        fields = ["id", "url", "image_url", "caption", "price"]
 
     def get_url(self, obj):
         return _item_url(obj)
