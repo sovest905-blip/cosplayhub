@@ -4,7 +4,7 @@ import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
-import { getProfile, getLooksByAuthor, getMoodboardsByOwner, type Person, type LookItem, type MoodboardListItem, ROLE_DETAIL_FIELDS, fmtDetailValue, SOCIAL_META, socialUrl } from "../../../lib/api";
+import { getProfile, getLooksByAuthor, getProductsByOwner, type Person, type LookItem, type Product, ROLE_DETAIL_FIELDS, fmtDetailValue, fmtPrice, PRODUCT_STATUS_META, SOCIAL_META, socialUrl } from "../../../lib/api";
 import { FAN_SUPPORT_FROM } from "../../../lib/pricing";
 
 const ROLE_RU: Record<string, string> = {
@@ -25,10 +25,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   // Реальные образы автора (модель Look) — для блока «Образы».
   const looks: LookItem[] = person.user_id ? await getLooksByAuthor(person.user_id).catch(() => []) : [];
 
-  // Витрина магазина/локации = публичные доски владельца (товары/фото).
-  const isVendor = (person.roles || []).some((r) => r === "shop" || r === "location");
-  const showcase: MoodboardListItem[] = (isVendor && person.user_id)
-    ? await getMoodboardsByOwner(person.user_id).catch(() => [])
+  // Витрина товаров — для роли «магазин».
+  const isShop = (person.roles || []).includes("shop");
+  const products: Product[] = (isShop && person.user_id)
+    ? await getProductsByOwner(person.user_id).catch(() => [])
     : [];
 
   // Профиль существует, но ещё не заполнен
@@ -123,6 +123,42 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               </p>
             )}
           </div>
+          {isShop && (
+            <div className="about">
+              <h3>Товары{products.length > 0 && <span style={{ color: "var(--ink-dim)", fontWeight: 400, fontSize: 13 }}> · {products.length}</span>}</h3>
+              {products.length > 0 ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: 14 }}>
+                  {products.map((pr) => {
+                    const st = PRODUCT_STATUS_META[pr.status] || { label: pr.status_display, color: "var(--ink-dim)" };
+                    return (
+                      <a key={pr.id} href={`/products/${pr.id}`} style={{
+                        display: "block", borderRadius: 14, overflow: "hidden",
+                        border: "1px solid var(--line)", background: "var(--bg-2)",
+                      }}>
+                        <div style={{
+                          aspectRatio: "1", backgroundSize: "cover", backgroundPosition: "center",
+                          backgroundImage: `url('${pr.image || pr.image_url || "https://images.unsplash.com/photo-1513094735237-8f2714d57c13?w=400&q=80"}')`,
+                        }} />
+                        <div style={{ padding: "10px 12px" }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{pr.title}</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginTop: 6 }}>
+                            <span style={{ fontSize: 14, fontWeight: 700 }}>{fmtPrice(pr.price)}</span>
+                            <span style={{ fontSize: 10, color: st.color, whiteSpace: "nowrap" }}>{st.label}</span>
+                          </div>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>
+                  Товаров пока нет. Добавьте их в{" "}
+                  <a href="/cabinet?tab=roles" style={{ color: "var(--accent-2)" }}>кабинете</a>.
+                </p>
+              )}
+            </div>
+          )}
+
           {(person.roles || []).filter((r) => {
             const d = person.role_details?.[r];
             return ROLE_DETAIL_FIELDS[r] && d && Object.values(d).some((v) => fmtDetailValue(v) !== "");
@@ -148,36 +184,6 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
               </div>
             );
           })}
-
-          {isVendor && (
-            <div className="about">
-              <h3>Витрина <span style={{ color: "var(--ink-dim)", fontWeight: 400, fontSize: 13 }}>· {person.roles?.includes("shop") ? "товары и фото" : "фото и услуги"}</span></h3>
-              {showcase.length > 0 ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12 }}>
-                  {showcase.map((bd) => (
-                    <a key={bd.id} href={`/moodboards/${bd.id}`} style={{
-                      display: "block", borderRadius: 12, overflow: "hidden",
-                      border: "1px solid var(--line)", background: "var(--bg-2)",
-                    }}>
-                      <div style={{
-                        aspectRatio: "4/3", backgroundSize: "cover", backgroundPosition: "center",
-                        backgroundImage: `url('${bd.cover_url || "https://images.unsplash.com/photo-1452860606245-08befc0ff44b?w=400&q=80"}')`,
-                      }} />
-                      <div style={{ padding: "8px 10px" }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{bd.title}</div>
-                        <div style={{ fontSize: 11, color: "var(--ink-dim)" }}>{bd.items_count} позиц.</div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>
-                  Витрина пока пуста. Добавьте товары и фото через доски в разделе{" "}
-                  <a href="/moodboards/new" style={{ color: "var(--accent-2)" }}>«Доски»</a>.
-                </p>
-              )}
-            </div>
-          )}
 
           {person.photos?.length > 0 && (
             <div className="about">

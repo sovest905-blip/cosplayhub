@@ -26,10 +26,6 @@ class MoodboardViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = Moodboard.objects.select_related("owner").prefetch_related("items")
         user = self.request.user
-        # Витрина на профиле: публичные доски конкретного владельца (магазин/локация).
-        owner_id = self.request.query_params.get("owner")
-        if owner_id:
-            return qs.filter(owner_id=owner_id, is_public=True, is_active=True)
         if self.request.query_params.get("mine") and user.is_authenticated:
             return qs.filter(owner=user)
         if user.is_authenticated and user.is_staff:
@@ -70,7 +66,6 @@ class MoodboardViewSet(viewsets.ModelViewSet):
             board=board, image=image if image else None,
             image_url=image_url if not image else "",
             caption=(request.data.get("caption") or "")[:200],
-            price=(request.data.get("price") or "")[:40],
         )
         return Response(MoodboardItemSerializer(item).data, status=status.HTTP_201_CREATED)
 

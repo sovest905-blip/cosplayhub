@@ -19,7 +19,7 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "moodboards" | "users" | "admins" | "locations" | "workshops" | "listings" | "orders" | "subscriptions";
+type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "moodboards" | "users" | "admins" | "locations" | "workshops" | "products" | "listings" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
@@ -32,6 +32,7 @@ const TABS: [TabId, string][] = [
   ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
   ["workshops", "⚒ Мастерские"],
+  ["products", "▦ Товары"],
   ["listings", "⌂ Объявления"],
   ["orders", "↗ Заказы"],
   ["subscriptions", "♛ Подписки Pro"],
@@ -109,6 +110,7 @@ export default function AdminPanelPage() {
           {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
           {tab === "workshops" && <WorkshopsAdmin />}
+          {tab === "products" && <ProductsAdmin />}
           {tab === "listings" && <ListingsAdmin />}
           {tab === "orders" && <OrdersAdmin />}
           {tab === "subscriptions" && <SubscriptionsAdmin />}
@@ -1028,6 +1030,59 @@ function MoodboardsAdmin() {
               <a className="btn btn-ghost btn-sm" href={`/moodboards/${b.id}`} target="_blank" rel="noopener noreferrer">Открыть</a>
               <button className="btn btn-ghost btn-sm" onClick={() => toggle(b)}>{b.is_active ? "Скрыть" : "Показать"}</button>
               <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(b)}>Удалить</button>
+            </div>
+          </div>
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ТОВАРЫ ───────────────────────────
+type ProdRow = { id: number; title: string; price: number | null; status: string; image: string | null; is_active: boolean; owner: string; created_at: string };
+const PROD_STATUS_RU: Record<string, string> = { in_stock: "В наличии", on_order: "На заказ", sold: "Продано" };
+function ProductsAdmin() {
+  const [items, setItems] = useState<ProdRow[]>([]);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (status) p.set("status", status);
+    api(`/admin-panel/products/${p.toString() ? `?${p}` : ""}`).then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, status]);
+  async function toggle(p: ProdRow) {
+    const res = await api(`/admin-panel/products/${p.id}/set-active/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !p.is_active }) });
+    if (res.ok) { const d = await res.json(); setItems((arr) => arr.map((x) => (x.id === p.id ? { ...x, is_active: d.is_active } : x))); }
+  }
+  async function remove(p: ProdRow) {
+    if (!confirm(`Удалить товар «${p.title}»?`)) return;
+    const res = await api(`/admin-panel/products/${p.id}/delete/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((arr) => arr.filter((x) => x.id !== p.id));
+  }
+  return (
+    <Card title="Товары" sub="Витрины магазинов. Модерация: скрыть или удалить.">
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        <input placeholder="Поиск по названию/продавцу" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: "1 1 200px" }} />
+        <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">Все</option><option value="active">Активные</option><option value="hidden">Скрытые</option>
+        </select>
+      </div>
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Товаров пока нет.</p>
+        : items.map((p) => (
+          <div key={p.id} style={{ ...rowStyle, opacity: p.is_active ? 1 : 0.55 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flex: 1, minWidth: 180 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 8, flexShrink: 0, backgroundSize: "cover", backgroundPosition: "center",
+                background: p.image ? `center/cover url('${p.image}')` : "var(--bg)" }} />
+              <div>
+                <b style={{ fontSize: 14 }}>{p.title}{!p.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>скрыт</span>}</b>
+                <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>@{p.owner || "—"} · {p.price != null ? `${p.price.toLocaleString("ru-RU")} ₸` : "по запросу"} · {PROD_STATUS_RU[p.status] || p.status}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a className="btn btn-ghost btn-sm" href={`/products/${p.id}`} target="_blank" rel="noopener noreferrer">Открыть</a>
+              <button className="btn btn-ghost btn-sm" onClick={() => toggle(p)}>{p.is_active ? "Скрыть" : "Показать"}</button>
+              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(p)}>Удалить</button>
             </div>
           </div>
         ))}

@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.looks",
     "apps.teams",
     "apps.moodboards",
+    "apps.products",
 ]
 
 MIDDLEWARE = [

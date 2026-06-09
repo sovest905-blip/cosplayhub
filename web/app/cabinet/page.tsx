@@ -109,6 +109,11 @@ export default function CabinetPage() {
   const [lookImg, setLookImg] = useState<File | null>(null);
   const [lookUp, setLookUp] = useState(false);
   const [lookErr, setLookErr] = useState("");
+  const [myProducts, setMyProducts] = useState<any[]>([]);
+  const [prodForm, setProdForm] = useState({ title: "", price: "", category: "", status: "in_stock", description: "" });
+  const [prodImg, setProdImg] = useState<File | null>(null);
+  const [prodUp, setProdUp] = useState(false);
+  const [prodErr, setProdErr] = useState("");
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -236,6 +241,14 @@ export default function CabinetPage() {
         if (cancelled) return;
         const list = data?.results ?? data;
         if (Array.isArray(list)) setMyLooks(list);
+      }).catch(() => {});
+
+    fetch(`/api/v1/products/?mine=1`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled) return;
+        const list = data?.results ?? data;
+        if (Array.isArray(list)) setMyProducts(list);
       }).catch(() => {});
 
     fetch(`/api/v1/teams/?mine=1`, { credentials: "include" })
@@ -540,6 +553,34 @@ export default function CabinetPage() {
     if (res.ok || res.status === 204) setMyLooks((prev) => prev.filter((l) => l.id !== id));
   }
 
+  async function addProduct() {
+    setProdErr("");
+    if (!prodForm.title.trim()) { setProdErr("Введите название товара"); return; }
+    if (prodImg && prodImg.size > 5 * 1024 * 1024) { setProdErr("Фото максимум 5 МБ"); return; }
+    setProdUp(true);
+    try {
+      const fd = new FormData();
+      fd.append("title", prodForm.title);
+      if (prodForm.price.trim()) fd.append("price", prodForm.price.replace(/\D/g, ""));
+      fd.append("category", prodForm.category);
+      fd.append("status", prodForm.status);
+      fd.append("description", prodForm.description);
+      if (prodImg) fd.append("image", prodImg);
+      const res = await fetch(`/api/v1/products/`, { method: "POST", credentials: "include", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMyProducts((prev) => [data, ...prev]);
+        setProdForm({ title: "", price: "", category: "", status: "in_stock", description: "" });
+        setProdImg(null);
+      } else setProdErr(data.detail || data.image?.[0] || "Не удалось");
+    } finally { setProdUp(false); }
+  }
+
+  async function delProduct(id: number) {
+    const res = await fetch(`/api/v1/products/${id}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok || res.status === 204) setMyProducts((prev) => prev.filter((p) => p.id !== id));
+  }
+
   async function createWorkshop() {
     if (!wsForm.name.trim() || !wsForm.city.trim()) {
       setWsErr("Заполни название и город"); return;
@@ -653,6 +694,7 @@ export default function CabinetPage() {
           {rdSaving === role ? "Сохраняем..." : "Сохранить анкету"}
         </button>
 
+        {role === "shop" && productsBlock()}
         {role === "location" && galleryBlock("Фотогалерея локации", "Покажи площадку: интерьер, свет, фоны.")}
         {role === "photographer" && !roles.includes("location") &&
           galleryBlock("Портфолио (фото)", "Покажи свои работы — лучшие кадры.")}
@@ -697,6 +739,52 @@ export default function CabinetPage() {
                   backgroundImage: `url('${l.image || "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=300&q=80"}')` }} />
                 <div style={{ fontSize: 10, padding: "4px 6px", color: "var(--ink-dim)" }}>{l.title} · ♥ {l.likes_count}</div>
                 <button onClick={() => delLook(l.id)} title="Удалить"
+                  style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none",
+                    background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Блок «Мои товары» внутри анкеты магазина. Товары видны на профиле и на странице товара.
+  function productsBlock() {
+    const ST = [["in_stock", "В наличии"], ["on_order", "На заказ"], ["sold", "Продано"]];
+    return (
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <h4 style={{ margin: 0, fontSize: 14 }}>Мои товары</h4>
+          <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{myProducts.length} в витрине</span>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Товары появятся в витрине магазина на твоём профиле. Оплата — через личные сообщения (до подключения платежей).</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+          <div className="field"><label>Название</label><input value={prodForm.title} onChange={(e) => setProdForm({ ...prodForm, title: e.target.value })} placeholder="Парик длинный, блонд" /></div>
+          <div className="field"><label>Цена, ₸ (пусто = по запросу)</label><input value={prodForm.price} onChange={(e) => setProdForm({ ...prodForm, price: e.target.value })} placeholder="9900" inputMode="numeric" /></div>
+          <div className="field"><label>Категория (опц.)</label><input value={prodForm.category} onChange={(e) => setProdForm({ ...prodForm, category: e.target.value })} placeholder="Парики" /></div>
+          <div className="field"><label>Статус</label>
+            <select value={prodForm.status} onChange={(e) => setProdForm({ ...prodForm, status: e.target.value })}>
+              {ST.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="field"><label>Описание</label><textarea rows={2} value={prodForm.description} onChange={(e) => setProdForm({ ...prodForm, description: e.target.value })} placeholder="Материал, размер, состояние…" /></div>
+        <div className="field"><label>Фото товара</label><input type="file" accept="image/*" onChange={(e) => setProdImg(e.target.files?.[0] || null)} /></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <button className="btn btn-primary btn-sm" onClick={addProduct} disabled={prodUp}>{prodUp ? "Сохраняем…" : "+ Добавить товар"}</button>
+          {prodErr && <span style={{ color: "var(--red)", fontSize: 12 }}>{prodErr}</span>}
+        </div>
+        {myProducts.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 10 }}>
+            {myProducts.map((p) => (
+              <div key={p.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
+                <div style={{ aspectRatio: "1", backgroundSize: "cover", backgroundPosition: "center",
+                  backgroundImage: `url('${p.image || p.image_url || "https://images.unsplash.com/photo-1513094735237-8f2714d57c13?w=300&q=80"}')` }} />
+                <div style={{ fontSize: 10, padding: "4px 6px", color: "var(--ink-dim)" }}>
+                  {p.title}<br />{p.price ? `${Number(p.price).toLocaleString("ru-RU")} ₸` : "по запросу"} · {p.status_display}
+                </div>
+                <button onClick={() => delProduct(p.id)} title="Удалить"
                   style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none",
                     background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
               </div>

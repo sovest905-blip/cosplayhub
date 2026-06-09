@@ -282,12 +282,34 @@ export async function getMoodboard(id: string | number): Promise<any | null> {
   return data && data.id ? data : null;
 }
 
-// Витрина магазина/локации = публичные доски владельца.
-export async function getMoodboardsByOwner(userId: number): Promise<MoodboardListItem[]> {
-  const data = await get(`/moodboards/?owner=${userId}`);
+// ── Товары магазина (витрина продавца) ──
+export type Product = {
+  id: number; title: string; description: string; price: number | null;
+  image: string | null; image_url: string; category: string;
+  status: string; status_display: string; is_active: boolean;
+  owner_name: string; owner_id: number; created_at: string;
+};
+
+export async function getProductsByOwner(userId: number): Promise<Product[]> {
+  const data = await get(`/products/?owner=${userId}`);
   if (!data) return [];
   const list = data.results ?? data;
   return Array.isArray(list) ? list : [];
+}
+
+export async function getProduct(id: string | number): Promise<Product | null> {
+  const data = await get(`/products/${id}/`);
+  return data && data.id ? data : null;
+}
+
+export const PRODUCT_STATUS_META: Record<string, { label: string; color: string }> = {
+  in_stock: { label: "В наличии", color: "var(--green)" },
+  on_order: { label: "На заказ", color: "var(--accent-3)" },
+  sold: { label: "Продано", color: "var(--ink-dim)" },
+};
+
+export function fmtPrice(price: number | null): string {
+  return price == null ? "Цена по запросу" : `${price.toLocaleString("ru-RU")} ₸`;
 }
 
 export type PublicListing = {

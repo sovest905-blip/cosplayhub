@@ -16,6 +16,7 @@ from apps.looks.models import Look
 from apps.moodboards.models import Moodboard, MoodboardItem
 from apps.teams.models import Team, TeamMember
 from apps.news.models import News
+from apps.products.models import Product
 from apps.profiles.models import Profile
 from apps.workshops.models import Service, Workshop
 
@@ -136,6 +137,31 @@ LISTINGS = [
      "city": "Караганда", "price": 8000, "description": "Под Гето/Гэндзи, натуральный блонд."},
 ]
 
+# ── Товары магазинов (витрина продавца) ──
+PRODUCTS = [
+    {"owner": "cosshop_kz", "title": "Парик длинный, блонд", "price": 9900, "status": "in_stock",
+     "category": "Парики", "description": "Термостойкое волокно до 180°C, длина 80 см. Можно укладывать утюжком.",
+     "image_url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=600&q=80"},
+    {"owner": "cosshop_kz", "title": "Парик каре, чёрный", "price": 7500, "status": "in_stock",
+     "category": "Парики", "description": "Базовый чёрный парик каре, термоволокно. Подходит под большинство образов.",
+     "image_url": "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=600&q=80"},
+    {"owner": "cosshop_kz", "title": "Парик розовый, длинный", "price": 11000, "status": "on_order",
+     "category": "Парики", "description": "Яркий розовый, длина 90 см. Под заказ — срок 5–7 дней.",
+     "image_url": "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?w=600&q=80"},
+    {"owner": "cosshop_kz", "title": "Набор заколок-крепления", "price": 1500, "status": "in_stock",
+     "category": "Аксессуары", "description": "Невидимки и зажимы для фиксации парика. 12 шт.",
+     "image_url": "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?w=600&q=80"},
+    {"owner": "lens_store", "title": "Линзы голубые, пара", "price": 4500, "status": "in_stock",
+     "category": "Линзы", "description": "Цветные контактные линзы, диаметр 14.5 мм, срок ношения 3 мес. Сертификат есть.",
+     "image_url": "https://images.unsplash.com/photo-1583195763986-0231686dcd43?w=600&q=80"},
+    {"owner": "lens_store", "title": "Линзы красные склеры 22мм", "price": 6200, "status": "in_stock",
+     "category": "Линзы", "description": "Полные склеральные линзы 22 мм — демоны, вампиры. Только для фото/сцены.",
+     "image_url": "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=600&q=80"},
+    {"owner": "lens_store", "title": "Линзы фиолетовые, пара", "price": 4800, "status": "on_order",
+     "category": "Линзы", "description": "Насыщенный фиолет, под заказ. Срок поставки 7–10 дней.",
+     "image_url": "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=600&q=80"},
+]
+
 NEWS = [
     {"title": "Открыта закрытая бета КосплейХаб СНГ!", "pinned": True,
      "body": "Мы запустили бету для косплей-сообщества Казахстана и СНГ. Заполняйте профили, добавляйте роли и услуги."},
@@ -163,7 +189,7 @@ class Command(BaseCommand):
         return u
 
     def handle(self, *args, **opts):
-        n_prof = n_ws = n_list = n_news = n_ev = n_guide = n_look = n_team = n_board = 0
+        n_prof = n_ws = n_list = n_news = n_ev = n_guide = n_look = n_team = n_board = n_prod = 0
         today = timezone.localdate()
 
         # Профили
@@ -213,6 +239,19 @@ class Command(BaseCommand):
             )
             if created:
                 n_list += 1
+
+        # Товары магазинов (витрина продавца)
+        for pr in PRODUCTS:
+            owner = User.objects.filter(username=pr["owner"]).first()
+            if not owner:
+                continue
+            _, created = Product.objects.get_or_create(
+                owner=owner, title=pr["title"],
+                defaults={"price": pr["price"], "status": pr["status"], "category": pr.get("category", ""),
+                          "description": pr["description"], "image_url": pr["image_url"], "is_active": True},
+            )
+            if created:
+                n_prod += 1
 
         # Новости
         admin = User.objects.filter(is_staff=True).first()
@@ -360,22 +399,6 @@ class Command(BaseCommand):
              "imgs": ["https://images.unsplash.com/photo-1605826832916-d0a401fdb4b6?w=500&q=80",
                       "https://images.unsplash.com/photo-1611673773600-1d6e3a6a1f0a?w=500&q=80",
                       "https://images.unsplash.com/photo-1551122089-4e3e72477432?w=500&q=80"]},
-            # Витрины магазинов — каталоги товаров с ценами (позиции = dict).
-            {"title": "Каталог: парики", "owner": "cosshop_kz",
-             "desc": "Термостойкие парики под укладку. Доставка по СНГ.",
-             "imgs": [
-                 {"url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=500&q=80", "caption": "Парик длинный, блонд", "price": "9 900 ₸"},
-                 {"url": "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=500&q=80", "caption": "Парик каре, чёрный", "price": "7 500 ₸"},
-                 {"url": "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?w=500&q=80", "caption": "Парик розовый, длинный", "price": "11 000 ₸"},
-                 {"url": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=500&q=80", "caption": "Парик короткий, белый", "price": "6 900 ₸"},
-             ]},
-            {"title": "Каталог: линзы", "owner": "lens_store",
-             "desc": "Цветные склеральные и обычные линзы. Сертификаты есть.",
-             "imgs": [
-                 {"url": "https://images.unsplash.com/photo-1583195763986-0231686dcd43?w=500&q=80", "caption": "Линзы голубые, пара", "price": "4 500 ₸"},
-                 {"url": "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=500&q=80", "caption": "Линзы красные склеры", "price": "6 200 ₸"},
-                 {"url": "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=500&q=80", "caption": "Линзы фиолетовые", "price": "4 800 ₸"},
-             ]},
         ]
         for bd in boards:
             owner = User.objects.filter(username=bd["owner"]).first()
@@ -386,14 +409,10 @@ class Command(BaseCommand):
             )
             if created:
                 n_board += 1
-                for it in bd["imgs"]:
-                    if isinstance(it, dict):
-                        MoodboardItem.objects.create(board=board, image_url=it["url"],
-                                                     caption=it.get("caption", ""), price=it.get("price", ""))
-                    else:
-                        MoodboardItem.objects.create(board=board, image_url=it)
+                for u in bd["imgs"]:
+                    MoodboardItem.objects.create(board=board, image_url=u)
 
         self.stdout.write(self.style.SUCCESS(
-            f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}, "
+            f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, товаров +{n_prod}, новостей +{n_news}, "
             f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, досок +{n_board}. Пароль всех демо: {PWD}"
         ))

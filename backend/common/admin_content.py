@@ -20,6 +20,7 @@ from apps.guides.models import Guide
 from apps.looks.models import Look
 from apps.teams.models import Team
 from apps.moodboards.models import Moodboard
+from apps.products.models import Product
 
 OPEN_ORDER_STATUSES = ["request", "accepted", "in_work"]
 
@@ -197,6 +198,51 @@ class AdminListingDeleteView(_StaffView):
         if not l:
             return Response({"detail": "Не найдено"}, status=404)
         l.delete()
+        return Response(status=204)
+
+
+class AdminProductsView(_StaffView):
+    """GET — все товары (поиск ?q=, ?status=active|hidden)."""
+
+    def get(self, request):
+        q = (request.query_params.get("q") or "").strip()
+        status_f = (request.query_params.get("status") or "").strip()
+        qs = Product.objects.select_related("owner").order_by("-created_at")
+        if q:
+            qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q) | Q(owner__username__icontains=q))
+        if status_f == "active":
+            qs = qs.filter(is_active=True)
+        elif status_f == "hidden":
+            qs = qs.filter(is_active=False)
+        return Response([{
+            "id": p.id, "title": p.title, "price": p.price, "status": p.status,
+            "image": p.image.url if p.image else (p.image_url or None),
+            "is_active": p.is_active,
+            "owner": p.owner.username if p.owner else "", "owner_id": p.owner_id,
+            "created_at": p.created_at,
+        } for p in qs[:150]])
+
+
+class AdminProductActiveView(_StaffView):
+    """POST {is_active} — скрыть/показать товар."""
+
+    def post(self, request, pk):
+        p = Product.objects.filter(pk=pk).first()
+        if not p:
+            return Response({"detail": "Не найдено"}, status=404)
+        p.is_active = bool(request.data.get("is_active"))
+        p.save(update_fields=["is_active"])
+        return Response({"id": p.id, "is_active": p.is_active})
+
+
+class AdminProductDeleteView(_StaffView):
+    """DELETE — удалить товар."""
+
+    def delete(self, request, pk):
+        p = Product.objects.filter(pk=pk).first()
+        if not p:
+            return Response({"detail": "Не найдено"}, status=404)
+        p.delete()
         return Response(status=204)
 
 
