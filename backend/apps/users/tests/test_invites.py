@@ -124,7 +124,8 @@ def test_admin_toggle_and_delete_invite(api, make_user):
     api.force_authenticate(user=make_user(is_staff=True))
     inv = Invite.objects.create()
 
-    resp = api.post(f"{AP_INVITES}{inv.id}/", {"is_active": False})
+    # format="json": form-encoding превратила бы False в строку "False" (truthy)
+    resp = api.post(f"{AP_INVITES}{inv.id}/", {"is_active": False}, format="json")
     assert resp.status_code == 200
     assert resp.data["is_active"] is False
 
