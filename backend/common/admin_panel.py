@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.backends import CsrfExemptSessionAuthentication, _normalize_phone
-from apps.users.models import User
+from apps.users.models import Invite, User
 from apps.profiles.models import Profile, Follow
 
 VALID_ROLES = {"cosplayer", "photographer", "workshop", "shop", "location", "fan"}
@@ -232,4 +232,72 @@ class AdminUserSubDeleteView(_StaffView):
         if not user:
             return Response({"detail": "Не найдено"}, status=404)
         Follow.objects.filter(follower=user, target_id=target_id).delete()
+        return Response(status=204)
+
+
+# ── Инвайты (закрытая бета) ───────────────────────────────────────────────────
+
+def _invite_dict(inv: Invite) -> dict:
+    return {
+        "id": inv.id,
+        "code": inv.code,
+        "note": inv.note,
+        "max_uses": inv.max_uses,
+        "used_count": inv.used_count,
+        "is_active": inv.is_active,
+        "has_room": inv.has_room,
+        "created_by": inv.created_by.username if inv.created_by else "",
+        "created_at": inv.created_at,
+        "users": list(inv.users.values_list("username", flat=True)[:20]),
+    }
+
+
+class AdminInvitesView(_StaffView):
+    """GET — список инвайтов (с никами зарегистрировавшихся).
+    POST {note?, max_uses?} — создать (код генерится сам, 0 = безлимит)."""
+
+    def get(self, request):
+        qs = Invite.objects.select_related("created_by").prefetch_related("users").order_by("-id")
+        return Response([_invite_dict(i) for i in qs[:200]])
+
+    def post(self, request):
+        note = (request.data.get("note") or "").strip()[:120]
+        try:
+            max_uses = max(0, int(request.data.get("max_uses", 1)))
+        except (TypeError, ValueError):
+            max_uses = 1
+        inv = Invite.objects.create(note=note, max_uses=max_uses, created_by=request.user)
+        return Response(_invite_dict(inv), status=201)
+
+
+class AdminInviteUpdateView(_StaffView):
+    """POST {is_active?, note?, max_uses?} — править инвайт. DELETE — удалить
+    (юзеры, пришедшие по нему, остаются — у них invite станет NULL)."""
+
+    def post(self, request, pk):
+        inv = Invite.objects.filter(pk=pk).first()
+        if not inv:
+            return Response({"detail": "Не найдено"}, status=404)
+        fields = []
+        if "is_active" in request.data:
+            inv.is_active = bool(request.data.get("is_active"))
+            fields.append("is_active")
+        if "note" in request.data:
+            inv.note = (request.data.get("note") or "").strip()[:120]
+            fields.append("note")
+        if "max_uses" in request.data:
+            try:
+                inv.max_uses = max(0, int(request.data.get("max_uses")))
+                fields.append("max_uses")
+            except (TypeError, ValueError):
+                pass
+        if fields:
+            inv.save(update_fields=fields)
+        return Response(_invite_dict(inv))
+
+    def delete(self, request, pk):
+        inv = Invite.objects.filter(pk=pk).first()
+        if not inv:
+            return Response({"detail": "Не найдено"}, status=404)
+        inv.delete()
         return Response(status=204)

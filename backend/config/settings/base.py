@@ -145,6 +145,11 @@ EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "КосплейХаб <noreply@cosplayhub.kz>")
 
+# ── Закрытая бета: регистрация только по инвайту ─────────────────────────────
+# INVITE_REQUIRED=true в .env → при регистрации обязателен код инвайта (модель users.Invite).
+# Выключено по умолчанию (dev/тесты регистрируются свободно); валидный код принимается всегда.
+INVITE_REQUIRED = os.getenv("INVITE_REQUIRED", "false").lower() == "true"
+
 # ── Telegram Bot ──────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")

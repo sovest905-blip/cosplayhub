@@ -1,16 +1,19 @@
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
+from django.db.models import F, Q
 from rest_framework import serializers
 
 from .backends import _normalize_phone
-from .models import User
+from .models import Invite, User
 
 
 class RegisterSerializer(serializers.Serializer):
-    """Регистрация по email ИЛИ телефону."""
+    """Регистрация по email ИЛИ телефону. При INVITE_REQUIRED — только по коду инвайта."""
     identifier = serializers.CharField()
     username = serializers.CharField()
     password = serializers.CharField(write_only=True, validators=[validate_password])
     city = serializers.CharField(required=False, allow_blank=True, default="")
+    invite = serializers.CharField(required=False, allow_blank=True, default="")
 
     def _detect(self, identifier: str) -> tuple[str, str]:
         """Возвращает ('email'|'phone', нормализованное значение)."""
@@ -36,14 +39,36 @@ class RegisterSerializer(serializers.Serializer):
         if User.objects.filter(username=attrs["username"]).exists():
             raise serializers.ValidationError({"username": "Ник уже занят"})
 
+        # Инвайт: явный код проверяем всегда; без кода — пускаем только если флаг выключен.
+        code = (attrs.get("invite") or "").strip()
+        attrs["_invite"] = None
+        if code:
+            inv = Invite.objects.filter(code__iexact=code).first()
+            if not inv or not inv.has_room:
+                raise serializers.ValidationError({"invite": "Инвайт не найден или уже использован"})
+            attrs["_invite"] = inv
+        elif getattr(settings, "INVITE_REQUIRED", False):
+            raise serializers.ValidationError({"invite": "Регистрация только по инвайту — укажите код"})
+
         return attrs
 
     def create(self, validated_data):
         kind = validated_data["_kind"]
         value = validated_data["_value"]
+
+        # Атомарно «занимаем» место в инвайте (защита от гонки двух регистраций).
+        inv = validated_data.get("_invite")
+        if inv:
+            claimed = Invite.objects.filter(pk=inv.pk, is_active=True).filter(
+                Q(max_uses=0) | Q(used_count__lt=F("max_uses"))
+            ).update(used_count=F("used_count") + 1)
+            if not claimed:
+                raise serializers.ValidationError({"invite": "Инвайт не найден или уже использован"})
+
         user = User(
             username=validated_data["username"],
             city=validated_data.get("city", ""),
+            invite=inv,
         )
         if kind == "email":
             user.email = value

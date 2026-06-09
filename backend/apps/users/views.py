@@ -69,6 +69,22 @@ class RegisterView(APIView):
                 )
 
 
+class InviteCheckView(APIView):
+    """GET [?code=] — нужен ли инвайт для регистрации и валиден ли код.
+    Для формы /auth/register: без code отдаёт только {required}, с code — ещё {valid}.
+    Коды случайные (10 симв.), перебор бессмыслен + общий anon-троттлинг."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        out = {"required": bool(getattr(settings, "INVITE_REQUIRED", False))}
+        code = (request.query_params.get("code") or "").strip()
+        if code:
+            from .models import Invite
+            inv = Invite.objects.filter(code__iexact=code).first()
+            out["valid"] = bool(inv and inv.has_room)
+        return Response(out)
+
+
 # ── Вход ──────────────────────────────────────────────────────────────────────
 
 class LoginView(APIView):

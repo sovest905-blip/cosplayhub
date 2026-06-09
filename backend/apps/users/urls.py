@@ -4,6 +4,7 @@ from .views import (
     AvatarUploadView,
     CoverUploadView,
     ForgotPasswordView,
+    InviteCheckView,
     LoginView,
     LogoutView,
     MeView,
@@ -17,6 +18,7 @@ from .views import (
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
+    path("invite-check/", InviteCheckView.as_view(), name="invite-check"),
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),

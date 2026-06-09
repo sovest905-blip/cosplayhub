@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const API = "/api/v1";
@@ -23,6 +23,18 @@ export default function RegisterPage() {
   const [taken, setTaken] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [invite, setInvite] = useState("");
+  const [inviteRequired, setInviteRequired] = useState(false);
+
+  // Код из инвайт-ссылки (?invite=XXXX) + узнаём у бэка, обязателен ли инвайт.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("invite") || "";
+    if (code) setInvite(code.toUpperCase());
+    fetch(`${API}/auth/invite-check/`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setInviteRequired(!!d.required); })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,6 +57,7 @@ export default function RegisterPage() {
           identifier,
           username: form.get("username"),
           password: form.get("password"),
+          invite: invite.trim(),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -54,6 +67,7 @@ export default function RegisterPage() {
           data.identifier?.[0] ||
           data.username?.[0] ||
           data.password?.[0] ||
+          data.invite?.[0] ||
           data.detail ||
           "Ошибка регистрации";
         if (msg.includes("занят") || msg.includes("зарегистрирован")) setTaken(true);
@@ -89,6 +103,20 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {(inviteRequired || invite) && (
+            <div className="field">
+              <label>Код инвайта</label>
+              <input
+                type="text" name="invite" placeholder="Например: K7XM2PQ9WD"
+                value={invite}
+                onChange={(e) => setInvite(e.target.value.toUpperCase())}
+                required={inviteRequired}
+                autoComplete="off"
+                style={{ fontFamily: "var(--font-mono),monospace", letterSpacing: 1 }}
+              />
+            </div>
+          )}
+
           <div className="field">
             <label>Ник (публичное имя)</label>
             <input type="text" name="username" placeholder="YourNick" required autoComplete="username" />

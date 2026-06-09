@@ -1,5 +1,40 @@
+import secrets
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
+
+def _invite_code() -> str:
+    """Читаемый код без похожих символов (0/O, 1/I/L)."""
+    alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+    return "".join(secrets.choice(alphabet) for _ in range(10))
+
+
+class Invite(models.Model):
+    """Инвайт для закрытой беты: регистрация только по коду (флаг INVITE_REQUIRED).
+    max_uses=0 — безлимитный код (одна ссылка на всю тусовку)."""
+    code = models.CharField("код", max_length=20, unique=True, default=_invite_code)
+    note = models.CharField("заметка (для кого)", max_length=120, blank=True)
+    max_uses = models.PositiveIntegerField("лимит использований (0 = безлимит)", default=1)
+    used_count = models.PositiveIntegerField("использован раз", default=0)
+    is_active = models.BooleanField("активен", default=True)
+    created_by = models.ForeignKey(
+        "users.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="invites_created", verbose_name="создал",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "инвайт"
+        verbose_name_plural = "инвайты"
+
+    @property
+    def has_room(self) -> bool:
+        """Можно ли ещё регистрироваться по этому коду."""
+        return self.is_active and (self.max_uses == 0 or self.used_count < self.max_uses)
+
+    def __str__(self):
+        return self.code
 
 
 class User(AbstractUser):
@@ -20,6 +55,10 @@ class User(AbstractUser):
     # Профиль
     city = models.CharField("город", max_length=80, blank=True)
     is_verified = models.BooleanField("синяя галочка", default=False)
+    invite = models.ForeignKey(
+        Invite, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="users", verbose_name="пришёл по инвайту",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = "username"

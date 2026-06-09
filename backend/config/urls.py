@@ -11,6 +11,7 @@ from common.admin_panel import (
     AdminUsersView, AdminUserRolesView, AdminUserPasswordView,
     AdminUserSubsView, AdminUserSubDeleteView, AdminUserStaffView,
     AdminUserActiveView, AdminUserDeleteView,
+    AdminInvitesView, AdminInviteUpdateView,
 )
 from common.admin_content import (
     AdminStatsView, AdminWorkshopsView, AdminWorkshopDeleteView,
@@ -49,6 +50,8 @@ api_v1 = [
     path("admin-panel/users/<int:pk>/reset-password/", AdminUserPasswordView.as_view(), name="ap-pass"),
     path("admin-panel/users/<int:pk>/subscriptions/", AdminUserSubsView.as_view(), name="ap-subs"),
     path("admin-panel/users/<int:pk>/subscriptions/<int:target_id>/", AdminUserSubDeleteView.as_view(), name="ap-sub-del"),
+    path("admin-panel/invites/", AdminInvitesView.as_view(), name="ap-invites"),
+    path("admin-panel/invites/<int:pk>/", AdminInviteUpdateView.as_view(), name="ap-invite-update"),
     path("admin-panel/stats/", AdminStatsView.as_view(), name="ap-stats"),
     path("admin-panel/workshops/", AdminWorkshopsView.as_view(), name="ap-workshops"),
     path("admin-panel/workshops/<int:pk>/delete/", AdminWorkshopDeleteView.as_view(), name="ap-ws-del"),

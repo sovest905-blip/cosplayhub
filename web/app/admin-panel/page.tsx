@@ -19,7 +19,7 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "users" | "admins" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
+type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
@@ -29,6 +29,7 @@ const TABS: [TabId, string][] = [
   ["teams", "♛ Команды"],
   ["users", "◇ Пользователи"],
   ["admins", "⚙ Админы"],
+  ["invites", "✉ Инвайты"],
   ["locations", "⌖ Локации"],
   ["workshops", "⚒ Мастерские"],
   ["shops", "⌂ Магазины"],
@@ -107,6 +108,7 @@ export default function AdminPanelPage() {
           {tab === "teams" && <TeamsAdmin />}
           {tab === "users" && <UsersAdmin roleFilter="" />}
           {tab === "admins" && <AdminsAdmin />}
+          {tab === "invites" && <InvitesAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
           {tab === "workshops" && <WorkshopsAdmin />}
           {tab === "shops" && <UsersAdmin roleFilter="shop" />}
@@ -218,6 +220,134 @@ function NewsAdmin() {
           <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => startEdit(n)}>Изменить</button>
             <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)}>Удалить</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────── ИНВАЙТЫ ───────────────────────────
+type InviteItem = {
+  id: number; code: string; note: string; max_uses: number; used_count: number;
+  is_active: boolean; has_room: boolean; created_by: string; created_at: string; users: string[];
+};
+
+function InvitesAdmin() {
+  const [items, setItems] = useState<InviteItem[]>([]);
+  const [show, setShow] = useState(false);
+  const [note, setNote] = useState("");
+  const [maxUses, setMaxUses] = useState("1");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  function load() {
+    api("/admin-panel/invites/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(load, []);
+
+  function inviteLink(code: string) {
+    return `${window.location.origin}/auth/register?invite=${code}`;
+  }
+
+  async function copyLink(inv: InviteItem) {
+    try {
+      await navigator.clipboard.writeText(inviteLink(inv.code));
+      setCopiedId(inv.id);
+      setTimeout(() => setCopiedId((p) => (p === inv.id ? null : p)), 1500);
+    } catch { prompt("Скопируй ссылку:", inviteLink(inv.code)); }
+  }
+
+  async function create() {
+    setSaving(true); setErr("");
+    try {
+      const res = await api("/admin-panel/invites/", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: note.trim(), max_uses: Math.max(0, parseInt(maxUses, 10) || 0) }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || "Не удалось"); }
+      setNote(""); setMaxUses("1"); setShow(false);
+      load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
+    finally { setSaving(false); }
+  }
+
+  async function toggleActive(inv: InviteItem) {
+    const res = await api(`/admin-panel/invites/${inv.id}/`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: !inv.is_active }),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === d.id ? d : x))); }
+  }
+
+  async function remove(inv: InviteItem) {
+    if (!confirm(`Удалить инвайт ${inv.code}? Зарегистрированные по нему останутся.`)) return;
+    const res = await api(`/admin-panel/invites/${inv.id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== inv.id));
+  }
+
+  return (
+    <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Инвайты</h2>
+        <button className="btn btn-primary btn-sm" onClick={() => { setErr(""); setShow((v) => !v); }}>
+          {show ? "Отмена" : "+ Создать инвайт"}
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>
+        Закрытая бета: регистрация по коду. «Ссылка» копирует готовую инвайт-ссылку — отправь её человеку или в чат.
+      </p>
+
+      {show && (
+        <div style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>Новый инвайт</h3>
+          <div className="field"><label>Заметка (для кого)</label>
+            <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Чат косплееров Астаны" /></div>
+          <div className="field"><label>Лимит использований (0 = безлимит)</label>
+            <input type="number" min={0} value={maxUses} onChange={(e) => setMaxUses(e.target.value)} style={{ maxWidth: 160 }} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="btn btn-primary" onClick={create} disabled={saving}>
+              {saving ? "Создаём…" : "Создать"}
+            </button>
+            {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
+          </div>
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Инвайтов пока нет — создай первый.</p>
+      ) : items.map((inv) => (
+        <div key={inv.id} style={{
+          background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 13,
+          padding: "13px 16px", marginBottom: 10, opacity: inv.has_room ? 1 : 0.6,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <b style={{ fontFamily: "var(--font-mono),monospace", fontSize: 15, letterSpacing: 1 }}>{inv.code}</b>
+              {inv.note && <span style={{ fontSize: 13, color: "var(--ink-dim)", marginLeft: 10 }}>{inv.note}</span>}
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 3 }}>
+                Использован: {inv.used_count}{inv.max_uses > 0 ? ` / ${inv.max_uses}` : " (безлимит)"}
+                {" · "}{fmtDate(inv.created_at)}
+                {inv.created_by && ` · создал ${inv.created_by}`}
+                {!inv.is_active && <span style={{ color: "var(--red)" }}> · отключён</span>}
+                {inv.is_active && !inv.has_room && <span style={{ color: "var(--accent-3)" }}> · исчерпан</span>}
+              </div>
+              {inv.users.length > 0 && (
+                <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 3 }}>
+                  Пришли: {inv.users.join(", ")}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => copyLink(inv)}>
+                {copiedId === inv.id ? "✓ Скопировано" : "⎘ Ссылка"}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => toggleActive(inv)}>
+                {inv.is_active ? "Отключить" : "Включить"}
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => remove(inv)}>Удалить</button>
+            </div>
           </div>
         </div>
       ))}
