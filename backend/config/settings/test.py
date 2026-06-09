@@ -1,20 +1,15 @@
 """Настройки для прогона тестов (pytest).
 
-Полностью изолированы от внешних сервисов: SQLite в памяти вместо Postgres,
-кеш и почта — в память (без Redis/SMTP). Это позволяет гонять тесты в CI
-без поднятия контейнеров и быстро локально.
+БД — настоящий Postgres (как в проде): часть запросов использует
+JSONField `roles__contains`, который SQLite не поддерживает. Параметры БД
+берутся из POSTGRES_* env (в CI поднимается сервис postgres, см. deploy.yml).
+Кеш и почта — в память (без Redis/SMTP), чтобы не тянуть лишние сервисы.
 """
 from .base import *  # noqa
 
 DEBUG = False
 
-# Быстрая изолированная БД — не нужен Postgres в CI.
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
-    }
-}
+# DATABASES наследуется из base (POSTGRES_* env). В CI env указывает на сервис postgres.
 
 # Кеш (OTP-коды) и почта — в память, без Redis/SMTP.
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
