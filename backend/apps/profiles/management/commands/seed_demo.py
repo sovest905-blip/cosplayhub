@@ -386,8 +386,7 @@ class Command(BaseCommand):
                     team.events.add(ev)
 
         # ── Слоты аренды демо-локаций (по 3 будущих окна, если слотов ещё нет) ──
-        from datetime import time, timedelta
-        from django.utils import timezone
+        from datetime import time
         from apps.bookings.models import Slot
         n_slot = 0
         slot_plans = {
