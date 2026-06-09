@@ -35,11 +35,20 @@ class ConversationListView(APIView):
         except User.DoesNotExist:
             return Response({"detail": "Пользователь не найден"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Ищем существующий 1-на-1 диалог с ровно этими двумя участниками
-        conv = (
+        # Ищем существующий 1-на-1 диалог с ровно этими двумя участниками.
+        # ВАЖНО: участников считаем ОТДЕЛЬНЫМ запросом по id. Если навесить
+        # annotate(Count("participants")) прямо на .filter(participants=a).filter(participants=b),
+        # join'ы фильтров искажают счётчик (n=1 вместо 2) → дедуп НИКОГДА не срабатывал
+        # и каждый POST плодил дубль-диалог (поймано test_start_conversation_is_idempotent).
+        both_ids = list(
             Conversation.objects
             .filter(participants=request.user)
             .filter(participants=other)
+            .values_list("id", flat=True)
+        )
+        conv = (
+            Conversation.objects
+            .filter(id__in=both_ids)
             .annotate(n=Count("participants"))
             .filter(n=2)
             .first()
