@@ -19,7 +19,7 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "moodboards" | "users" | "admins" | "locations" | "workshops" | "products" | "listings" | "orders" | "subscriptions";
+type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "moodboards" | "users" | "admins" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["news", "◆ Новости"],
@@ -32,6 +32,7 @@ const TABS: [TabId, string][] = [
   ["admins", "⚙ Админы"],
   ["locations", "⌖ Локации"],
   ["workshops", "⚒ Мастерские"],
+  ["shops", "⌂ Магазины"],
   ["products", "▦ Товары"],
   ["listings", "⌂ Объявления"],
   ["orders", "↗ Заказы"],
@@ -110,6 +111,7 @@ export default function AdminPanelPage() {
           {tab === "admins" && <AdminsAdmin />}
           {tab === "locations" && <UsersAdmin roleFilter="location" />}
           {tab === "workshops" && <WorkshopsAdmin />}
+          {tab === "shops" && <UsersAdmin roleFilter="shop" />}
           {tab === "products" && <ProductsAdmin />}
           {tab === "listings" && <ListingsAdmin />}
           {tab === "orders" && <OrdersAdmin />}
@@ -268,10 +270,13 @@ function UsersAdmin({ roleFilter = "" }: { roleFilter?: string }) {
 
   return (
     <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
-      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>{locked ? "Локации (фотозоны)" : "Пользователи"}</h2>
+      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>
+        {roleFilter === "location" ? "Локации (фотозоны)" : roleFilter === "shop" ? "Магазины" : "Пользователи"}
+      </h2>
       <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 14px" }}>
-        {locked ? "Профили с ролью «Локация»: анкета (тип/цена/вместимость) — в кнопке «Роли». Блокировка и удаление как у юзеров."
-                : "Поиск и фильтры, создание аккаунтов, роли, блокировка и удаление."}
+        {roleFilter === "location" ? "Профили с ролью «Локация»: анкета (тип/цена/вместимость) — в кнопке «Роли». Блокировка и удаление как у юзеров."
+         : roleFilter === "shop" ? "Профили с ролью «Магазин»: товары магазина — в кнопке «Роли» (создать/править/удалить). Блокировка и удаление как у юзеров."
+         : "Поиск и фильтры, создание аккаунтов, роли, блокировка и удаление."}
       </p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 ник / email / телефон" style={{ flex: "1 1 200px", minWidth: 160 }} />
@@ -431,6 +436,7 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
       {saved && <span style={{ color: "var(--green)", fontSize: 12, marginLeft: 10 }}>✓ Сохранено</span>}
 
       {roles.includes("workshop") && <WorkshopEditor userId={user.id} />}
+      {roles.includes("shop") && <ShopProductsEditor userId={user.id} />}
     </div>
   );
 }
@@ -597,6 +603,110 @@ function WsForm({ v, onChange, onSubmit, submitLabel, onDelete }: {
       ))}
       <button className="btn btn-ghost btn-sm" style={{ marginBottom: 10 }}
         onClick={() => onChange({ services: [...v.services, { name: "", price_from: "" }] })}>+ услуга</button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn btn-primary btn-sm" onClick={onSubmit}>{submitLabel}</button>
+        {onDelete && <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={onDelete}>Удалить</button>}
+      </div>
+    </div>
+  );
+}
+
+// ── Товары магазина внутри редактора роли (полный CRUD за магазин) ──
+type ProdFull = { id: number; title: string; price: number | null; status: string; category: string; description: string; image: string | null };
+const PROD_ST: [string, string][] = [["in_stock", "В наличии"], ["on_order", "На заказ"], ["sold", "Продано"]];
+type ProdDraft = { title: string; price: string; status: string; category: string; description: string; file: File | null };
+const emptyProd: ProdDraft = { title: "", price: "", status: "in_stock", category: "", description: "", file: null };
+
+function ShopProductsEditor({ userId }: { userId: number }) {
+  const [items, setItems] = useState<ProdFull[]>([]);
+  const [draft, setDraft] = useState<Record<number, ProdDraft>>({});
+  const [showNew, setShowNew] = useState(false);
+  const [nw, setNw] = useState<ProdDraft>({ ...emptyProd });
+  const [msg, setMsg] = useState("");
+
+  function load() {
+    api(`/admin-panel/users/${userId}/products/`).then((r) => (r.ok ? r.json() : [])).then((d: ProdFull[]) => {
+      const list = Array.isArray(d) ? d : [];
+      setItems(list);
+      const dr: Record<number, ProdDraft> = {};
+      list.forEach((p) => { dr[p.id] = { title: p.title, price: p.price != null ? String(p.price) : "", status: p.status, category: p.category || "", description: p.description || "", file: null }; });
+      setDraft(dr);
+    });
+  }
+  useEffect(load, [userId]);
+
+  function body(d: ProdDraft) {
+    const fd = new FormData();
+    fd.append("title", d.title.trim());
+    const digits = d.price.replace(/\D/g, "");
+    if (digits) fd.append("price", digits);  // пусто не шлём — DRF IntegerField падает на ""
+    fd.append("status", d.status);
+    fd.append("category", d.category.trim());
+    fd.append("description", d.description.trim());
+    if (d.file) fd.append("image", d.file);
+    return fd;
+  }
+  async function create() {
+    if (!nw.title.trim()) { alert("Введите название"); return; }
+    const res = await api(`/admin-panel/users/${userId}/products/`, { method: "POST", body: body(nw) });
+    if (res.ok) { setShowNew(false); setNw({ ...emptyProd }); load(); }
+    else { const e = await res.json().catch(() => ({})); alert(e.image?.[0] || e.detail || "Ошибка"); }
+  }
+  async function save(id: number) {
+    const res = await api(`/admin-panel/products/${id}/update/`, { method: "PATCH", body: body(draft[id]) });
+    if (res.ok) { setMsg("Товар сохранён ✓"); setTimeout(() => setMsg(""), 2000); load(); }
+    else { const e = await res.json().catch(() => ({})); alert(e.image?.[0] || e.detail || "Ошибка"); }
+  }
+  async function remove(id: number) {
+    if (!confirm("Удалить товар?")) return;
+    const res = await api(`/admin-panel/products/${id}/delete/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) load();
+  }
+  function setD(id: number, patch: Partial<ProdDraft>) { setDraft((p) => ({ ...p, [id]: { ...p[id], ...patch } })); }
+
+  return (
+    <div style={{ marginTop: 16, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <h4 style={{ margin: 0, fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "var(--accent-2)" }}>▦</span> Товары магазина ({items.length})
+        </h4>
+        <button className="btn btn-ghost btn-sm" onClick={() => setShowNew((v) => !v)}>{showNew ? "Отмена" : "+ Добавить"}</button>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Товары видны в витрине магазина на его профиле. Заполни за магазин, если он не может.</p>
+      {msg && <div style={{ color: "var(--green)", fontSize: 12, marginBottom: 8 }}>{msg}</div>}
+
+      {showNew && <ProdForm v={nw} onChange={(patch) => setNw((p) => ({ ...p, ...patch }))} onSubmit={create} submitLabel="Создать товар" />}
+
+      {items.map((p) => draft[p.id] && (
+        <div key={p.id} style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 10, padding: 12, marginBottom: 10 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            {p.image && <div style={{ width: 56, height: 56, borderRadius: 8, flexShrink: 0, backgroundSize: "cover", backgroundPosition: "center", backgroundImage: `url('${p.image}')` }} />}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <ProdForm v={draft[p.id]} onChange={(patch) => setD(p.id, patch)} onSubmit={() => save(p.id)} submitLabel="Сохранить" onDelete={() => remove(p.id)} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ProdForm({ v, onChange, onSubmit, submitLabel, onDelete }: {
+  v: ProdDraft; onChange: (patch: Partial<ProdDraft>) => void; onSubmit: () => void; submitLabel: string; onDelete?: () => void;
+}) {
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+        <div className="field"><label>Название</label><input value={v.title} onChange={(e) => onChange({ title: e.target.value })} placeholder="Парик длинный, блонд" /></div>
+        <div className="field"><label>Цена, ₸ (пусто = по запросу)</label><input value={v.price} onChange={(e) => onChange({ price: e.target.value })} placeholder="9900" inputMode="numeric" /></div>
+        <div className="field"><label>Категория</label><input value={v.category} onChange={(e) => onChange({ category: e.target.value })} placeholder="Парики" /></div>
+        <div className="field"><label>Статус</label>
+          <select value={v.status} onChange={(e) => onChange({ status: e.target.value })}>
+            {PROD_ST.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+          </select></div>
+      </div>
+      <div className="field"><label>Описание</label><textarea rows={2} value={v.description} onChange={(e) => onChange({ description: e.target.value })} placeholder="Материал, размер, состояние…" /></div>
+      <div className="field"><label>Фото {onDelete ? "(заменить)" : ""}</label><input type="file" accept="image/*" onChange={(e) => onChange({ file: e.target.files?.[0] || null })} /></div>
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn btn-primary btn-sm" onClick={onSubmit}>{submitLabel}</button>
         {onDelete && <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={onDelete}>Удалить</button>}

@@ -21,6 +21,7 @@ from apps.looks.models import Look
 from apps.teams.models import Team
 from apps.moodboards.models import Moodboard
 from apps.products.models import Product
+from apps.products.serializers import ProductSerializer
 
 OPEN_ORDER_STATUSES = ["request", "accepted", "in_work"]
 
@@ -244,6 +245,39 @@ class AdminProductDeleteView(_StaffView):
             return Response({"detail": "Не найдено"}, status=404)
         p.delete()
         return Response(status=204)
+
+
+class AdminUserProductsView(_StaffView):
+    """GET — товары конкретного магазина. POST — создать товар за магазин."""
+
+    def get(self, request, pk):
+        owner = User.objects.filter(pk=pk).first()
+        if not owner:
+            return Response({"detail": "Не найдено"}, status=404)
+        qs = Product.objects.filter(owner=owner).order_by("-created_at")
+        return Response(ProductSerializer(qs, many=True, context={"request": request}).data)
+
+    def post(self, request, pk):
+        owner = User.objects.filter(pk=pk).first()
+        if not owner:
+            return Response({"detail": "Не найдено"}, status=404)
+        ser = ProductSerializer(data=request.data, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        ser.save(owner=owner, is_active=True)
+        return Response(ser.data, status=201)
+
+
+class AdminProductUpdateView(_StaffView):
+    """PATCH — обновить товар (название/цена/статус/категория/описание/фото)."""
+
+    def patch(self, request, pk):
+        p = Product.objects.filter(pk=pk).first()
+        if not p:
+            return Response({"detail": "Не найдено"}, status=404)
+        ser = ProductSerializer(p, data=request.data, partial=True, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(ser.data)
 
 
 MAX_PHOTOS = 20

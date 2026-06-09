@@ -17,6 +17,7 @@ from common.admin_content import (
     AdminUserWorkshopsView, AdminWorkshopUpdateView,
     AdminListingsView, AdminListingActiveView, AdminListingUpdateView, AdminListingDeleteView,
     AdminProductsView, AdminProductActiveView, AdminProductDeleteView,
+    AdminUserProductsView, AdminProductUpdateView,
     AdminOrdersView, AdminOrderStatusView,
     AdminUserPhotosView, AdminUserPhotoDeleteView,
 )
@@ -61,7 +62,9 @@ api_v1 = [
     path("admin-panel/listings/<int:pk>/update/", AdminListingUpdateView.as_view(), name="ap-listing-update"),
     path("admin-panel/listings/<int:pk>/delete/", AdminListingDeleteView.as_view(), name="ap-listing-del"),
     path("admin-panel/products/", AdminProductsView.as_view(), name="ap-products"),
+    path("admin-panel/users/<int:pk>/products/", AdminUserProductsView.as_view(), name="ap-user-products"),
     path("admin-panel/products/<int:pk>/set-active/", AdminProductActiveView.as_view(), name="ap-product-active"),
+    path("admin-panel/products/<int:pk>/update/", AdminProductUpdateView.as_view(), name="ap-product-update"),
     path("admin-panel/products/<int:pk>/delete/", AdminProductDeleteView.as_view(), name="ap-product-del"),
     path("admin-panel/orders/", AdminOrdersView.as_view(), name="ap-orders"),
     path("admin-panel/orders/<int:pk>/set-status/", AdminOrderStatusView.as_view(), name="ap-order-status"),
