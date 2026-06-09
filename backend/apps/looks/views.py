@@ -42,7 +42,10 @@ class LookViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [AllowAny()]
-        if self.action == "create":
+        # like ОБЯЗАН быть тут: иначе падает в IsOwnerOrStaffOrReadOnly и лайкнуть
+        # чужой образ может только автор/staff (поймано test_like_toggle). get_permissions
+        # перекрывает permission_classes у @action, поэтому действие надо перечислять явно.
+        if self.action in ("create", "like"):
             return [IsAuthenticated()]
         return [IsOwnerOrStaffOrReadOnly()]
 
