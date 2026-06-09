@@ -114,6 +114,10 @@ export default function CabinetPage() {
   const [prodImg, setProdImg] = useState<File | null>(null);
   const [prodUp, setProdUp] = useState(false);
   const [prodErr, setProdErr] = useState("");
+  const [mySlots, setMySlots] = useState<any[]>([]);
+  const [slotForm, setSlotForm] = useState({ title: "", date: "", time_start: "", time_end: "", price: "" });
+  const [slotSaving, setSlotSaving] = useState(false);
+  const [slotErr, setSlotErr] = useState("");
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -249,6 +253,14 @@ export default function CabinetPage() {
         if (cancelled) return;
         const list = data?.results ?? data;
         if (Array.isArray(list)) setMyProducts(list);
+      }).catch(() => {});
+
+    fetch(`/api/v1/slots/?mine=1`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (cancelled) return;
+        const list = data?.results ?? data;
+        if (Array.isArray(list)) setMySlots(list);
       }).catch(() => {});
 
     fetch(`/api/v1/teams/?mine=1`, { credentials: "include" })
@@ -581,6 +593,50 @@ export default function CabinetPage() {
     if (res.ok || res.status === 204) setMyProducts((prev) => prev.filter((p) => p.id !== id));
   }
 
+  async function addSlot() {
+    setSlotErr("");
+    if (!slotForm.date || !slotForm.time_start || !slotForm.time_end) { setSlotErr("Укажи дату и время"); return; }
+    setSlotSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        title: slotForm.title.trim(), date: slotForm.date,
+        time_start: slotForm.time_start, time_end: slotForm.time_end,
+      };
+      const digits = slotForm.price.replace(/\D/g, "");
+      if (digits) body.price = parseInt(digits, 10);
+      const res = await fetch(`/api/v1/slots/`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMySlots((prev) => [...prev, data]);
+        setSlotForm({ title: "", date: "", time_start: "", time_end: "", price: "" });
+      } else setSlotErr(data.detail || data.date?.[0] || data.time_start?.[0] || "Не удалось");
+    } finally { setSlotSaving(false); }
+  }
+
+  async function delSlot(id: number) {
+    if (!confirm("Удалить слот? Заявки на него тоже удалятся.")) return;
+    const res = await fetch(`/api/v1/slots/${id}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok || res.status === 204) setMySlots((prev) => prev.filter((s) => s.id !== id));
+  }
+
+  // Решение по заявке на бронь: бэкенд возвращает обновлённый слот (с заявками).
+  async function decideBooking(bookingId: number, status: "approved" | "declined") {
+    const res = await fetch(`/api/v1/bookings/${bookingId}/`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      credentials: "include", body: JSON.stringify({ status }),
+    });
+    if (res.ok) {
+      const slot = await res.json();
+      setMySlots((prev) => prev.map((s) => (s.id === slot.id ? slot : s)));
+    } else {
+      const e = await res.json().catch(() => ({}));
+      alert(e.detail || "Не удалось");
+    }
+  }
+
   async function createWorkshop() {
     if (!wsForm.name.trim() || !wsForm.city.trim()) {
       setWsErr("Заполни название и город"); return;
@@ -695,6 +751,7 @@ export default function CabinetPage() {
         </button>
 
         {role === "shop" && productsBlock()}
+        {role === "location" && slotsBlock()}
         {role === "location" && galleryBlock("Фотогалерея локации", "Покажи площадку: интерьер, свет, фоны.")}
         {role === "photographer" && !roles.includes("location") &&
           galleryBlock("Портфолио (фото)", "Покажи свои работы — лучшие кадры.")}
@@ -791,6 +848,81 @@ export default function CabinetPage() {
             ))}
           </div>
         )}
+      </div>
+    );
+  }
+
+  // Блок «Слоты аренды» внутри анкеты локации: слоты + заявки на бронь.
+  function slotsBlock() {
+    const fmtD = (d: string) => { try { return new Date(d).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }); } catch { return d; } };
+    const fmtT = (t: string) => (t || "").slice(0, 5);
+    const BOOK_STATUS: Record<string, [string, string]> = {
+      pending: ["Заявка", "var(--accent-2)"], approved: ["Подтверждена", "var(--green)"],
+      declined: ["Отклонена", "var(--ink-dim)"], cancelled: ["Отменена гостем", "var(--ink-dim)"],
+    };
+    return (
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+          <h4 style={{ margin: 0, fontSize: 14 }}>Слоты аренды</h4>
+          <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{mySlots.length} всего</span>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>
+          Опубликуй свободные окна — гости подают заявку, ты подтверждаешь. Оплата на месте или в ЛС (до подключения платежей).
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+          <div className="field"><label>Название (опц.)</label>
+            <input value={slotForm.title} onChange={(e) => setSlotForm({ ...slotForm, title: e.target.value })} placeholder="Зал А, вечерний" /></div>
+          <div className="field"><label>Дата</label>
+            <input type="date" value={slotForm.date} onChange={(e) => setSlotForm({ ...slotForm, date: e.target.value })} /></div>
+          <div className="field"><label>С</label>
+            <input type="time" value={slotForm.time_start} onChange={(e) => setSlotForm({ ...slotForm, time_start: e.target.value })} /></div>
+          <div className="field"><label>До</label>
+            <input type="time" value={slotForm.time_end} onChange={(e) => setSlotForm({ ...slotForm, time_end: e.target.value })} /></div>
+        </div>
+        <div className="field"><label>Цена, ₸ (пусто = договорная)</label>
+          <input value={slotForm.price} onChange={(e) => setSlotForm({ ...slotForm, price: e.target.value })} placeholder="8000" inputMode="numeric" style={{ maxWidth: 200 }} /></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <button className="btn btn-primary btn-sm" onClick={addSlot} disabled={slotSaving}>
+            {slotSaving ? "Сохраняем…" : "+ Добавить слот"}
+          </button>
+          {slotErr && <span style={{ color: "var(--red)", fontSize: 12 }}>{slotErr}</span>}
+        </div>
+
+        {mySlots.map((s) => (
+          <div key={s.id} style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 11, padding: "10px 14px", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 13 }}>
+                <b>{fmtD(s.date)} · {fmtT(s.time_start)}–{fmtT(s.time_end)}</b>
+                {s.title && <span style={{ color: "var(--ink-dim)" }}> · {s.title}</span>}
+                <span style={{ color: "var(--ink-dim)" }}> · {s.price ? `${Number(s.price).toLocaleString("ru-RU")} ₸` : "договорная"}</span>
+                {s.is_booked && <span style={{ color: "var(--green)" }}> · забронирован</span>}
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => delSlot(s.id)}>Удалить</button>
+            </div>
+            {Array.isArray(s.requests) && s.requests.length > 0 && (
+              <div style={{ marginTop: 8, borderTop: "1px dashed var(--line)", paddingTop: 8 }}>
+                {s.requests.map((b: any) => {
+                  const [label, color] = BOOK_STATUS[b.status] || [b.status, "var(--ink-dim)"];
+                  return (
+                    <div key={b.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, fontSize: 12, padding: "4px 0", flexWrap: "wrap" }}>
+                      <span>
+                        <b>{b.username}</b>
+                        {b.comment && <span style={{ color: "var(--ink-dim)" }}> — {b.comment}</span>}
+                        {" · "}<span style={{ color }}>{label}</span>
+                      </span>
+                      {b.status === "pending" && (
+                        <span style={{ display: "flex", gap: 6 }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => decideBooking(b.id, "approved")}>Подтвердить</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => decideBooking(b.id, "declined")}>Отклонить</button>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     );
   }

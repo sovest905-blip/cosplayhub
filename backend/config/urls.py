@@ -19,6 +19,7 @@ from common.admin_content import (
     AdminListingsView, AdminListingActiveView, AdminListingUpdateView, AdminListingDeleteView,
     AdminProductsView, AdminProductActiveView, AdminProductDeleteView,
     AdminUserProductsView, AdminProductUpdateView,
+    AdminUserSlotsView, AdminSlotUpdateView,
     AdminOrdersView, AdminOrderStatusView,
     AdminUserPhotosView, AdminUserPhotoDeleteView,
 )
@@ -41,6 +42,7 @@ api_v1 = [
     path("", include("apps.looks.urls")),
     path("", include("apps.teams.urls")),
     path("", include("apps.products.urls")),
+    path("", include("apps.bookings.urls")),
     # ── Веб админ-панель (только staff) ──
     path("admin-panel/users/", AdminUsersView.as_view(), name="ap-users"),
     path("admin-panel/users/<int:pk>/set-roles/", AdminUserRolesView.as_view(), name="ap-roles"),
@@ -68,6 +70,8 @@ api_v1 = [
     path("admin-panel/products/<int:pk>/set-active/", AdminProductActiveView.as_view(), name="ap-product-active"),
     path("admin-panel/products/<int:pk>/update/", AdminProductUpdateView.as_view(), name="ap-product-update"),
     path("admin-panel/products/<int:pk>/delete/", AdminProductDeleteView.as_view(), name="ap-product-del"),
+    path("admin-panel/users/<int:pk>/slots/", AdminUserSlotsView.as_view(), name="ap-user-slots"),
+    path("admin-panel/slots/<int:pk>/", AdminSlotUpdateView.as_view(), name="ap-slot-update"),
     path("admin-panel/orders/", AdminOrdersView.as_view(), name="ap-orders"),
     path("admin-panel/orders/<int:pk>/set-status/", AdminOrderStatusView.as_view(), name="ap-order-status"),
     # ── Подписки и тарифы (Pro / мастерские) ──

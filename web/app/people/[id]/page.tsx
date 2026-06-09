@@ -2,6 +2,7 @@ import { PEOPLE } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
+import SlotList from "../../components/SlotList";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
 import { getProfile, getLooksByAuthor, getProductsByOwner, type Person, type LookItem, type Product, ROLE_DETAIL_FIELDS, fmtDetailValue, fmtPrice, PRODUCT_STATUS_META, SOCIAL_META, socialUrl } from "../../../lib/api";
@@ -25,8 +26,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
   // Реальные образы автора (модель Look) — для блока «Образы».
   const looks: LookItem[] = person.user_id ? await getLooksByAuthor(person.user_id).catch(() => []) : [];
 
-  // Витрина товаров — для роли «магазин».
+  // Витрина товаров — для роли «магазин». Слоты аренды — для роли «локация».
   const isShop = (person.roles || []).includes("shop");
+  const isLocation = (person.roles || []).includes("location");
   const products: Product[] = (isShop && person.user_id)
     ? await getProductsByOwner(person.user_id).catch(() => [])
     : [];
@@ -156,6 +158,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                   <a href="/cabinet?tab=roles" style={{ color: "var(--accent-2)" }}>кабинете</a>.
                 </p>
               )}
+            </div>
+          )}
+
+          {isLocation && (
+            <div className="about">
+              <h3>Слоты аренды</h3>
+              <SlotList ownerId={(person as Person).user_id ?? null} />
             </div>
           )}
 

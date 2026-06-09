@@ -21,6 +21,8 @@ from apps.looks.models import Look
 from apps.teams.models import Team
 from apps.products.models import Product
 from apps.products.serializers import ProductSerializer
+from apps.bookings.models import Slot
+from apps.bookings.serializers import SlotSerializer
 
 OPEN_ORDER_STATUSES = ["request", "accepted", "in_work"]
 
@@ -276,6 +278,46 @@ class AdminProductUpdateView(_StaffView):
         ser.is_valid(raise_exception=True)
         ser.save()
         return Response(ser.data)
+
+
+class AdminUserSlotsView(_StaffView):
+    """GET — слоты аренды юзера-локации (все, с заявками). POST — создать слот за юзера."""
+
+    def get(self, request, pk):
+        owner = User.objects.filter(pk=pk).first()
+        if not owner:
+            return Response({"detail": "Не найдено"}, status=404)
+        qs = Slot.objects.filter(owner=owner).prefetch_related("bookings__user")
+        return Response(SlotSerializer(qs, many=True, context={"request": request}).data)
+
+    def post(self, request, pk):
+        owner = User.objects.filter(pk=pk).first()
+        if not owner:
+            return Response({"detail": "Не найдено"}, status=404)
+        ser = SlotSerializer(data=request.data, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        ser.save(owner=owner, is_active=True)
+        return Response(ser.data, status=201)
+
+
+class AdminSlotUpdateView(_StaffView):
+    """PATCH — править слот (дата/время/цена/is_active). DELETE — удалить."""
+
+    def patch(self, request, pk):
+        s = Slot.objects.filter(pk=pk).first()
+        if not s:
+            return Response({"detail": "Не найдено"}, status=404)
+        ser = SlotSerializer(s, data=request.data, partial=True, context={"request": request})
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(ser.data)
+
+    def delete(self, request, pk):
+        s = Slot.objects.filter(pk=pk).first()
+        if not s:
+            return Response({"detail": "Не найдено"}, status=404)
+        s.delete()
+        return Response(status=204)
 
 
 MAX_PHOTOS = 20

@@ -8,7 +8,7 @@ const SECTIONS = [
     title: "Люди",
     links: [
       { href: "/people", label: "Косплееры" },
-      { href: "/people?role=photo", label: "Фотографы" },
+      { href: "/photographers", label: "Фотографы" },
       { href: "/looks", label: "Образы" },
       { href: "/teams", label: "Команды" },
     ],

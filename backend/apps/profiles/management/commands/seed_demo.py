@@ -385,7 +385,25 @@ class Command(BaseCommand):
                 if ev:
                     team.events.add(ev)
 
+        # ── Слоты аренды демо-локаций (по 3 будущих окна, если слотов ещё нет) ──
+        from datetime import time, timedelta
+        from django.utils import timezone
+        from apps.bookings.models import Slot
+        n_slot = 0
+        slot_plans = {
+            "studio_neon": [(2, time(12), time(14), 8000), (3, time(15), time(18), 12000), (5, time(10), time(13), None)],
+            "loft21":      [(2, time(11), time(14), 10000), (4, time(16), time(19), 10000), (6, time(12), time(15), None)],
+        }
+        for uname, plans in slot_plans.items():
+            u = User.objects.filter(username=uname).first()
+            if not u or u.slots.exists():  # идемпотентно: слоты уже насеяны
+                continue
+            for days, start, end, price in plans:
+                Slot.objects.create(owner=u, date=timezone.localdate() + timedelta(days=days),
+                                    time_start=start, time_end=end, price=price)
+                n_slot += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, товаров +{n_prod}, новостей +{n_news}, "
-            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}. Пароль всех демо: {PWD}"
+            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, слотов +{n_slot}. Пароль всех демо: {PWD}"
         ))

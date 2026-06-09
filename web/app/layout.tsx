@@ -69,7 +69,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     <div className="drop-ic">◉</div>
                     <div><b>Косплееры</b><small>{pl(s?.cosplayer_profiles ?? 0, ["анкета", "анкеты", "анкет"])}</small></div>
                   </a>
-                  <a href="/people?role=photo">
+                  <a href="/photographers">
                     <div className="drop-ic">◐</div>
                     <div><b>Фотографы</b><small>{pl(s?.photographers ?? 0, ["профиль", "профиля", "профилей"])}</small></div>
                   </a>
@@ -154,7 +154,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <div>
                 <h4>Люди</h4>
                 <a href="/people">Косплееры</a>
-                <a href="/people?role=photo">Фотографы</a>
+                <a href="/photographers">Фотографы</a>
                 <a href="/looks">Образы</a>
                 <a href="/teams">Команды</a>
               </div>

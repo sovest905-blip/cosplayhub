@@ -565,6 +565,109 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
 
       {roles.includes("workshop") && <WorkshopEditor userId={user.id} />}
       {roles.includes("shop") && <ShopProductsEditor userId={user.id} />}
+      {roles.includes("location") && <AdminSlotsEditor userId={user.id} />}
+    </div>
+  );
+}
+
+// Слоты аренды локации (за юзера): создать/удалить/скрыть + заявки на бронь.
+type AdminSlot = {
+  id: number; title: string; date: string; time_start: string; time_end: string;
+  price: number | null; is_active: boolean; is_booked: boolean;
+  requests: { id: number; username: string; status: string; comment: string }[] | null;
+};
+function AdminSlotsEditor({ userId }: { userId: number }) {
+  const [slots, setSlots] = useState<AdminSlot[]>([]);
+  const [form, setForm] = useState({ title: "", date: "", time_start: "", time_end: "", price: "" });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const SLOT_BOOK_RU: Record<string, string> = {
+    pending: "заявка", approved: "подтверждена", declined: "отклонена", cancelled: "отменена гостем",
+  };
+  const fmtT = (t: string) => (t || "").slice(0, 5);
+
+  function load() {
+    api(`/admin-panel/users/${userId}/slots/`).then((r) => (r.ok ? r.json() : [])).then((d) => setSlots(Array.isArray(d) ? d : []));
+  }
+  useEffect(load, [userId]);
+
+  async function create() {
+    setErr("");
+    if (!form.date || !form.time_start || !form.time_end) { setErr("Укажи дату и время"); return; }
+    setSaving(true);
+    try {
+      const body: Record<string, unknown> = {
+        title: form.title.trim(), date: form.date, time_start: form.time_start, time_end: form.time_end,
+      };
+      const digits = form.price.replace(/\D/g, "");
+      if (digits) body.price = parseInt(digits, 10);
+      const res = await api(`/admin-panel/users/${userId}/slots/`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { setSlots((p) => [...p, d]); setForm({ title: "", date: "", time_start: "", time_end: "", price: "" }); }
+      else setErr(d.detail || "Не удалось");
+    } finally { setSaving(false); }
+  }
+
+  async function toggle(s: AdminSlot) {
+    const res = await api(`/admin-panel/slots/${s.id}/`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: !s.is_active }),
+    });
+    if (res.ok) { const d = await res.json(); setSlots((p) => p.map((x) => (x.id === d.id ? d : x))); }
+  }
+
+  async function remove(id: number) {
+    if (!confirm("Удалить слот вместе с заявками?")) return;
+    const res = await api(`/admin-panel/slots/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setSlots((p) => p.filter((x) => x.id !== id));
+  }
+
+  return (
+    <div style={{ marginTop: 16, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+      <h4 style={{ margin: "0 0 4px", fontSize: 14 }}>⌖ Слоты аренды</h4>
+      <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>
+        Слоты локации за юзера. Подтверждение заявок — у владельца в кабинете; здесь модерация (скрыть/удалить).
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px" }}>
+        <div className="field"><label>Название (опц.)</label>
+          <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Зал А" /></div>
+        <div className="field"><label>Дата</label>
+          <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+        <div className="field"><label>С</label>
+          <input type="time" value={form.time_start} onChange={(e) => setForm({ ...form, time_start: e.target.value })} /></div>
+        <div className="field"><label>До</label>
+          <input type="time" value={form.time_end} onChange={(e) => setForm({ ...form, time_end: e.target.value })} /></div>
+      </div>
+      <div className="field"><label>Цена, ₸ (пусто = договорная)</label>
+        <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} inputMode="numeric" style={{ maxWidth: 180 }} /></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <button className="btn btn-primary btn-sm" onClick={create} disabled={saving}>{saving ? "Сохраняем…" : "+ Добавить слот"}</button>
+        {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
+      </div>
+      {slots.map((s) => (
+        <div key={s.id} style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 10, padding: "8px 12px", marginBottom: 8, opacity: s.is_active ? 1 : 0.6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12 }}>
+            <span>
+              <b>{fmtDate(s.date)} {fmtT(s.time_start)}–{fmtT(s.time_end)}</b>
+              {s.title && ` · ${s.title}`} · {s.price ? `${s.price.toLocaleString("ru-RU")} ₸` : "договорная"}
+              {s.is_booked && <span style={{ color: "var(--green)" }}> · забронирован</span>}
+              {!s.is_active && <span style={{ color: "var(--red)" }}> · скрыт</span>}
+            </span>
+            <span style={{ display: "flex", gap: 6 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => toggle(s)}>{s.is_active ? "Скрыть" : "Показать"}</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => remove(s.id)}>Удалить</button>
+            </span>
+          </div>
+          {Array.isArray(s.requests) && s.requests.length > 0 && (
+            <div style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 4 }}>
+              Заявки: {s.requests.map((b) => `${b.username} (${SLOT_BOOK_RU[b.status] || b.status})`).join(", ")}
+            </div>
+          )}
+        </div>
+      ))}
+      {slots.length === 0 && <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: 0 }}>Слотов нет.</p>}
     </div>
   );
 }
