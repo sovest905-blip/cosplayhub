@@ -35,7 +35,6 @@ INSTALLED_APPS = [
     "apps.guides",
     "apps.looks",
     "apps.teams",
-    "apps.moodboards",
     "apps.products",
 ]
 

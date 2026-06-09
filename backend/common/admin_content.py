@@ -19,7 +19,6 @@ from apps.events.models import Event
 from apps.guides.models import Guide
 from apps.looks.models import Look
 from apps.teams.models import Team
-from apps.moodboards.models import Moodboard
 from apps.products.models import Product
 from apps.products.serializers import ProductSerializer
 
@@ -47,7 +46,6 @@ class AdminStatsView(_StaffView):
             "guides": Guide.objects.count(),
             "looks": Look.objects.count(),
             "teams": Team.objects.count(),
-            "moodboards": Moodboard.objects.count(),
         })
 
 

@@ -266,22 +266,6 @@ export async function getTeam(id: string | number): Promise<any | null> {
   return data && data.id ? data : null;
 }
 
-export type MoodboardListItem = {
-  id: number; title: string; owner_name: string; items_count: number; cover_url: string | null; is_public: boolean;
-};
-
-export async function getMoodboards(): Promise<MoodboardListItem[] | null> {
-  const data = await get(`/moodboards/`);
-  if (!data) return null;
-  const list = data.results ?? data;
-  return Array.isArray(list) ? list : [];
-}
-
-export async function getMoodboard(id: string | number): Promise<any | null> {
-  const data = await get(`/moodboards/${id}/`);
-  return data && data.id ? data : null;
-}
-
 // ── Товары магазина (витрина продавца) ──
 export type Product = {
   id: number; title: string; description: string; price: number | null;
@@ -335,7 +319,7 @@ export async function getProfilesByRole(role: string): Promise<Person[] | null> 
 export type NavStats = {
   cosplayer_profiles: number; photographers: number; looks: number; teams: number;
   workshops: number; shops: number; jobs: number; locations: number;
-  events: number; guides: number; market: number; moodboards: number;
+  events: number; guides: number; market: number;
 };
 
 export async function getNavStats(): Promise<NavStats | null> {

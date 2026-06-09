@@ -13,7 +13,6 @@ from apps.events.models import Event
 from apps.guides.models import Guide
 from apps.listings.models import Listing
 from apps.looks.models import Look
-from apps.moodboards.models import Moodboard, MoodboardItem
 from apps.teams.models import Team, TeamMember
 from apps.news.models import News
 from apps.products.models import Product
@@ -189,7 +188,7 @@ class Command(BaseCommand):
         return u
 
     def handle(self, *args, **opts):
-        n_prof = n_ws = n_list = n_news = n_ev = n_guide = n_look = n_team = n_board = n_prod = 0
+        n_prof = n_ws = n_list = n_news = n_ev = n_guide = n_look = n_team = n_prod = 0
         today = timezone.localdate()
 
         # Профили
@@ -386,33 +385,7 @@ class Command(BaseCommand):
                 if ev:
                     team.events.add(ev)
 
-        # Доски (мудборды) с картинками по ссылкам
-        boards = [
-            {"title": "Референсы: киберпанк", "owner": "yuki_cos",
-             "desc": "Неон, импланты, дождь — для образов в стиле Edgerunners.",
-             "imgs": ["https://images.unsplash.com/photo-1518481852452-9415b262eba4?w=500&q=80",
-                      "https://images.unsplash.com/photo-1542353436-312f0e1f67ff?w=500&q=80",
-                      "https://images.unsplash.com/photo-1493514789931-586cb221d7a7?w=500&q=80",
-                      "https://images.unsplash.com/photo-1550684376-efcbd6e3f031?w=500&q=80"]},
-            {"title": "EVA-броня: вдохновение", "owner": "darkmage",
-             "desc": "Формы доспехов, патина, крепления.",
-             "imgs": ["https://images.unsplash.com/photo-1605826832916-d0a401fdb4b6?w=500&q=80",
-                      "https://images.unsplash.com/photo-1611673773600-1d6e3a6a1f0a?w=500&q=80",
-                      "https://images.unsplash.com/photo-1551122089-4e3e72477432?w=500&q=80"]},
-        ]
-        for bd in boards:
-            owner = User.objects.filter(username=bd["owner"]).first()
-            if not owner:
-                continue
-            board, created = Moodboard.objects.get_or_create(
-                title=bd["title"], defaults={"owner": owner, "description": bd["desc"], "is_public": True},
-            )
-            if created:
-                n_board += 1
-                for u in bd["imgs"]:
-                    MoodboardItem.objects.create(board=board, image_url=u)
-
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, товаров +{n_prod}, новостей +{n_news}, "
-            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, досок +{n_board}. Пароль всех демо: {PWD}"
+            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}. Пароль всех демо: {PWD}"
         ))

@@ -28,7 +28,6 @@ const SECTIONS = [
       { href: "/events", label: "События" },
       { href: "/guides", label: "Гайды" },
       { href: "/market", label: "Барахолка" },
-      { href: "/moodboards", label: "Доски" },
     ],
   },
 ];

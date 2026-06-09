@@ -119,10 +119,6 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     <div className="drop-ic">✄</div>
                     <div><b>Барахолка</b><small>{pl(s?.market ?? 0, ["объявление", "объявления", "объявлений"])}</small></div>
                   </a>
-                  <a href="/moodboards">
-                    <div className="drop-ic">◇</div>
-                    <div><b>Доски</b><small>{pl(s?.moodboards ?? 0, ["доска", "доски", "досок"])}</small></div>
-                  </a>
                 </div>
               </div>
               <div className="menu-item">

@@ -8,7 +8,6 @@ from apps.events.models import Event
 from apps.guides.models import Guide
 from apps.listings.models import Listing
 from apps.looks.models import Look
-from apps.moodboards.models import Moodboard
 from apps.profiles.models import Profile
 from apps.teams.models import Team
 from apps.users.models import User
@@ -45,7 +44,6 @@ class StatsView(APIView):
             "market": Listing.objects.filter(is_active=True, type__in=["sell", "buy"]).count(),
             "events": Event.objects.filter(is_published=True, date__gte=timezone.now().date()).count(),
             "guides": Guide.objects.filter(is_published=True).count(),
-            "moodboards": Moodboard.objects.filter(is_public=True, is_active=True).count(),
         })
 
 
