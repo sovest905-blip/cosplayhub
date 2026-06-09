@@ -27,7 +27,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
            className="product-grid">
         <div style={{
           aspectRatio: "1", borderRadius: 18, border: "1px solid var(--line)", overflow: "hidden",
-          backgroundImage: `url('${img}')`, backgroundSize: "cover", backgroundPosition: "center", background: "var(--bg-2)",
+          backgroundColor: "var(--bg-2)", backgroundImage: `url('${img}')`, backgroundSize: "cover", backgroundPosition: "center",
         }} />
 
         <div>
