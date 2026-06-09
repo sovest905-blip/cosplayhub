@@ -360,6 +360,22 @@ class Command(BaseCommand):
              "imgs": ["https://images.unsplash.com/photo-1605826832916-d0a401fdb4b6?w=500&q=80",
                       "https://images.unsplash.com/photo-1611673773600-1d6e3a6a1f0a?w=500&q=80",
                       "https://images.unsplash.com/photo-1551122089-4e3e72477432?w=500&q=80"]},
+            # Витрины магазинов — каталоги товаров с ценами (позиции = dict).
+            {"title": "Каталог: парики", "owner": "cosshop_kz",
+             "desc": "Термостойкие парики под укладку. Доставка по СНГ.",
+             "imgs": [
+                 {"url": "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=500&q=80", "caption": "Парик длинный, блонд", "price": "9 900 ₸"},
+                 {"url": "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?w=500&q=80", "caption": "Парик каре, чёрный", "price": "7 500 ₸"},
+                 {"url": "https://images.unsplash.com/photo-1492106087820-71f1a00d2b11?w=500&q=80", "caption": "Парик розовый, длинный", "price": "11 000 ₸"},
+                 {"url": "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=500&q=80", "caption": "Парик короткий, белый", "price": "6 900 ₸"},
+             ]},
+            {"title": "Каталог: линзы", "owner": "lens_store",
+             "desc": "Цветные склеральные и обычные линзы. Сертификаты есть.",
+             "imgs": [
+                 {"url": "https://images.unsplash.com/photo-1583195763986-0231686dcd43?w=500&q=80", "caption": "Линзы голубые, пара", "price": "4 500 ₸"},
+                 {"url": "https://images.unsplash.com/photo-1577563908411-5077b6dc7624?w=500&q=80", "caption": "Линзы красные склеры", "price": "6 200 ₸"},
+                 {"url": "https://images.unsplash.com/photo-1574258495973-f010dfbb5371?w=500&q=80", "caption": "Линзы фиолетовые", "price": "4 800 ₸"},
+             ]},
         ]
         for bd in boards:
             owner = User.objects.filter(username=bd["owner"]).first()
@@ -370,8 +386,12 @@ class Command(BaseCommand):
             )
             if created:
                 n_board += 1
-                for u in bd["imgs"]:
-                    MoodboardItem.objects.create(board=board, image_url=u)
+                for it in bd["imgs"]:
+                    if isinstance(it, dict):
+                        MoodboardItem.objects.create(board=board, image_url=it["url"],
+                                                     caption=it.get("caption", ""), price=it.get("price", ""))
+                    else:
+                        MoodboardItem.objects.create(board=board, image_url=it)
 
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, новостей +{n_news}, "
