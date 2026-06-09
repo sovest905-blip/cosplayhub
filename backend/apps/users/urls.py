@@ -2,7 +2,9 @@ from django.urls import path
 
 from .views import (
     AvatarUploadView,
+    ChangePasswordView,
     CoverUploadView,
+    DeleteAccountView,
     ForgotPasswordView,
     InviteCheckView,
     LoginView,
@@ -22,6 +24,8 @@ urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
+    path("change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("delete-account/", DeleteAccountView.as_view(), name="delete-account"),
     path("avatar/", AvatarUploadView.as_view(), name="avatar-upload"),
     path("cover/", CoverUploadView.as_view(), name="cover-upload"),
     # Email OTP

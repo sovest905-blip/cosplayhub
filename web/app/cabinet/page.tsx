@@ -118,6 +118,18 @@ export default function CabinetPage() {
   const [slotForm, setSlotForm] = useState({ title: "", date: "", time_start: "", time_end: "", price: "" });
   const [slotSaving, setSlotSaving] = useState(false);
   const [slotErr, setSlotErr] = useState("");
+  // Единомышленники (матчинг фаната)
+  const [matches, setMatches] = useState<any[] | null>(null);
+  const [matchesReady, setMatchesReady] = useState(true);
+  // Настройки: смена пароля
+  const [pwForm, setPwForm] = useState({ current: "", next: "", repeat: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Настройки: удаление аккаунта
+  const [delPw, setDelPw] = useState("");
+  const [delConfirm, setDelConfirm] = useState(false);
+  const [delBusy, setDelBusy] = useState(false);
+  const [delErr, setDelErr] = useState("");
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -685,6 +697,50 @@ export default function CabinetPage() {
     if (res.ok) setFavorites((prev) => prev.filter((f) => !(f.kind === kind && f.item.id === objectId)));
   }
 
+  // Единомышленники — грузим при первом открытии вкладки.
+  useEffect(() => {
+    if (tab !== "matches" || matches !== null) return;
+    fetch("/api/v1/profiles/fan-matches/", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) { setMatches(d.matches || []); setMatchesReady(d.ready !== false); } })
+      .catch(() => setMatches([]));
+  }, [tab, matches]);
+
+  async function followMatch(userId: number) {
+    const res = await fetch(`/api/v1/follow/${userId}/`, { method: "POST", credentials: "include" });
+    if (res.ok) setMatches((prev) => prev?.map((m) => (m.user_id === userId ? { ...m, is_following: true } : m)) || null);
+  }
+
+  async function changePassword() {
+    setPwMsg(null);
+    if (pwForm.next !== pwForm.repeat) { setPwMsg({ ok: false, text: "Новый пароль и повтор не совпадают" }); return; }
+    if (pwForm.next.length < 10) { setPwMsg({ ok: false, text: "Минимум 10 символов" }); return; }
+    setPwSaving(true);
+    try {
+      const res = await fetch("/api/v1/auth/change-password/", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ current_password: pwForm.current, new_password: pwForm.next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { setPwMsg({ ok: true, text: "Пароль изменён" }); setPwForm({ current: "", next: "", repeat: "" }); }
+      else setPwMsg({ ok: false, text: data.detail || "Не удалось" });
+    } finally { setPwSaving(false); }
+  }
+
+  async function deleteAccount() {
+    setDelErr("");
+    setDelBusy(true);
+    try {
+      const res = await fetch("/api/v1/auth/delete-account/", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ password: delPw }),
+      });
+      if (res.ok || res.status === 204) { window.location.href = "/"; return; }
+      const data = await res.json().catch(() => ({}));
+      setDelErr(data.detail || "Не удалось удалить");
+    } finally { setDelBusy(false); }
+  }
+
   if (!authed) return (
     <div className="wrap" style={{ paddingTop: 60, textAlign: "center", color: "var(--ink-dim)" }}>
       Загрузка...
@@ -723,6 +779,7 @@ export default function CabinetPage() {
     { id: "responses", icon: "↗", label: "Отклики",    num: newIncoming || undefined },
     { id: "messages",  icon: "✉", label: "Сообщения",  num: unreadMsgs || undefined },
     { id: "favs",      icon: "♥", label: "Избранное" },
+    ...(roles.includes("fan") ? [{ id: "matches", icon: "❤", label: "Единомышленники" }] : []),
     { id: "listings",  icon: "⌂", label: "Объявления", num: activeListings || undefined },
     { id: "settings",  icon: "⚙", label: "Настройки" },
   ];
@@ -1711,11 +1768,124 @@ export default function CabinetPage() {
           </div>
         );
 
-      case "settings":
+      case "matches":
         return (
           <div className="acc-card">
-            <EmptyBlock icon="◆" title="Скоро"
-              sub="Этот раздел в разработке. Появится в следующем обновлении." />
+            <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 4px" }}>Единомышленники</h2>
+            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
+              Косплееры и фанаты с общими фандомами и хобби. Чем больше совпадений — тем выше в списке.
+            </p>
+            {matches === null ? (
+              <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Загрузка…</p>
+            ) : !matchesReady ? (
+              <EmptyBlock icon="♥" title="Заполни анкету фаната"
+                sub="Укажи любимые фандомы и хобби во вкладке «Роли и услуги» — и мы найдём похожих на тебя." />
+            ) : matches.length === 0 ? (
+              <EmptyBlock icon="♥" title="Пока никого"
+                sub="Совпадений по твоим фандомам и хобби ещё нет. Загляни позже — сообщество растёт." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {matches.map((m) => (
+                  <div key={m.user_id} style={{
+                    display: "flex", alignItems: "center", gap: 14, padding: "12px 14px",
+                    background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12,
+                  }}>
+                    <a href={`/people/${m.profile_id}`} style={{
+                      width: 48, height: 48, borderRadius: 12, flexShrink: 0, backgroundSize: "cover", backgroundPosition: "center",
+                      backgroundImage: m.avatar ? `url('${m.avatar}')` : "linear-gradient(135deg,rgba(255,45,111,.3),rgba(124,249,255,.15))",
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <a href={`/people/${m.profile_id}`} style={{ fontWeight: 700, fontSize: 14 }}>{m.display_name}</a>
+                      {m.city && <span style={{ color: "var(--ink-dim)", fontSize: 12 }}> · {m.city}</span>}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                        {[...m.shared_fandoms, ...m.shared_hobbies].slice(0, 6).map((t: string) => (
+                          <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20,
+                            background: "rgba(124,249,255,.1)", border: "1px solid rgba(124,249,255,.25)", color: "var(--accent-2)" }}>{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                    {m.is_following ? (
+                      <span style={{ fontSize: 12, color: "var(--green)", flexShrink: 0 }}>✓ Вы подписаны</span>
+                    ) : (
+                      <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }} onClick={() => followMatch(m.user_id)}>Подписаться</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case "settings":
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            {/* Учётные данные */}
+            <div className="acc-card">
+              <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 14px" }}>Аккаунт</h2>
+              <div className="info-row"><span>Email</span><span style={{ color: "var(--ink-dim)" }}>{me.email || "—"}</span></div>
+              {me.phone && <div className="info-row"><span>Телефон</span><span style={{ color: "var(--ink-dim)" }}>{me.phone}</span></div>}
+              <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "10px 0 0" }}>
+                Email менять пока нельзя — напиши в поддержку, если нужно.
+              </p>
+            </div>
+
+            {/* Приватность */}
+            <div className="acc-card">
+              <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 4px" }}>Приватность</h2>
+              <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 14px" }}>Те же тумблеры есть во вкладке «Роли и услуги».</p>
+              <div className="toggle-row" style={{ padding: "8px 0" }}>
+                <div><strong style={{ fontSize: 13 }}>Открыт для работы</strong><div style={{ fontSize: 12, color: "var(--ink-dim)" }}>Показывать бейдж «Доступен» в профиле</div></div>
+                <div className={`toggle${availForWork ? " on" : ""}`} style={{ cursor: "pointer" }}
+                  onClick={() => { const v = !availForWork; setAvailForWork(v); patchProfile({ available_for_work: v }); }} />
+              </div>
+              <div className="toggle-row" style={{ padding: "8px 0" }}>
+                <div><strong style={{ fontSize: 13 }}>Принимать сообщения</strong><div style={{ fontSize: 12, color: "var(--ink-dim)" }}>Разрешить писать тебе в мессенджер</div></div>
+                <div className={`toggle${acceptMessages ? " on" : ""}`} style={{ cursor: "pointer" }}
+                  onClick={() => { const v = !acceptMessages; setAcceptMessages(v); patchProfile({ accept_messages: v }); }} />
+              </div>
+            </div>
+
+            {/* Смена пароля */}
+            <div className="acc-card">
+              <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 14px" }}>Смена пароля</h2>
+              <div className="field"><label>Текущий пароль</label>
+                <input type="password" autoComplete="current-password" value={pwForm.current} onChange={(e) => setPwForm({ ...pwForm, current: e.target.value })} /></div>
+              <div className="field"><label>Новый пароль (мин. 10 символов)</label>
+                <input type="password" autoComplete="new-password" value={pwForm.next} onChange={(e) => setPwForm({ ...pwForm, next: e.target.value })} /></div>
+              <div className="field"><label>Повтор нового пароля</label>
+                <input type="password" autoComplete="new-password" value={pwForm.repeat} onChange={(e) => setPwForm({ ...pwForm, repeat: e.target.value })} /></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button className="btn btn-primary btn-sm" onClick={changePassword} disabled={pwSaving || !pwForm.current || !pwForm.next}>
+                  {pwSaving ? "Сохраняем…" : "Сменить пароль"}
+                </button>
+                {pwMsg && <span style={{ fontSize: 12, color: pwMsg.ok ? "var(--green)" : "var(--red)" }}>{pwMsg.text}</span>}
+              </div>
+            </div>
+
+            {/* Опасная зона */}
+            <div className="acc-card" style={{ border: "1px solid rgba(255,45,111,.3)" }}>
+              <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 4px", color: "var(--accent)" }}>Удаление аккаунта</h2>
+              <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 14px" }}>
+                Аккаунт, профиль, объявления, заказы и слоты будут удалены навсегда. Отменить нельзя.
+              </p>
+              {!delConfirm ? (
+                <button className="btn btn-sm" style={{ background: "rgba(255,45,111,.12)", border: "1px solid rgba(255,45,111,.3)", color: "var(--accent)" }}
+                  onClick={() => setDelConfirm(true)}>Удалить аккаунт…</button>
+              ) : (
+                <div>
+                  <div className="field"><label>Подтверди паролем</label>
+                    <input type="password" autoComplete="current-password" value={delPw} onChange={(e) => setDelPw(e.target.value)} style={{ maxWidth: 280 }} /></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button className="btn btn-sm" style={{ background: "var(--accent)", border: "none", color: "#fff" }}
+                      onClick={deleteAccount} disabled={delBusy || !delPw}>
+                      {delBusy ? "Удаляем…" : "Удалить навсегда"}
+                    </button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setDelConfirm(false); setDelPw(""); setDelErr(""); }}>Отмена</button>
+                    {delErr && <span style={{ fontSize: 12, color: "var(--red)" }}>{delErr}</span>}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
 

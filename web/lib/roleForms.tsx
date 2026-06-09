@@ -62,7 +62,7 @@ export const ROLE_FORMS: Record<string, { title: string; icon: string; hint: str
   },
   fan: {
     title: "Анкета фаната", icon: "♥",
-    hint: "Расскажи о себе — найдём единомышленников и подберём ленту",
+    hint: "Заполни фандомы и хобби — во вкладке «Единомышленники» найдём похожих на тебя",
     fields: [
       { key: "fandoms", label: "Любимые фандомы", type: "text", placeholder: "Genshin, Naruto, Marvel" },
       { key: "hobbies", label: "Хобби", type: "multi", options: ["Аниме", "Манга", "Игры", "Настолки", "Рисование", "Музыка", "Фигурки", "K-pop", "Комиксы", "Фэнтези"] },

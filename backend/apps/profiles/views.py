@@ -192,6 +192,70 @@ class FollowersListView(APIView):
         return Response(ProfileSerializer(qs, many=True, context={"request": request}).data)
 
 
+# ─────────── Матчинг фанатов (единомышленники) ───────────
+
+def _norm_tokens(value):
+    """Нормализует фандомы/хобби в множество токенов: строку дробим по запятой,
+    список оставляем как есть; всё в lowercase + trim, пустые отбрасываем."""
+    if isinstance(value, str):
+        parts = value.split(",")
+    elif isinstance(value, (list, tuple)):
+        parts = value
+    else:
+        return set()
+    return {str(p).strip().lower() for p in parts if str(p).strip()}
+
+
+class FanMatchesView(APIView):
+    """GET — единомышленники: другие fan-профили с пересечением фандомов/хобби.
+    Ранжирование по числу совпадений. Масштаб беты мал → считаем в Python."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def get(self, request):
+        prof = getattr(request.user, "profile", None)
+        my = (prof.role_details or {}).get("fan", {}) if prof else {}
+        my_fandoms = _norm_tokens(my.get("fandoms"))
+        my_hobbies = _norm_tokens(my.get("hobbies"))
+        if not my_fandoms and not my_hobbies:
+            return Response({"ready": False, "matches": []})
+
+        # Кандидаты: профили с ролью fan, кроме себя (узкий префильтр по JSON).
+        candidates = (_profiles_qs()
+                      .filter(roles__contains=["fan"])
+                      .exclude(user_id=request.user.id))
+
+        my_following = set(
+            Follow.objects.filter(follower=request.user).values_list("target_id", flat=True)
+        )
+
+        scored = []
+        for p in candidates:
+            fan = (p.role_details or {}).get("fan", {})
+            cf = my_fandoms & _norm_tokens(fan.get("fandoms"))
+            ch = my_hobbies & _norm_tokens(fan.get("hobbies"))
+            score = len(cf) + len(ch)
+            if score == 0:
+                continue
+            scored.append((score, p, sorted(cf), sorted(ch)))
+
+        scored.sort(key=lambda t: (-t[0], t[1].display_name.lower()))
+
+        matches = [{
+            "profile_id": p.id,
+            "user_id": p.user_id,
+            "display_name": p.display_name,
+            "city": p.user.city if p.user else "",
+            "avatar": p.avatar.url if p.avatar else None,
+            "shared_fandoms": cf,
+            "shared_hobbies": ch,
+            "score": score,
+            "is_following": p.user_id in my_following,
+        } for score, p, cf, ch in scored[:30]]
+
+        return Response({"ready": True, "matches": matches})
+
+
 # ─────────── Избранное (закладки) ───────────
 
 VALID_FAV_KINDS = ("profile", "workshop")

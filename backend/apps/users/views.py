@@ -1,7 +1,7 @@
 import logging
 
 from django.conf import settings
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, update_session_auth_hash
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.password_validation import validate_password
@@ -128,6 +128,45 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+# ── Настройки аккаунта (кабинет → Настройки) ──────────────────────────────────
+
+class ChangePasswordView(APIView):
+    """POST {current_password, new_password} — смена пароля залогиненным.
+    Сессия сохраняется (update_session_auth_hash), повторный вход не нужен."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def post(self, request):
+        user = request.user
+        current = request.data.get("current_password") or ""
+        new_password = request.data.get("new_password") or ""
+        if not user.check_password(current):
+            return Response({"detail": "Текущий пароль неверный"}, status=400)
+        try:
+            validate_password(new_password, user)
+        except ValidationError as e:
+            return Response({"detail": e.messages[0]}, status=400)
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+        update_session_auth_hash(request, user)  # иначе смена пароля разлогинивает
+        return Response({"ok": True})
+
+
+class DeleteAccountView(APIView):
+    """POST {password} — самоудаление аккаунта. Требует подтверждения паролем.
+    Сносит профиль/заказы/слоты и т.д. по CASCADE; сессия гасится."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def post(self, request):
+        user = request.user
+        if not user.check_password(request.data.get("password") or ""):
+            return Response({"detail": "Пароль неверный"}, status=400)
+        logout(request)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ── Email OTP ─────────────────────────────────────────────────────────────────
