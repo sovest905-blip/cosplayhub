@@ -5,7 +5,10 @@ from .views import OrderViewSet, IncomingOrdersView
 router = DefaultRouter()
 router.register("orders", OrderViewSet, basename="order")
 
-urlpatterns = router.urls + [
+# ВАЖНО: incoming-пути идут ПЕРЕД router.urls. Иначе detail-роут роутера
+# `orders/<pk>/` (pk = [^/.]+) перехватывает `orders/incoming/` как pk="incoming"
+# → GET списка входящих заказов отдавал 404 (поймано тестом test_owner_sees_incoming_orders).
+urlpatterns = [
     path("orders/incoming/", IncomingOrdersView.as_view(), name="orders-incoming"),
     path("orders/incoming/<int:pk>/", IncomingOrdersView.as_view(), name="orders-incoming-update"),
-]
+] + router.urls

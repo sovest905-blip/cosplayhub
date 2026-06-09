@@ -61,7 +61,8 @@ def test_register_weak_password_rejected(api):
 
 @pytest.mark.django_db
 def test_register_garbage_identifier_rejected(api):
-    resp = api.post(REGISTER, {"identifier": "not-an-email", "username": "x", "password": PWD})
+    # Без '@' и коротко → не email и не валидный телефон → отказ.
+    resp = api.post(REGISTER, {"identifier": "abc", "username": "x", "password": PWD})
     assert resp.status_code == 400
 
 
