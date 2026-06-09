@@ -2,6 +2,8 @@ from django.urls import path
 
 from .views import (
     AvatarUploadView,
+    ChangeEmailConfirmView,
+    ChangeEmailRequestView,
     ChangePasswordView,
     CoverUploadView,
     DeleteAccountView,
@@ -25,6 +27,8 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="logout"),
     path("me/", MeView.as_view(), name="me"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("change-email/", ChangeEmailRequestView.as_view(), name="change-email"),
+    path("change-email/confirm/", ChangeEmailConfirmView.as_view(), name="change-email-confirm"),
     path("delete-account/", DeleteAccountView.as_view(), name="delete-account"),
     path("avatar/", AvatarUploadView.as_view(), name="avatar-upload"),
     path("cover/", CoverUploadView.as_view(), name="cover-upload"),

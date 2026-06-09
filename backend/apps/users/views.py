@@ -15,7 +15,10 @@ from rest_framework.views import APIView
 
 from .backends import CsrfExemptSessionAuthentication, resolve_user
 from .models import User
-from .otp import send_email_otp, send_reset_otp, verify_email_otp, verify_reset_otp
+from .otp import (
+    send_email_change_otp, send_email_otp, send_reset_otp,
+    verify_email_change_otp, verify_email_otp, verify_reset_otp,
+)
 from .serializers import MeSerializer, RegisterSerializer, UserSerializer
 
 logger = logging.getLogger(__name__)
@@ -167,6 +170,49 @@ class DeleteAccountView(APIView):
         logout(request)
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChangeEmailRequestView(APIView):
+    """POST {new_email} — запросить смену email: код уходит на НОВЫЙ адрес.
+    Подтверждение — в ChangeEmailConfirmView. Троттлинг как у OTP."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+    throttle_scope = "otp"
+    throttle_classes = [ScopedRateThrottle]
+
+    def post(self, request):
+        new_email = (request.data.get("new_email") or "").strip().lower()
+        if "@" not in new_email or "." not in new_email.split("@")[-1]:
+            return Response({"detail": "Введите корректный email"}, status=400)
+        if new_email == (request.user.email or "").lower():
+            return Response({"detail": "Это ваш текущий email"}, status=400)
+        if User.objects.filter(email=new_email).exclude(pk=request.user.pk).exists():
+            return Response({"detail": "Email уже занят"}, status=400)
+        try:
+            send_email_change_otp(request.user.id, new_email)
+        except Exception as e:
+            logger.error("send_email_change_otp failed: %s", e)
+            return Response({"detail": "Не удалось отправить код, попробуйте позже"}, status=503)
+        return Response({"detail": "Код отправлен на новый адрес"})
+
+
+class ChangeEmailConfirmView(APIView):
+    """POST {code} — подтвердить смену email кодом из письма на новый адрес."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def post(self, request):
+        code = (request.data.get("code") or "").strip()
+        new_email = verify_email_change_otp(request.user.id, code)
+        if not new_email:
+            return Response({"detail": "Неверный или устаревший код"}, status=400)
+        # Гонка: адрес мог занять кто-то между запросом и подтверждением
+        if User.objects.filter(email=new_email).exclude(pk=request.user.pk).exists():
+            return Response({"detail": "Email уже занят"}, status=400)
+        request.user.email = new_email
+        request.user.is_email_verified = True
+        request.user.save(update_fields=["email", "is_email_verified"])
+        return Response({"email": new_email})
 
 
 # ── Email OTP ─────────────────────────────────────────────────────────────────

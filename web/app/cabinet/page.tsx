@@ -130,6 +130,12 @@ export default function CabinetPage() {
   const [delConfirm, setDelConfirm] = useState(false);
   const [delBusy, setDelBusy] = useState(false);
   const [delErr, setDelErr] = useState("");
+  // Настройки: смена email (2 шага — новый адрес → код)
+  const [emStep, setEmStep] = useState<0 | 1 | 2>(0); // 0 закрыто, 1 ввод email, 2 ввод кода
+  const [emNew, setEmNew] = useState("");
+  const [emCode, setEmCode] = useState("");
+  const [emBusy, setEmBusy] = useState(false);
+  const [emMsg, setEmMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [availForWork, setAvailForWork] = useState(false);
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -725,6 +731,37 @@ export default function CabinetPage() {
       if (res.ok) { setPwMsg({ ok: true, text: "Пароль изменён" }); setPwForm({ current: "", next: "", repeat: "" }); }
       else setPwMsg({ ok: false, text: data.detail || "Не удалось" });
     } finally { setPwSaving(false); }
+  }
+
+  async function requestEmailChange() {
+    setEmMsg(null);
+    if (!emNew.includes("@")) { setEmMsg({ ok: false, text: "Введите корректный email" }); return; }
+    setEmBusy(true);
+    try {
+      const res = await fetch("/api/v1/auth/change-email/", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ new_email: emNew.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { setEmStep(2); setEmMsg({ ok: true, text: "Код отправлен на новый адрес" }); }
+      else setEmMsg({ ok: false, text: data.detail || "Не удалось" });
+    } finally { setEmBusy(false); }
+  }
+
+  async function confirmEmailChange() {
+    setEmMsg(null);
+    setEmBusy(true);
+    try {
+      const res = await fetch("/api/v1/auth/change-email/confirm/", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ code: emCode.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMe((prev: any) => ({ ...prev, email: data.email }));
+        setEmStep(0); setEmNew(""); setEmCode(""); setEmMsg(null);
+      } else setEmMsg({ ok: false, text: data.detail || "Неверный код" });
+    } finally { setEmBusy(false); }
   }
 
   async function deleteAccount() {
@@ -1822,11 +1859,41 @@ export default function CabinetPage() {
             {/* Учётные данные */}
             <div className="acc-card">
               <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 14px" }}>Аккаунт</h2>
-              <div className="info-row"><span>Email</span><span style={{ color: "var(--ink-dim)" }}>{me.email || "—"}</span></div>
+              <div className="info-row">
+                <span>Email</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ color: "var(--ink-dim)" }}>{me.email || "—"}</span>
+                  {me.email && emStep === 0 && (
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setEmStep(1); setEmMsg(null); }}>Изменить</button>
+                  )}
+                </span>
+              </div>
               {me.phone && <div className="info-row"><span>Телефон</span><span style={{ color: "var(--ink-dim)" }}>{me.phone}</span></div>}
-              <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "10px 0 0" }}>
-                Email менять пока нельзя — напиши в поддержку, если нужно.
-              </p>
+
+              {emStep === 1 && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+                  <div className="field"><label>Новый email</label>
+                    <input type="email" value={emNew} onChange={(e) => setEmNew(e.target.value)} placeholder="new@example.com" style={{ maxWidth: 320 }} /></div>
+                  <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>На новый адрес придёт код подтверждения.</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button className="btn btn-primary btn-sm" onClick={requestEmailChange} disabled={emBusy || !emNew}>{emBusy ? "Отправляем…" : "Отправить код"}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setEmStep(0); setEmNew(""); setEmMsg(null); }}>Отмена</button>
+                    {emMsg && <span style={{ fontSize: 12, color: emMsg.ok ? "var(--green)" : "var(--red)" }}>{emMsg.text}</span>}
+                  </div>
+                </div>
+              )}
+
+              {emStep === 2 && (
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+                  <div className="field"><label>Код из письма на {emNew}</label>
+                    <input inputMode="numeric" value={emCode} onChange={(e) => setEmCode(e.target.value)} placeholder="6 цифр" style={{ maxWidth: 160, letterSpacing: 4, fontFamily: "var(--font-mono),monospace" }} /></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button className="btn btn-primary btn-sm" onClick={confirmEmailChange} disabled={emBusy || emCode.length < 4}>{emBusy ? "Проверяем…" : "Подтвердить"}</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => { setEmStep(0); setEmNew(""); setEmCode(""); setEmMsg(null); }}>Отмена</button>
+                    {emMsg && <span style={{ fontSize: 12, color: emMsg.ok ? "var(--green)" : "var(--red)" }}>{emMsg.text}</span>}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Приватность */}

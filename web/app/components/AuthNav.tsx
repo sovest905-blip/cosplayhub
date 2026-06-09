@@ -70,6 +70,9 @@ export default function AuthNav() {
           ⚙ Админка
         </a>
       )}
+      <a href="/feed" className="btn btn-ghost btn-sm" title="Моя лента" style={{ whiteSpace: "nowrap" }}>
+        ✦ Лента
+      </a>
       <a href="/messages" className="icon-btn" title="Сообщения" style={{ position: "relative" }}>
         💬
         {unreadMsg > 0 && <Badge n={unreadMsg} />}
