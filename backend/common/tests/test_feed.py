@@ -104,3 +104,37 @@ def test_unpublished_look_excluded(api, make_user):
     Follow.objects.create(follower=me, target=star)
     api.force_authenticate(user=me)
     assert not any(i["title"] == "Черновик" for i in api.get(FEED).data["items"])
+
+
+@pytest.mark.django_db
+def test_popular_look_ranks_higher(api, make_user):
+    """При равной релевантности образ с большим числом лайков — выше."""
+    from apps.looks.models import LookLike
+    me = make_user(username="me")
+    _profile(me, fandoms="Genshin")
+    a1 = make_user(username="a1")
+    a2 = make_user(username="a2")
+    cold = Look.objects.create(author=a1, title="A", character="Genshin", is_published=True)
+    hot = Look.objects.create(author=a2, title="B", character="Genshin", is_published=True)
+    for i in range(5):
+        LookLike.objects.create(user=make_user(username=f"f{i}"), look=hot)
+    api.force_authenticate(user=me)
+
+    looks = [i for i in api.get(FEED).data["items"] if i["type"] == "look"]
+    titles = [i["title"] for i in looks]
+    assert titles.index("B") < titles.index("A")  # популярный выше
+
+
+@pytest.mark.django_db
+def test_author_diversity_cap(api, make_user):
+    """Один автор не заполняет ленту: не больше 5 его образов в выдаче."""
+    me = make_user(username="me")
+    _profile(me)
+    star = make_user(username="star")
+    for i in range(9):
+        Look.objects.create(author=star, title=f"L{i}", is_published=True)
+    Follow.objects.create(follower=me, target=star)
+    api.force_authenticate(user=me)
+
+    star_looks = [i for i in api.get(FEED).data["items"] if i["type"] == "look" and i["author"] == "star"]
+    assert len(star_looks) <= 5

@@ -1,5 +1,4 @@
 export const dynamic = "force-dynamic";
-import { PEOPLE } from "../../lib/mock";
 import { getProfiles, fmtCount, type Person } from "../../lib/api";
 
 export default async function PeoplePage({
@@ -13,15 +12,12 @@ export default async function PeoplePage({
   if (sp.q) params.set("q", sp.q);
   const qs = params.toString() ? `?${params.toString()}` : "";
 
-  const api = await getProfiles(qs);
-  // Реальные профили из БД; если их нет — демонстрационные (mock) для живости беты
-  const people: Person[] = api && api.length > 0 ? api : (PEOPLE as unknown as Person[]);
-  const isReal = !!(api && api.length > 0);
+  const people: Person[] = (await getProfiles(qs)) || [];
 
   return (
     <div className="wrap">
       <section className="hero" style={{ paddingBottom: 0 }}>
-        <div className="eyebrow">каталог · {people.length} анкет{isReal ? "" : " · демо"}</div>
+        <div className="eyebrow">каталог · {people.length} анкет</div>
         <h1 className="huge" style={{ fontSize: "clamp(32px,5vw,64px)" }}>
           {sp.role === "photo" ? <>Фотографы <span className="accent">СНГ.</span></> : <>Косплееры <span className="accent">СНГ.</span></>}
         </h1>
@@ -33,6 +29,17 @@ export default async function PeoplePage({
           <a href="/people?available_for_work=true" className="chip">Свободны</a>
           <a href="/people?role=photo" className={`chip${sp.role === "photo" ? " on" : ""}`}>Фотографы</a>
         </div>
+
+        {people.length === 0 && (
+          <div className="empty-state" style={{ border: "1px solid var(--line)", borderRadius: 18, marginTop: 8 }}>
+            <div className="empty-glyph">◇</div>
+            <p className="empty-title">{sp.q ? "Ничего не найдено" : "Анкет пока нет"}</p>
+            <p className="empty-sub">
+              {sp.q ? "Попробуй изменить запрос." : "Первые участники уже регистрируются. Загляни позже или заполни свою анкету."}
+            </p>
+            {!sp.q && <a href="/cabinet?tab=roles" className="btn btn-ghost" style={{ marginTop: 8 }}>Заполнить анкету →</a>}
+          </div>
+        )}
 
         <div className="people-grid">
           {people.map((p) => (

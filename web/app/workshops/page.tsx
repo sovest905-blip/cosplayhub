@@ -1,10 +1,8 @@
 export const dynamic = "force-dynamic";
-import { WORKSHOPS } from "../../lib/mock";
 import { getWorkshops, type Shop } from "../../lib/api";
 
 export default async function WorkshopsPage() {
-  const api = await getWorkshops();
-  const workshops: Shop[] = api && api.length > 0 ? api : (WORKSHOPS as unknown as Shop[]);
+  const workshops: Shop[] = (await getWorkshops()) || [];
 
   return (
     <div className="wrap">
