@@ -1127,6 +1127,8 @@ footer {
 }
 .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); }
 .field textarea { resize: vertical; min-height: 70px; }
+/* Нативные иконки календаря и часов в date/time-инпутах — светлые на тёмной теме */
+input[type="date"], input[type="time"], input[type="datetime-local"] { color-scheme: dark; }
 
 /* ── RESPONSIVE ── */
 @media (max-width: 1100px) {

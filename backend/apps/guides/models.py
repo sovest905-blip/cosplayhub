@@ -21,3 +21,14 @@ class Guide(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class GuidePhoto(models.Model):
+    """Фото внутри гайда (до 5 штук — проверяется в API).
+    В тексте гайда вставляются маркером [фото:N], где N — порядковый номер."""
+    guide = models.ForeignKey(Guide, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to="guides/photos/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]

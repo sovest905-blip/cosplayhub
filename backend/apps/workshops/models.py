@@ -28,6 +28,16 @@ class Workshop(models.Model):
     def __str__(self):
         return self.name
 
+class WorkshopPhoto(models.Model):
+    """Фото работ мастерской (портфолио). Лимит 5 штук — проверяется в API."""
+    workshop = models.ForeignKey(Workshop, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField(upload_to="workshops/photos/")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
 class Service(models.Model):
     """Услуга мастерской с ценой."""
     workshop = models.ForeignKey(Workshop, on_delete=models.CASCADE, related_name="services")

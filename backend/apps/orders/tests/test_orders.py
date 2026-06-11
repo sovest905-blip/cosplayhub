@@ -111,3 +111,66 @@ def test_non_owner_cannot_change_status(api, setup, make_user):
     stranger = make_user(username="stranger", email="stranger@example.com")
     api.force_authenticate(user=stranger)
     assert api.patch(f"{INCOMING}{order.id}/", {"status": "accepted"}).status_code == 404
+
+
+# ── Отзывы ──────────────────────────────────────────────────────────────────────
+
+def _review_url(order_id):
+    return f"{ORDERS}{order_id}/review/"
+
+
+@pytest.mark.django_db
+def test_review_after_done_updates_rating_and_notifies(api, setup):
+    customer, owner, workshop = setup
+    order = Order.objects.create(customer=customer, workshop=workshop,
+                                 description="z", status="done")
+    api.force_authenticate(user=customer)
+    resp = api.post(_review_url(order.id), {"rating": 4, "text": "Отличный шлем"}, format="json")
+    assert resp.status_code == 201
+
+    workshop.refresh_from_db()
+    assert float(workshop.rating) == 4.0       # пересчёт среднего
+    assert Notification.objects.filter(recipient=owner, kind="review_new").exists()
+    # Публичный список отзывов мастерской доступен анонимно
+    api.force_authenticate(user=None)
+    pub = api.get(f"/api/v1/workshops/{workshop.id}/reviews/")
+    assert pub.status_code == 200
+    assert len(pub.data) == 1 and pub.data[0]["rating"] == 4
+
+
+@pytest.mark.django_db
+def test_review_rejected_until_done(api, setup):
+    customer, owner, workshop = setup
+    order = Order.objects.create(customer=customer, workshop=workshop, description="z")
+    api.force_authenticate(user=customer)
+    assert api.post(_review_url(order.id), {"rating": 5}, format="json").status_code == 400
+
+
+@pytest.mark.django_db
+def test_review_only_once(api, setup):
+    customer, owner, workshop = setup
+    order = Order.objects.create(customer=customer, workshop=workshop,
+                                 description="z", status="done")
+    api.force_authenticate(user=customer)
+    assert api.post(_review_url(order.id), {"rating": 5}, format="json").status_code == 201
+    assert api.post(_review_url(order.id), {"rating": 1}, format="json").status_code == 400
+
+
+@pytest.mark.django_db
+def test_cannot_review_foreign_order(api, setup, make_user):
+    customer, owner, workshop = setup
+    order = Order.objects.create(customer=customer, workshop=workshop,
+                                 description="z", status="done")
+    stranger = make_user(username="rev_stranger", email="rev_stranger@example.com")
+    api.force_authenticate(user=stranger)
+    assert api.post(_review_url(order.id), {"rating": 5}, format="json").status_code == 404
+
+
+@pytest.mark.django_db
+def test_review_rating_bounds(api, setup):
+    customer, owner, workshop = setup
+    order = Order.objects.create(customer=customer, workshop=workshop,
+                                 description="z", status="done")
+    api.force_authenticate(user=customer)
+    assert api.post(_review_url(order.id), {"rating": 6}, format="json").status_code == 400
+    assert api.post(_review_url(order.id), {"rating": 0}, format="json").status_code == 400

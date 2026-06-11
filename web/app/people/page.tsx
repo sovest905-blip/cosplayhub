@@ -26,7 +26,7 @@ export default async function PeoplePage({
       <section style={{ paddingTop: 32 }}>
         <div className="filter-bar">
           <a href="/people" className={`chip${!sp.role && !sp.q ? " on" : ""}`}>Все</a>
-          <a href="/people?available_for_work=true" className="chip">Свободны</a>
+          <a href="/people?available_for_work=true" className="chip">Открыты к сотрудничеству</a>
           <a href="/people?role=photo" className={`chip${sp.role === "photo" ? " on" : ""}`}>Фотографы</a>
         </div>
 
@@ -46,7 +46,7 @@ export default async function PeoplePage({
             <a key={p.id} href={`/people/${p.id}`} className="person" style={{ color: "inherit" }}>
               <div className="person-img" style={{ backgroundImage: `url('${p.photo}')` }}>
                 {p.available_for_work
-                  ? <div className="person-avail">Свободен</div>
+                  ? <div className="person-avail">Открыт к сотрудничеству</div>
                   : p.is_pro
                   ? <div className="person-badge pro">PRO</div>
                   : null}

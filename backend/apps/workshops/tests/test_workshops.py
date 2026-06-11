@@ -104,3 +104,51 @@ def test_mine_returns_only_own(api, make_user, make_workshop):
     assert resp.status_code == 200
     assert len(_results(resp.data)) == 1
     assert _results(resp.data)[0]["name"] == "моя"
+
+
+# ── Фото работ ───────────────────────────────────────────────────────────────────
+
+GIF = (b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04"
+       b"\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;")
+
+
+def _img(name="work.gif"):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    return SimpleUploadedFile(name, GIF, content_type="image/gif")
+
+
+@pytest.mark.django_db
+def test_owner_uploads_photo_and_it_appears_in_detail(api, make_user, make_workshop):
+    owner = make_user(username="ph1", email="ph1@example.com")
+    ws = make_workshop(owner=owner)
+    api.force_authenticate(user=owner)
+    resp = api.post(f"{WS}{ws.id}/photos/", {"image": _img()}, format="multipart")
+    assert resp.status_code == 201
+    detail = api.get(f"{WS}{ws.id}/")
+    assert len(detail.data["photos"]) == 1
+
+
+@pytest.mark.django_db
+def test_photo_limit_is_five(api, make_user, make_workshop):
+    owner = make_user(username="ph2", email="ph2@example.com")
+    ws = make_workshop(owner=owner)
+    api.force_authenticate(user=owner)
+    for i in range(5):
+        assert api.post(f"{WS}{ws.id}/photos/", {"image": _img(f"w{i}.gif")}, format="multipart").status_code == 201
+    assert api.post(f"{WS}{ws.id}/photos/", {"image": _img("w6.gif")}, format="multipart").status_code == 400
+
+
+@pytest.mark.django_db
+def test_non_owner_cannot_upload_or_delete_photo(api, make_user, make_workshop):
+    owner = make_user(username="ph3", email="ph3@example.com")
+    other = make_user(username="ph4", email="ph4@example.com")
+    ws = make_workshop(owner=owner)
+    api.force_authenticate(user=owner)
+    photo_id = api.post(f"{WS}{ws.id}/photos/", {"image": _img()}, format="multipart").data["id"]
+
+    api.force_authenticate(user=other)
+    assert api.post(f"{WS}{ws.id}/photos/", {"image": _img()}, format="multipart").status_code == 403
+    assert api.delete(f"{WS}{ws.id}/photos/{photo_id}/").status_code == 403
+
+    api.force_authenticate(user=owner)
+    assert api.delete(f"{WS}{ws.id}/photos/{photo_id}/").status_code == 204

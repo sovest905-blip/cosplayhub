@@ -28,3 +28,31 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Заказ #{self.pk} → {self.workshop.name}"
+
+
+class Review(models.Model):
+    """Отзыв заказчика о мастерской.
+    Оставить можно ТОЛЬКО после заказа со статусом «Получен» (done),
+    один отзыв на заказ — отсюда OneToOne."""
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="review")
+    workshop = models.ForeignKey("workshops.Workshop", on_delete=models.CASCADE,
+                                 related_name="reviews")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                               related_name="workshop_reviews")
+    rating = models.PositiveSmallIntegerField("оценка 1–5")
+    text = models.TextField("текст", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Отзыв ★{self.rating} → {self.workshop.name}"
+
+
+def recalc_workshop_rating(workshop):
+    """Средняя оценка по отзывам → Workshop.rating (округление до 0.1)."""
+    from django.db.models import Avg
+    avg = workshop.reviews.aggregate(a=Avg("rating"))["a"] or 0
+    workshop.rating = round(avg, 1)
+    workshop.save(update_fields=["rating"])

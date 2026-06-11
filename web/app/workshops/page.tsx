@@ -50,7 +50,7 @@ export default async function WorkshopsPage() {
                   {(w as any).description || (w as any).about || ""}
                 </p>
                 <div className="ws-stats">
-                  <div><b>★ {(w as any).rating ?? "—"}</b><span>Рейтинг</span></div>
+                  <div><b>{Number((w as any).rating) > 0 ? `★ ${(w as any).rating}` : "—"}</b><span>{Number((w as any).rating) > 0 ? "Рейтинг" : "Нет отзывов"}</span></div>
                   <div><b>{(w as any).orders ?? (w as any).orders_count ?? 0}+</b><span>Заказов</span></div>
                 </div>
               </div>

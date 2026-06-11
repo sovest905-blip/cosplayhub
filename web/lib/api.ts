@@ -106,6 +106,12 @@ export type Shop = {
   id: number; name: string; type: string; city: string; is_pro: boolean;
   rating: number; orders: number; eta: string; cover: string; description: string;
   services: { id: number; name: string; description: string; price_from: number }[];
+  reviews_count: number;
+  photos: { id: number; url: string }[];
+};
+
+export type WorkshopReview = {
+  id: number; rating: number; text: string; author_username: string; created_at: string;
 };
 
 export function normalizeProfile(p: any): Person {
@@ -148,6 +154,8 @@ export function normalizeWorkshop(w: any): Shop {
     cover: w.cover || PLACEHOLDER_WS,
     description: w.about || "",
     services: Array.isArray(w.services) ? w.services : [],
+    reviews_count: w.reviews_count ?? 0,
+    photos: Array.isArray(w.photos) ? w.photos : [],
   };
 }
 
@@ -187,6 +195,11 @@ export async function getWorkshop(id: string | number): Promise<Shop | null> {
   return data ? normalizeWorkshop(data) : null;
 }
 
+export async function getWorkshopReviews(id: string | number): Promise<WorkshopReview[]> {
+  const data = await get(`/workshops/${id}/reviews/`);
+  return Array.isArray(data) ? data : [];
+}
+
 export type NewsItem = {
   id: number; title: string; body: string; image: string | null;
   is_pinned: boolean; author_name: string; created_at: string;
@@ -202,6 +215,8 @@ export async function getNews(): Promise<NewsItem[] | null> {
 export type EventItem = {
   id: number; title: string; description: string; city: string; place: string;
   date: string; cover: string | null; going: number; day: number | string; month: string;
+  going_total: number; is_going: boolean;
+  attendees: { user_id: number; username: string }[];
 };
 
 export async function getEvents(): Promise<EventItem[] | null> {
@@ -211,9 +226,15 @@ export async function getEvents(): Promise<EventItem[] | null> {
   return Array.isArray(list) ? list : [];
 }
 
+export async function getEvent(id: string | number): Promise<EventItem | null> {
+  const data = await get(`/events/${id}/`);
+  return data && data.id ? data : null;
+}
+
 export type GuideItem = {
   id: number; title: string; summary: string; body: string; category: string;
   cover: string | null; author_name: string; author_id: number | null; created_at: string;
+  photos: { id: number; url: string }[];
 };
 
 export async function getGuides(): Promise<GuideItem[] | null> {

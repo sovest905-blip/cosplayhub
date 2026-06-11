@@ -136,7 +136,7 @@ export default async function HomePage() {
                   style={{ backgroundImage: `url('${p.photo}')` }}
                 >
                   {p.available_for_work
-                    ? <div className="person-avail">Свободен</div>
+                    ? <div className="person-avail">Открыт к сотрудничеству</div>
                     : p.is_pro
                     ? <div className="person-badge pro">PRO</div>
                     : null}
@@ -179,7 +179,7 @@ export default async function HomePage() {
                   <div className="ws-name">{w.name}</div>
                   <div className="ws-loc">📍 {w.city} · {w.eta}</div>
                   <div className="ws-stats">
-                    <div><b>★ {w.rating}</b><span>Рейтинг</span></div>
+                    <div><b>{Number(w.rating) > 0 ? `★ ${w.rating}` : "—"}</b><span>{Number(w.rating) > 0 ? "Рейтинг" : "Нет отзывов"}</span></div>
                     <div><b>{w.orders}+</b><span>Заказов</span></div>
                   </div>
                 </div>

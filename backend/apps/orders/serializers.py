@@ -1,13 +1,26 @@
 from rest_framework import serializers
-from .models import Order
+from .models import Order, Review
 
 class OrderSerializer(serializers.ModelSerializer):
     workshop_name = serializers.CharField(source="workshop.name", read_only=True)
+    has_review = serializers.SerializerMethodField()
     class Meta:
         model = Order
         fields = ["id", "workshop", "workshop_name", "description", "budget",
-                  "deadline", "status", "created_at"]
+                  "deadline", "status", "has_review", "created_at"]
         read_only_fields = ["status", "created_at"]
+
+    def get_has_review(self, obj):
+        return Review.objects.filter(order=obj).exists()
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    author_username = serializers.CharField(source="author.username", read_only=True)
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    class Meta:
+        model = Review
+        fields = ["id", "rating", "text", "author_username", "created_at"]
+        read_only_fields = ["author_username", "created_at"]
 
 class IncomingOrderSerializer(serializers.ModelSerializer):
     workshop_name = serializers.CharField(source="workshop.name", read_only=True)

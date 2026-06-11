@@ -3,8 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
-from .models import Order
-from .serializers import OrderSerializer, IncomingOrderSerializer
+from .models import Order, Review, recalc_workshop_rating
+from .serializers import OrderSerializer, IncomingOrderSerializer, ReviewSerializer
 
 class OrderViewSet(viewsets.ModelViewSet):
     """Заказы. Каждый видит ТОЛЬКО свои (как заказчик).
@@ -73,3 +73,34 @@ class IncomingOrdersView(APIView):
             url="/cabinet?tab=orders",
         )
         return Response(IncomingOrderSerializer(order).data)
+
+
+class OrderReviewView(APIView):
+    """Отзыв по своему завершённому заказу.
+    ИБ: заказ ищется только среди заказов request.user — чужой не оценить."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def post(self, request, pk):
+        try:
+            order = Order.objects.select_related("workshop").get(pk=pk, customer=request.user)
+        except Order.DoesNotExist:
+            return Response({"detail": "Не найдено"}, status=status.HTTP_404_NOT_FOUND)
+        if order.status != "done":
+            return Response({"detail": "Отзыв можно оставить после получения заказа"},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if Review.objects.filter(order=order).exists():
+            return Response({"detail": "Отзыв уже оставлен"}, status=status.HTTP_400_BAD_REQUEST)
+
+        ser = ReviewSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        review = ser.save(order=order, workshop=order.workshop, author=request.user)
+        recalc_workshop_rating(order.workshop)
+
+        from apps.notifications.models import notify
+        notify(
+            order.workshop.owner, "review_new",
+            f"Новый отзыв ★{review.rating} от @{request.user.username} о «{order.workshop.name}»",
+            url=f"/workshops/{order.workshop_id}",
+        )
+        return Response(ReviewSerializer(review).data, status=status.HTTP_201_CREATED)

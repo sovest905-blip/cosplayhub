@@ -2,6 +2,7 @@ import { PEOPLE } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
+import OwnerOnly from "../../components/OwnerOnly";
 import SlotList from "../../components/SlotList";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
@@ -47,6 +48,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       </div>
 
       {isEmpty && (
+        <OwnerOnly ownerId={person.user_id ?? null}>
         <div style={{
           margin: "0 0 24px",
           padding: "20px 24px",
@@ -71,6 +73,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             Заполнить профиль →
           </a>
         </div>
+        </OwnerOnly>
       )}
 
       <div className="profile-hero" style={{
@@ -78,7 +81,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         backgroundSize: "cover", backgroundPosition: "center top",
       }}>
         {person.available_for_work && (
-          <div className="avail-pill">Доступен для работы</div>
+          <div className="avail-pill">Открыт к сотрудничеству</div>
         )}
       </div>
 
@@ -153,10 +156,15 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                   })}
                 </div>
               ) : (
-                <p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>
-                  Товаров пока нет. Добавьте их в{" "}
-                  <a href="/cabinet?tab=roles" style={{ color: "var(--accent-2)" }}>кабинете</a>.
-                </p>
+                <OwnerOnly
+                  ownerId={person.user_id ?? null}
+                  fallback={<p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>Товаров пока нет.</p>}
+                >
+                  <p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>
+                    Товаров пока нет. Добавьте их в{" "}
+                    <a href="/cabinet?tab=roles" style={{ color: "var(--accent-2)" }}>кабинете</a>.
+                  </p>
+                </OwnerOnly>
               )}
             </div>
           )}
@@ -237,7 +245,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             <div className="info-row">
               <span>Статус</span>
               <span style={{ color: person.available_for_work ? "var(--green)" : "var(--ink-dim)" }}>
-                {person.available_for_work ? "Свободен" : "Не указан"}
+                {person.available_for_work ? "Открыт к сотрудничеству" : "Не ищет проекты"}
               </span>
             </div>
             <div className="info-row">
@@ -265,18 +273,20 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           )}
 
           {isEmpty ? (
-            <div className="about" style={{
-              background: "linear-gradient(135deg,rgba(157,124,255,.1),rgba(255,45,111,.06))",
-              border: "1px solid rgba(157,124,255,.25)",
-            }}>
-              <h3 style={{ color: "var(--accent-4)" }}>Это ваш профиль?</h3>
-              <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
-                Войдите в кабинет и заполните профиль — добавьте фото, роли и описание.
-              </p>
-              <a href="/cabinet?tab=profile" className="btn btn-primary" style={{ display: "block", textAlign: "center" }}>
-                Заполнить профиль →
-              </a>
-            </div>
+            <OwnerOnly ownerId={person.user_id ?? null}>
+              <div className="about" style={{
+                background: "linear-gradient(135deg,rgba(157,124,255,.1),rgba(255,45,111,.06))",
+                border: "1px solid rgba(157,124,255,.25)",
+              }}>
+                <h3 style={{ color: "var(--accent-4)" }}>Это ваш профиль?</h3>
+                <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
+                  Заполните профиль — добавьте фото, роли и описание.
+                </p>
+                <a href="/cabinet?tab=profile" className="btn btn-primary" style={{ display: "block", textAlign: "center" }}>
+                  Заполнить профиль →
+                </a>
+              </div>
+            </OwnerOnly>
           ) : (
             <div className="about" style={{
               background: "linear-gradient(135deg,rgba(157,124,255,.15),rgba(255,45,111,.08))",

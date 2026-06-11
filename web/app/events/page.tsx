@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
   const api = await getEvents().catch(() => null);
-  const list: any[] = api && api.length ? api : EVENTS;
+  const fromApi = !!(api && api.length);
+  const list: any[] = fromApi ? api! : EVENTS;
 
   return (
     <div className="wrap" style={{ paddingBottom: 60 }}>
@@ -26,26 +27,36 @@ export default async function EventsPage() {
       </section>
 
       <div className="ev-list" style={{ marginTop: 24 }}>
-        {list.map((e) => (
-          <div key={e.id} className="ev">
-            <div className="ev-date">
-              <b>{e.day}</b>
-              <span>{e.month}</span>
-            </div>
-            <div className="ev-info">
-              <h4>{e.title}</h4>
-              <p>{e.place ? `${e.place} · ` : ""}{e.city}</p>
-            </div>
-            <div className="ev-going">
-              <b>{e.going}</b>
-              идут
-            </div>
-          </div>
-        ))}
+        {list.map((e) => {
+          const inner = (
+            <>
+              <div className="ev-date">
+                <b>{e.day}</b>
+                <span>{e.month}</span>
+              </div>
+              <div className="ev-info">
+                <h4>{e.title}</h4>
+                <p>{e.place ? `${e.place} · ` : ""}{e.city}</p>
+              </div>
+              <div className="ev-going">
+                <b>{e.going_total ?? e.going}</b>
+                идут
+              </div>
+            </>
+          );
+          // Детальная страница есть только у событий из API — мок-карточки не кликабельны
+          return fromApi ? (
+            <a key={e.id} href={`/events/${e.id}`} className="ev" style={{ color: "inherit", cursor: "pointer" }}>
+              {inner}
+            </a>
+          ) : (
+            <div key={e.id} className="ev">{inner}</div>
+          );
+        })}
       </div>
 
       <div style={{ textAlign: "center", marginTop: 28, color: "var(--ink-dim)", fontSize: 13 }}>
-        Запись на события появится в ближайших обновлениях беты.
+        Открой событие, чтобы посмотреть детали и отметиться «Пойду».
       </div>
     </div>
   );

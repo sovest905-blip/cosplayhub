@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import GatedButton from "../../components/GatedButton";
 import OrderButton from "../../components/OrderButton";
 import SaveButton from "../../components/SaveButton";
-import { getWorkshop, type Shop } from "../../../lib/api";
+import { getWorkshop, getWorkshopReviews, type Shop, type WorkshopReview } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,9 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
   const mockWorkshop = WORKSHOPS.find((x) => x.id === Number(id));
   const w = (apiWorkshop || (mockWorkshop as unknown as Shop)) as Shop;
   if (!w) notFound();
+
+  const reviews: WorkshopReview[] = apiWorkshop ? await getWorkshopReviews(id) : [];
+  const hasRating = (w.reviews_count ?? 0) > 0 && Number(w.rating) > 0;
 
   return (
     <div className="wrap">
@@ -67,7 +70,7 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
       </div>
 
       <div className="profile-mini-stats">
-        <div className="pmsi"><b>★ {w.rating}</b><span>Рейтинг</span></div>
+        <div className="pmsi"><b>{hasRating ? `★ ${w.rating}` : "—"}</b><span>{hasRating ? `Рейтинг · ${w.reviews_count}` : "Нет отзывов"}</span></div>
         <div className="pmsi"><b>{w.orders}+</b><span>Заказов</span></div>
         <div className="pmsi"><b>{w.eta}</b><span>Срок</span></div>
         <div className="pmsi"><b>{w.city}</b><span>Город</span></div>
@@ -79,6 +82,20 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
             <h3>О мастерской</h3>
             <p>{w.description}</p>
           </div>
+          {(w.photos?.length ?? 0) > 0 && (
+            <div className="about">
+              <h3>Примеры работ</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 6 }}>
+                {w.photos.map((ph) => (
+                  <a key={ph.id} href={ph.url} target="_blank" rel="noopener noreferrer" style={{
+                    aspectRatio: "1", borderRadius: 10, display: "block",
+                    backgroundImage: `url('${ph.url}')`, backgroundSize: "cover", backgroundPosition: "center",
+                  }} />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="about">
             <h3>Прайс-лист</h3>
             {(w.services && w.services.length > 0 ? w.services : FALLBACK_SERVICES).map((s) => (
@@ -90,6 +107,25 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
               </div>
             ))}
           </div>
+
+          <div className="about">
+            <h3>Отзывы{reviews.length > 0 && <span style={{ color: "var(--ink-dim)", fontWeight: 400, fontSize: 13 }}> · {reviews.length}</span>}</h3>
+            {reviews.length > 0 ? (
+              reviews.map((r) => (
+                <div key={r.id} style={{ padding: "10px 0", borderBottom: "1px solid var(--line)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13 }}>
+                    <b>@{r.author_username}</b>
+                    <span style={{ color: "var(--accent-3)" }}>{"★".repeat(r.rating)}<span style={{ opacity: .3 }}>{"★".repeat(5 - r.rating)}</span></span>
+                  </div>
+                  {r.text && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 0", lineHeight: 1.5 }}>{r.text}</p>}
+                </div>
+              ))
+            ) : (
+              <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>
+                Отзывов пока нет. Отзыв может оставить заказчик после завершённого заказа.
+              </p>
+            )}
+          </div>
         </div>
 
         <div>
@@ -98,7 +134,11 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
             <div className="info-row"><span>Тип</span><span>{w.type}</span></div>
             <div className="info-row"><span>Город</span><span>{w.city}</span></div>
             <div className="info-row"><span>Срок</span><span>{w.eta}</span></div>
-            <div className="info-row"><span>Рейтинг</span><span style={{ color: "var(--accent-3)" }}>★ {w.rating}</span></div>
+            <div className="info-row"><span>Рейтинг</span>
+              {hasRating
+                ? <span style={{ color: "var(--accent-3)" }}>★ {w.rating} · {w.reviews_count} отз.</span>
+                : <span style={{ color: "var(--ink-dim)" }}>Пока нет отзывов</span>}
+            </div>
             <div className="info-row">
               <span>Статус</span>
               <span style={{ color: "var(--green)" }}>Принимает заказы</span>
@@ -106,9 +146,9 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
           </div>
 
           <div className="about" style={{ background: "linear-gradient(135deg,rgba(124,249,255,.08),rgba(255,45,111,.05))", border: "1px solid rgba(124,249,255,.2)" }}>
-            <h3 style={{ color: "var(--accent-2)" }}>Эскроу-сделка</h3>
+            <h3 style={{ color: "var(--accent-2)" }}>Заказать у мастерской</h3>
             <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
-              Безопасная оплата: деньги хранятся на платформе до завершения заказа.
+              Опишите, что нужно сделать — мастерская ответит в сообщениях.
             </p>
             {apiWorkshop
               ? <OrderButton workshopId={w.id} label="Оставить заявку" className="btn btn-primary" fullWidth />

@@ -1,6 +1,7 @@
-import { getPublicListings, type PublicListing } from "../../lib/api";
+import { getPublicListings } from "../../lib/api";
 import ComingSoon from "../components/ComingSoon";
 import PostListingButton from "../components/PostListingButton";
+import JobListings from "../components/JobListings";
 
 export const dynamic = "force-dynamic";
 
@@ -24,19 +25,7 @@ export default async function JobsPage() {
         <PostListingButton />
       </div>
 
-      <div style={{ display: "grid", gap: 12 }}>
-        {items.map((l: PublicListing) => (
-          <div key={l.id} style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 14, padding: "14px 18px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-              <h3 style={{ fontSize: 15, margin: 0 }}>
-                <span style={{ fontSize: 11, color: "var(--accent-4)", marginRight: 8 }}>{l.type_display}</span>{l.title}
-              </h3>
-              <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>📍 {l.city || "—"} · @{l.owner}</span>
-            </div>
-            {l.description && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 0", lineHeight: 1.5 }}>{l.description}</p>}
-          </div>
-        ))}
-      </div>
+      <JobListings items={items} />
     </div>
   );
 }

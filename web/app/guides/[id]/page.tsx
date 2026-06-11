@@ -8,6 +8,28 @@ function fmtDate(s: string) {
   catch { return ""; }
 }
 
+// Текст гайда с маркерами [фото:N] → чередование абзацев и картинок.
+// Возвращает узлы + множество использованных номеров фото.
+function renderBody(body: string, photos: { id: number; url: string }[]) {
+  const used = new Set<number>();
+  const parts = body.split(/\[фото:(\d+)\]/g);
+  const nodes = parts.map((part, i) => {
+    if (i % 2 === 1) {
+      const n = Number(part);
+      const ph = photos[n - 1];
+      if (!ph) return null;
+      used.add(n);
+      return (
+        <img key={`ph-${i}`} src={ph.url} alt={`Фото ${n}`} style={{
+          display: "block", width: "100%", borderRadius: 14, margin: "18px 0",
+        }} />
+      );
+    }
+    return part ? <span key={`tx-${i}`}>{part}</span> : null;
+  });
+  return { nodes, used };
+}
+
 export default async function GuidePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const g = await getGuide(id).catch(() => null);
@@ -43,9 +65,29 @@ export default async function GuidePage({ params }: { params: Promise<{ id: stri
       {g.summary && (
         <p style={{ fontSize: 17, color: "var(--ink)", lineHeight: 1.7, marginBottom: 20, fontWeight: 500 }}>{g.summary}</p>
       )}
-      <div style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
-        {g.body || "Текст гайда скоро будет дополнен."}
-      </div>
+      <GuideBody body={g.body} photos={g.photos || []} />
     </div>
+  );
+}
+
+function GuideBody({ body, photos }: { body: string; photos: { id: number; url: string }[] }) {
+  const { nodes, used } = renderBody(body || "Текст гайда скоро будет дополнен.", photos);
+  const rest = photos.filter((_, i) => !used.has(i + 1));
+  return (
+    <>
+      <div style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+        {nodes}
+      </div>
+      {rest.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 10, marginTop: 24 }}>
+          {rest.map((ph) => (
+            <a key={ph.id} href={ph.url} target="_blank" rel="noopener noreferrer" style={{
+              aspectRatio: "4/3", borderRadius: 12, display: "block",
+              backgroundImage: `url('${ph.url}')`, backgroundSize: "cover", backgroundPosition: "center",
+            }} />
+          ))}
+        </div>
+      )}
+    </>
   );
 }

@@ -5,10 +5,9 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { PublicListing } from "../../lib/api";
 
-// Витрина барахолки: карточки кликабельны — открывается модалка с деталями,
-// кнопкой «Написать в чат» (ведёт в мессенджер с владельцем) и контактами,
-// которые продавец указал в объявлении.
-export default function MarketListings({ items }: { items: PublicListing[] }) {
+// Список слотов и коллабов: клик по карточке или нику открывает модалку
+// с кнопкой «Написать в чат» и контактами, которые автор оставил в объявлении.
+export default function JobListings({ items }: { items: PublicListing[] }) {
   const router = useRouter();
   const [active, setActive] = useState<PublicListing | null>(null);
   const [writing, setWriting] = useState(false);
@@ -29,38 +28,29 @@ export default function MarketListings({ items }: { items: PublicListing[] }) {
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gap: 12 }}>
         {items.map((l) => (
           <button
             key={l.id}
             onClick={() => setActive(l)}
             style={{
               textAlign: "left", cursor: "pointer", font: "inherit", color: "inherit",
-              background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 16,
-              padding: "16px 18px", transition: "border-color .15s",
+              background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 14,
+              padding: "14px 18px", transition: "border-color .15s",
             }}
             onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent-2)")}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--line)")}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 11, color: l.type === "sell" ? "var(--green)" : "var(--accent-2)" }}>{l.type_display}</span>
-              {l.price ? <span style={{ fontSize: 13, fontWeight: 700 }}>{l.price.toLocaleString("ru-RU")} ₸</span> : null}
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
+              <h3 style={{ fontSize: 15, margin: 0 }}>
+                <span style={{ fontSize: 11, color: "var(--accent-4)", marginRight: 8 }}>{l.type_display}</span>{l.title}
+              </h3>
+              <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                📍 {l.city || "—"} ·{" "}
+                <span style={{ color: "var(--accent-2)" }}>@{l.owner}</span>
+              </span>
             </div>
-            <h3 style={{ fontSize: 15, margin: "0 0 6px" }}>{l.title}</h3>
-            {l.description && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 8px", lineHeight: 1.5 }}>{l.description.slice(0, 120)}{l.description.length > 120 ? "…" : ""}</p>}
-            <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-              📍 {l.city || "—"} ·{" "}
-              <span
-                role="link"
-                tabIndex={0}
-                title={`Открыть чат с @${l.owner}`}
-                onClick={(e) => { e.stopPropagation(); writeInChat(l); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); writeInChat(l); } }}
-                style={{ color: "var(--accent-2)", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
-                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
-              >@{l.owner}</span>
-            </div>
+            {l.description && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 0", lineHeight: 1.5 }}>{l.description}</p>}
           </button>
         ))}
       </div>
@@ -89,11 +79,7 @@ export default function MarketListings({ items }: { items: PublicListing[] }) {
               }}
             >×</button>
 
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 10, paddingRight: 24 }}>
-              <span style={{ fontSize: 12, color: active.type === "sell" ? "var(--green)" : "var(--accent-2)" }}>{active.type_display}</span>
-              {active.price ? <span style={{ fontSize: 18, fontWeight: 700 }}>{active.price.toLocaleString("ru-RU")} ₸</span> : null}
-            </div>
-
+            <div style={{ fontSize: 12, color: "var(--accent-4)", marginBottom: 10, paddingRight: 24 }}>{active.type_display}</div>
             <h2 style={{ fontSize: 20, margin: "0 0 10px", fontFamily: "var(--font-display),sans-serif" }}>{active.title}</h2>
             {active.description && <p style={{ fontSize: 14, color: "var(--ink-dim)", margin: "0 0 14px", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{active.description}</p>}
 

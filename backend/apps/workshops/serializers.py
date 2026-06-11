@@ -10,10 +10,13 @@ class WorkshopSerializer(serializers.ModelSerializer):
     services = ServiceSerializer(many=True, required=False)
     is_owner = serializers.SerializerMethodField()
     is_pro = serializers.BooleanField(read_only=True)  # вычисляемое свойство модели
+    reviews_count = serializers.IntegerField(source="reviews.count", read_only=True)
+    photos = serializers.SerializerMethodField()
     class Meta:
         model = Workshop
         fields = ["id", "name", "type", "city", "about", "cover", "eta",
-                  "rating", "orders_count", "is_pro", "services", "is_owner", "created_at"]
+                  "rating", "orders_count", "reviews_count", "is_pro", "services",
+                  "photos", "is_owner", "created_at"]
         read_only_fields = ["rating", "orders_count", "created_at"]
 
     def to_representation(self, instance):
@@ -21,6 +24,9 @@ class WorkshopSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data["cover"] = instance.cover.url if instance.cover else None
         return data
+
+    def get_photos(self, obj):
+        return [{"id": p.id, "url": p.image.url} for p in obj.photos.all()]
 
     def get_is_owner(self, obj):
         request = self.context.get("request")

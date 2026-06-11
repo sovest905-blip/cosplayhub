@@ -7,6 +7,7 @@ export default function NewGuidePage() {
   const [ok, setOk] = useState<boolean | null>(null);
   const [f, setF] = useState({ title: "", category: "", summary: "", body: "" });
   const [cover, setCover] = useState<File | null>(null);
+  const [photos, setPhotos] = useState<File[]>([]);  // до 5 фото, вставляются в текст маркером [фото:N]
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -27,6 +28,12 @@ export default function NewGuidePage() {
       const res = await fetch("/api/v1/guides/", { method: "POST", credentials: "include", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.detail || data.title?.[0] || data.cover?.[0] || "Не удалось");
+      // Фото грузим после создания гайда — по порядку, чтобы номера [фото:N] совпали
+      for (const file of photos) {
+        const pfd = new FormData();
+        pfd.append("image", file);
+        await fetch(`/api/v1/guides/${data.id}/photos/`, { method: "POST", credentials: "include", body: pfd });
+      }
       router.push(`/guides/${data.id}`);
     } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
     finally { setSaving(false); }
@@ -50,6 +57,32 @@ export default function NewGuidePage() {
         <div className="field"><label>Кратко (анонс)</label><input value={f.summary} onChange={(e) => setF({ ...f, summary: e.target.value })} placeholder="О чём гайд в одну строку" /></div>
         <div className="field"><label>Текст</label><textarea rows={12} value={f.body} onChange={(e) => setF({ ...f, body: e.target.value })} placeholder="Полный текст гайда…" /></div>
         <div className="field"><label>Обложка (необязательно)</label><input type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] || null)} /></div>
+        <div className="field">
+          <label>Фото к гайду (до 5)</label>
+          <input type="file" accept="image/*" multiple
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              setPhotos((prev) => [...prev, ...files].slice(0, 5));
+              e.target.value = "";
+            }} />
+          {photos.length > 0 && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
+              {photos.map((p, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13 }}>
+                  <span style={{ color: "var(--accent-2)", fontFamily: "var(--font-mono),monospace" }}>[фото:{i + 1}]</span>
+                  <span style={{ color: "var(--ink-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.name}</span>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setF({ ...f, body: f.body + (f.body.endsWith("\n") || !f.body ? "" : "\n") + `[фото:${i + 1}]\n` })}>
+                    Вставить в текст
+                  </button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => setPhotos(photos.filter((_, j) => j !== i))}>✕</button>
+                </div>
+              ))}
+              <small style={{ color: "var(--ink-dim)" }}>
+                Поставь маркер [фото:N] в нужном месте текста — там и появится картинка. Фото без маркера покажутся в конце гайда.
+              </small>
+            </div>
+          )}
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button className="btn btn-primary" onClick={submit} disabled={saving}>{saving ? "Публикуем…" : "Опубликовать"}</button>
           <a href="/guides" className="btn btn-ghost">Отмена</a>

@@ -1,9 +1,14 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated, SAFE_METHODS
+from rest_framework.response import Response
 
 from apps.users.backends import CsrfExemptSessionAuthentication
-from .models import Guide
+from .models import Guide, GuidePhoto
 from .serializers import GuideSerializer
+
+MAX_PHOTOS = 5
 
 
 class IsAuthorOrStaffOrReadOnly(BasePermission):
@@ -41,3 +46,31 @@ class GuideViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
+
+    def _can_edit(self, request, guide):
+        return bool(request.user and (request.user.is_staff or guide.author_id == request.user.id))
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated],
+            parser_classes=[MultiPartParser, FormParser])
+    def photos(self, request, pk=None):
+        """Загрузка фото в гайд (автор или staff, максимум 5)."""
+        guide = self.get_object()
+        if not self._can_edit(request, guide):
+            return Response({"detail": "Не ваш гайд"}, status=status.HTTP_403_FORBIDDEN)
+        if guide.photos.count() >= MAX_PHOTOS:
+            return Response({"detail": f"Максимум {MAX_PHOTOS} фото"}, status=status.HTTP_400_BAD_REQUEST)
+        image = request.FILES.get("image")
+        if not image:
+            return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)
+        photo = GuidePhoto.objects.create(guide=guide, image=image)
+        return Response({"id": photo.id, "url": photo.image.url}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["delete"], url_path=r"photos/(?P<photo_id>\d+)",
+            permission_classes=[IsAuthenticated])
+    def delete_photo(self, request, pk=None, photo_id=None):
+        """Удаление фото из гайда (автор или staff)."""
+        guide = self.get_object()
+        if not self._can_edit(request, guide):
+            return Response({"detail": "Не ваш гайд"}, status=status.HTTP_403_FORBIDDEN)
+        GuidePhoto.objects.filter(guide=guide, id=photo_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

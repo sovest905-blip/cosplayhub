@@ -65,3 +65,39 @@ def test_staff_can_delete_any(api, make_user):
     g = Guide.objects.create(author=author, title="x")
     api.force_authenticate(user=staff)
     assert api.delete(g_url(g.id)).status_code == 204
+
+
+# ── Фото в гайде ─────────────────────────────────────────────────────────────────
+
+GIF = (b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04"
+       b"\x00\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;")
+
+
+def _img(name="pic.gif"):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    return SimpleUploadedFile(name, GIF, content_type="image/gif")
+
+
+@pytest.mark.django_db
+def test_author_uploads_photo_limit_five(api, make_user):
+    author = make_user(username="gph", email="gph@example.com")
+    g = Guide.objects.create(author=author, title="с фото")
+    api.force_authenticate(user=author)
+    for i in range(5):
+        assert api.post(f"{g_url(g.id)}photos/", {"image": _img(f"p{i}.gif")}, format="multipart").status_code == 201
+    assert api.post(f"{g_url(g.id)}photos/", {"image": _img("p6.gif")}, format="multipart").status_code == 400
+    # Фото отдаются в детали гайда
+    assert len(api.get(g_url(g.id)).data["photos"]) == 5
+
+
+@pytest.mark.django_db
+def test_non_author_cannot_manage_photos(api, make_user):
+    author = make_user(username="gph2", email="gph2@example.com")
+    other = make_user(username="gph3", email="gph3@example.com")
+    g = Guide.objects.create(author=author, title="чужие фото")
+    api.force_authenticate(user=author)
+    photo_id = api.post(f"{g_url(g.id)}photos/", {"image": _img()}, format="multipart").data["id"]
+
+    api.force_authenticate(user=other)
+    assert api.post(f"{g_url(g.id)}photos/", {"image": _img()}, format="multipart").status_code == 403
+    assert api.delete(f"{g_url(g.id)}photos/{photo_id}/").status_code == 403

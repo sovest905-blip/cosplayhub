@@ -46,6 +46,7 @@ type Workshop = {
   id: number; name: string; type: string; city: string; about: string;
   eta: string; rating: number; orders_count: number; is_pro: boolean;
   services: { id: number; name: string; description: string; price_from: number }[];
+  photos: { id: number; url: string }[];
 };
 
 const ORDER_STATUS_COLORS: Record<string, string> = {
@@ -59,8 +60,9 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
 };
 
 type MyOrder = {
-  id: number; workshop_name: string; description: string;
-  budget: number | null; deadline: string | null; status: string; created_at: string;
+  id: number; workshop: number; workshop_name: string; description: string;
+  budget: number | null; deadline: string | null; status: string; has_review?: boolean;
+  created_at: string;
 };
 
 type BillingSub = {
@@ -140,6 +142,13 @@ export default function CabinetPage() {
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
   const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
+  // События, куда пользователь отметился «Пойду» — блок «Скоро у вас» на обзоре
+  const [myEvents, setMyEvents] = useState<{ id: number; title: string; city: string; place: string; date: string; day: number | string; month: string; going_total: number }[]>([]);
+  // Отзыв о мастерской по завершённому заказу
+  const [reviewFor, setReviewFor] = useState<number | null>(null);
+  const [revRating, setRevRating] = useState(5);
+  const [revText, setRevText] = useState("");
+  const [revBusy, setRevBusy] = useState(false);
   const [incomingOrders, setIncomingOrders] = useState<IncomingOrder[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [listingForm, setListingForm] = useState({ title: "", type: "", city: "", description: "", price: "", contact: "" });
@@ -225,6 +234,10 @@ export default function CabinetPage() {
         const list = data.results ?? data;
         if (Array.isArray(list)) { setMyOrders(list); setOrdersCount(list.length); }
       }).catch(() => {});
+
+    fetch(`/api/v1/events/mine/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && Array.isArray(data)) setMyEvents(data); }).catch(() => {});
 
     fetch(`/api/v1/orders/incoming/`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
@@ -420,6 +433,21 @@ export default function CabinetPage() {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       credentials: "include", body: JSON.stringify(patch),
     });
+  }
+
+  async function submitReview(orderId: number) {
+    setRevBusy(true);
+    try {
+      const res = await fetch(`/api/v1/orders/${orderId}/review/`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        credentials: "include", body: JSON.stringify({ rating: revRating, text: revText }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setMyOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, has_review: true } : o));
+        setReviewFor(null); setRevText(""); setRevRating(5);
+      } else alert(data.detail || "Не удалось отправить отзыв");
+    } finally { setRevBusy(false); }
   }
 
   async function updateIncomingStatus(orderId: number, newStatus: string) {
@@ -691,6 +719,24 @@ export default function CabinetPage() {
   async function deleteWorkshop(id: number) {
     const res = await fetch(`/api/v1/workshops/${id}/`, { method: "DELETE", credentials: "include" });
     if (res.ok) setWorkshops((prev) => prev.filter((w) => w.id !== id));
+  }
+
+  // Фото работ мастерской (портфолио, до 5 штук)
+  async function uploadWsPhoto(wsId: number, file: File) {
+    const fd = new FormData();
+    fd.append("image", file);
+    const res = await fetch(`/api/v1/workshops/${wsId}/photos/`, { method: "POST", credentials: "include", body: fd });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setWorkshops((prev) => prev.map((w) => w.id === wsId ? { ...w, photos: [...(w.photos || []), data] } : w));
+    } else alert(data.detail || "Не удалось загрузить фото");
+  }
+
+  async function deleteWsPhoto(wsId: number, photoId: number) {
+    const res = await fetch(`/api/v1/workshops/${wsId}/photos/${photoId}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok || res.status === 204) {
+      setWorkshops((prev) => prev.map((w) => w.id === wsId ? { ...w, photos: (w.photos || []).filter((p) => p.id !== photoId) } : w));
+    }
   }
 
   async function unfollow(userId: number) {
@@ -1295,6 +1341,36 @@ export default function CabinetPage() {
                               ))}
                             </div>
                           )}
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 6 }}>
+                              Фото работ · {(w.photos || []).length} / 5
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                              {(w.photos || []).map((p) => (
+                                <div key={p.id} style={{ position: "relative", width: 64, height: 64 }}>
+                                  <div style={{
+                                    width: "100%", height: "100%", borderRadius: 8,
+                                    backgroundImage: `url('${p.url}')`, backgroundSize: "cover", backgroundPosition: "center",
+                                  }} />
+                                  <button onClick={() => deleteWsPhoto(w.id, p.id)} title="Удалить фото"
+                                    style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%",
+                                      background: "var(--bg)", border: "1px solid var(--line)", color: "var(--accent)",
+                                      fontSize: 10, lineHeight: 1, cursor: "pointer", padding: 0 }}>✕</button>
+                                </div>
+                              ))}
+                              {(w.photos || []).length < 5 && (
+                                <label style={{
+                                  width: 64, height: 64, borderRadius: 8, cursor: "pointer",
+                                  border: "1px dashed var(--line)", display: "flex", alignItems: "center",
+                                  justifyContent: "center", color: "var(--ink-dim)", fontSize: 20,
+                                }}>
+                                  +
+                                  <input type="file" accept="image/*" style={{ display: "none" }}
+                                    onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadWsPhoto(w.id, f); e.target.value = ""; }} />
+                                </label>
+                              )}
+                            </div>
+                          </div>
                         </div>
                         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                           <a href={`/workshops/${w.id}`}
@@ -1346,11 +1422,35 @@ export default function CabinetPage() {
                     <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 10px", lineHeight: 1.5 }}>
                       {o.description}
                     </p>
-                    <div style={{ display: "flex", gap: 14, fontSize: 12, color: "var(--ink-dim)", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 14, fontSize: 12, color: "var(--ink-dim)", flexWrap: "wrap", alignItems: "center" }}>
                       {o.budget ? <span>Бюджет: <b style={{ color: "var(--accent-3)" }}>{o.budget.toLocaleString()} ₸</b></span> : null}
                       {o.deadline ? <span>Дедлайн: {o.deadline}</span> : null}
                       <span>{new Date(o.created_at).toLocaleDateString("ru-RU")}</span>
+                      {o.status === "done" && (o.has_review
+                        ? <span style={{ color: "var(--green)" }}>✓ Отзыв оставлен</span>
+                        : <button className="btn btn-ghost btn-sm" onClick={() => { setReviewFor(reviewFor === o.id ? null : o.id); setRevRating(5); setRevText(""); }}>
+                            Оставить отзыв
+                          </button>)}
                     </div>
+                    {reviewFor === o.id && (
+                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
+                        <div style={{ marginBottom: 8 }}>
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <span key={n} onClick={() => setRevRating(n)} style={{
+                              cursor: "pointer", fontSize: 22, marginRight: 2,
+                              color: n <= revRating ? "var(--accent-3)" : "var(--line)",
+                            }}>★</span>
+                          ))}
+                        </div>
+                        <div className="field" style={{ marginBottom: 10 }}>
+                          <textarea placeholder="Как прошёл заказ? (необязательно)" value={revText}
+                            onChange={(e) => setRevText(e.target.value)} />
+                        </div>
+                        <button className="btn btn-primary btn-sm" disabled={revBusy} onClick={() => submitReview(o.id)}>
+                          {revBusy ? "..." : "Отправить отзыв"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2021,7 +2121,7 @@ export default function CabinetPage() {
               <div className="toggle-row">
                 <div>
                   <strong>Open for work</strong>
-                  <small>На профиле появится зелёная плашка «Свободен»</small>
+                  <small>На профиле появится зелёная плашка «Открыт к сотрудничеству»</small>
                 </div>
                 <div className={`toggle${availForWork ? " on" : ""}`}
                   onClick={() => { const n = !availForWork; setAvailForWork(n); patchProfile({ available_for_work: n }); }}
@@ -2037,6 +2137,31 @@ export default function CabinetPage() {
                   style={{ cursor: "pointer" }} />
               </div>
             </div>
+
+            {myEvents.length > 0 && (
+              <div className="acc-card">
+                <h3>Скоро у вас</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {myEvents.map((e) => (
+                    <a key={e.id} href={`/events/${e.id}`} style={{
+                      display: "flex", alignItems: "center", gap: 14, padding: "12px 14px",
+                      background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12,
+                      color: "var(--ink)",
+                    }}>
+                      <div style={{ textAlign: "center", minWidth: 44 }}>
+                        <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 20, lineHeight: 1 }}>{e.day}</div>
+                        <div style={{ fontSize: 10, color: "var(--accent-2)", textTransform: "uppercase" }}>{e.month}</div>
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</div>
+                        <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>{e.place ? `${e.place} · ` : ""}{e.city}</div>
+                      </div>
+                      <span style={{ fontSize: 12, color: "var(--ink-dim)", whiteSpace: "nowrap" }}>{e.going_total} идут</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="acc-card">
               <h3>Быстрый доступ</h3>
