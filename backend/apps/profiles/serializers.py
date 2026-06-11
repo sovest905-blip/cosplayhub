@@ -20,7 +20,7 @@ class ProfileSerializer(serializers.ModelSerializer):
     socials = SocialLinkSerializer(many=True, read_only=True)
     photos = ProfilePhotoSerializer(many=True, read_only=True)
     city = serializers.CharField(source="user.city", read_only=True, default="")
-    is_verified = serializers.BooleanField(source="user.is_verified", read_only=True, default=False)
+    is_verified = serializers.SerializerMethodField()
     username = serializers.CharField(source="user.username", read_only=True, default="")
     user_id = serializers.IntegerField(source="user.id", read_only=True)
     followers_count = serializers.SerializerMethodField()
@@ -42,6 +42,16 @@ class ProfileSerializer(serializers.ModelSerializer):
         data["avatar"] = instance.avatar.url if instance.avatar else None
         data["cover"] = instance.cover.url if instance.cover else None
         return data
+
+    def get_is_verified(self, obj):
+        # Синяя галочка = ручная верификация ИЛИ активный Pro (льгота подписки).
+        # pro_active приходит аннотацией из каталога (без N+1); иначе — свойство User.
+        if not obj.user_id:
+            return False
+        pro = getattr(obj, "pro_active", None)
+        if pro is None:
+            pro = obj.user.is_pro
+        return bool(obj.user.is_verified or pro)
 
     def get_followers_count(self, obj):
         return obj.user.follower_set.count()

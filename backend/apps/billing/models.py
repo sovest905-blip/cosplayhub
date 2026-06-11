@@ -2,6 +2,7 @@ import calendar
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 # Длительность бесплатного триала (мес) при активации Pro/тарифа мастерской.
@@ -90,3 +91,28 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.get_plan_display()} #{self.pk} ({self.status})"
+
+
+# ── Аннотации Pro-активности для сортировки каталогов (без N+1) ──────────────────
+# is_active = НЕ disabled И (active_until пусто ИЛИ в будущем). Без крона.
+
+def _active_window():
+    return Q(disabled=False) & (Q(active_until__isnull=True) | Q(active_until__gt=timezone.now()))
+
+
+def active_pro_subquery(user_field="user_id"):
+    """Exists: у пользователя (OuterRef) активная Pro-подписка профиля.
+    Для annotate на queryset с полем user_id (Profile)."""
+    subs = Subscription.objects.filter(
+        plan="pro", workshop__isnull=True, user=OuterRef(user_field),
+    ).filter(_active_window())
+    return Exists(subs)
+
+
+def active_workshop_subquery(workshop_field="pk"):
+    """Exists: у мастерской (OuterRef) активная подписка тарифа.
+    Для annotate на Workshop queryset."""
+    subs = Subscription.objects.filter(
+        plan="workshop", workshop=OuterRef(workshop_field),
+    ).filter(_active_window())
+    return Exists(subs)

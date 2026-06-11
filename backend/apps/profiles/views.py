@@ -31,7 +31,9 @@ class ProfileViewSet(viewsets.ModelViewSet):
         avail = self.request.query_params.get("available_for_work")
         if avail in ("true", "1"):
             qs = qs.filter(available_for_work=True)
-        return qs.order_by("-created_at")
+        # Pro-профили выше в каталоге (льгота подписки «приоритет в каталоге»).
+        from apps.billing.models import active_pro_subquery
+        return qs.annotate(pro_active=active_pro_subquery()).order_by("-pro_active", "-created_at")
 
     def get_object(self):
         pk = self.kwargs["pk"]

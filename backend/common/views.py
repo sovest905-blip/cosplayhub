@@ -133,6 +133,7 @@ class SearchView(APIView):
             if any(r in wanted_roles for r in (p.roles or [])): s += 25
             if ql and ql in city: s += 15
             if p.bio and ql in p.bio.lower(): s += 5
+            if p.user and p.user.is_pro: s += 4   # Pro-приоритет в поиске (как у мастерских)
             if p.avatar: s += 3
             return s
 
@@ -196,3 +197,62 @@ class SearchView(APIView):
                or any(k in ql for k in sec["keys"]):
                 out.append({"label": sec["label"], "url": sec["url"]})
         return out[:5]
+
+
+# ── Аналитика (льгота Pro: «расширенная аналитика профиля» / «бизнес-аналитика») ──
+
+from rest_framework.permissions import IsAuthenticated
+from apps.users.backends import CsrfExemptSessionAuthentication
+
+
+class AnalyticsMeView(APIView):
+    """Аналитика текущего пользователя. Доступна только при активном Pro
+    (профильном ИЛИ хотя бы одной Pro-мастерской) — иначе {pro: false} (апселл).
+    Все цифры из существующих данных; «просмотры профиля» пока не трекаются."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def get(self, request):
+        from apps.looks.models import Look, LookLike
+        from apps.orders.models import Order, Review
+        from apps.products.models import Product
+        from apps.profiles.models import Follow
+        from apps.workshops.models import Workshop
+
+        user = request.user
+        workshops = list(Workshop.objects.filter(owner=user))
+        has_ws_pro = any(w.is_pro for w in workshops)
+        pro = bool(user.is_pro or has_ws_pro)
+        if not pro:
+            return Response({"pro": False})
+
+        # ── Профиль ──
+        my_looks = Look.objects.filter(author=user)
+        look_ids = list(my_looks.values_list("id", flat=True))
+        profile = {
+            "followers": Follow.objects.filter(target=user).count(),
+            "following": Follow.objects.filter(follower=user).count(),
+            "looks": my_looks.filter(is_published=True).count(),
+            "look_likes": LookLike.objects.filter(look_id__in=look_ids).count(),
+        }
+
+        # ── Бизнес (если есть мастерские) ──
+        business = None
+        if workshops:
+            ws_ids = [w.id for w in workshops]
+            orders = Order.objects.filter(workshop_id__in=ws_ids)
+            by_status = {key: 0 for key, _ in Order.STATUS}
+            for st in orders.values_list("status", flat=True):
+                by_status[st] = by_status.get(st, 0) + 1
+            reviews = Review.objects.filter(workshop_id__in=ws_ids)
+            ratings = list(reviews.values_list("rating", flat=True))
+            business = {
+                "workshops": len(workshops),
+                "orders_total": orders.count(),
+                "orders_by_status": by_status,
+                "reviews": len(ratings),
+                "rating_avg": round(sum(ratings) / len(ratings), 1) if ratings else 0,
+                "products": Product.objects.filter(owner=user).count(),
+            }
+
+        return Response({"pro": True, "profile": profile, "business": business})

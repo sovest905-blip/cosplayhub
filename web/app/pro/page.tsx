@@ -28,9 +28,9 @@ const PLANS = [
       "Всё из бесплатного",
       "Синяя галочка верификации",
       "Приоритет в каталоге и поиске",
-      "Подписки фанатов (монетизация)",
       "Расширенная аналитика профиля",
-      "0% комиссии на заказы",
+      { t: "Подписки фанатов (монетизация)", soon: true },
+      { t: "0% комиссии на заказы", soon: true },
     ],
     cta: "Оформить Pro",
     highlight: true,
@@ -44,10 +44,10 @@ const PLANS = [
     accent: "var(--accent-3)",
     features: [
       "Витрина мастерской с услугами",
-      "Приём заказов без комиссии",
       "Boost в каталоге услуг",
-      "Управление заказами и слотами",
+      "Управление заказами и статусами",
       "Бизнес-аналитика",
+      { t: "Приём заказов без комиссии", soon: true },
     ],
     cta: "Подключить мастерскую",
     highlight: false,
@@ -118,12 +118,16 @@ export default function ProPage() {
               <div style={{ fontSize: 12, color: "var(--green)", fontWeight: 600, marginBottom: 4 }}>{p.freeNote}</div>
             )}
             <ul style={{ listStyle: "none", padding: 0, margin: "18px 0 22px", display: "flex", flexDirection: "column", gap: 10 }}>
-              {p.features.map((f) => (
-                <li key={f} style={{ display: "flex", gap: 9, fontSize: 13, color: "var(--ink)", lineHeight: 1.4 }}>
-                  <span style={{ color: p.accent, flexShrink: 0 }}>✓</span>
-                  {f}
-                </li>
-              ))}
+              {p.features.map((f) => {
+                const label = typeof f === "string" ? f : f.t;
+                const soon = typeof f === "object" && f.soon;
+                return (
+                  <li key={label} style={{ display: "flex", gap: 9, fontSize: 13, color: soon ? "var(--ink-dim)" : "var(--ink)", lineHeight: 1.4 }}>
+                    <span style={{ color: soon ? "var(--ink-dim)" : p.accent, flexShrink: 0 }}>{soon ? "○" : "✓"}</span>
+                    <span>{label}{soon && <span style={{ fontSize: 10, color: "var(--accent-3)", marginLeft: 6, border: "1px solid rgba(255,210,74,.3)", borderRadius: 6, padding: "1px 6px", whiteSpace: "nowrap" }}>скоро</span>}</span>
+                  </li>
+                );
+              })}
             </ul>
             <ProCta planKey={p.key} label={p.cta} highlight={p.highlight} />
           </div>

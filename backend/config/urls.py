@@ -6,7 +6,7 @@ from django.conf.urls.static import static
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.permissions import IsAdminUser
 
-from common.views import StatsView, SearchView
+from common.views import StatsView, SearchView, AnalyticsMeView
 from common.feed import FeedView
 from common.admin_panel import (
     AdminUsersView, AdminUserRolesView, AdminUserPasswordView,
@@ -29,6 +29,7 @@ from common.admin_billing import AdminSubscriptionsView, AdminSubscriptionUpdate
 api_v1 = [
     path("stats/", StatsView.as_view(), name="stats"),
     path("search/", SearchView.as_view(), name="search"),
+    path("analytics/me/", AnalyticsMeView.as_view(), name="analytics-me"),
     path("feed/", FeedView.as_view(), name="feed"),
     path("auth/", include("apps.users.urls")),
     path("", include("apps.profiles.urls")),

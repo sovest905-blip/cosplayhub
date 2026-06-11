@@ -144,6 +144,8 @@ export default function CabinetPage() {
   const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
   // События, куда пользователь отметился «Пойду» — блок «Скоро у вас» на обзоре
   const [myEvents, setMyEvents] = useState<{ id: number; title: string; city: string; place: string; date: string; day: number | string; month: string; going_total: number }[]>([]);
+  // Аналитика (Pro): null=не загружено, {pro:false}=апселл, иначе данные
+  const [analytics, setAnalytics] = useState<any>(null);
   // Отзыв о мастерской по завершённому заказу
   const [reviewFor, setReviewFor] = useState<number | null>(null);
   const [revRating, setRevRating] = useState(5);
@@ -238,6 +240,10 @@ export default function CabinetPage() {
     fetch(`/api/v1/events/mine/`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (!cancelled && Array.isArray(data)) setMyEvents(data); }).catch(() => {});
+
+    fetch(`/api/v1/analytics/me/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && data) setAnalytics(data); }).catch(() => {});
 
     fetch(`/api/v1/orders/incoming/`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
@@ -857,6 +863,7 @@ export default function CabinetPage() {
     { id: "profile",   icon: "◉", label: "Профиль" },
     { id: "roles",     icon: "★", label: "Роли и услуги" },
     { id: "subs",      icon: "♛", label: "Подписки и доход" },
+    { id: "analytics", icon: "📊", label: "Аналитика" },
     { id: "socials",   icon: "⌘", label: "Соцсети" },
     { id: "orders",    icon: "⚒", label: "Заказы",     num: ordersCount || undefined },
     { id: "responses", icon: "↗", label: "Отклики",    num: newIncoming || undefined },
@@ -1869,6 +1876,76 @@ export default function CabinetPage() {
             )}
           </div>
           </>
+        );
+      }
+
+      case "analytics": {
+        const ORD_LABELS: Record<string, string> = ORDER_STATUS_LABELS;
+        const StatCard = ({ val, label }: { val: number | string; label: string }) => (
+          <div style={{ background: "rgba(0,0,0,.25)", borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 24, letterSpacing: "-.03em" }}>{val}</div>
+            <div style={{ fontFamily: "var(--font-mono),monospace", fontSize: 10, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", marginTop: 4 }}>{label}</div>
+          </div>
+        );
+        return (
+          <div className="acc-card">
+            <h2 style={{ margin: "0 0 4px" }}>Аналитика</h2>
+            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
+              Расширенная статистика профиля и мастерских — льгота Pro.
+            </p>
+
+            {!analytics ? (
+              <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Загрузка…</p>
+            ) : analytics.pro === false ? (
+              <div className="about" style={{
+                background: "linear-gradient(135deg,rgba(255,45,111,.12),rgba(124,249,255,.06))",
+                border: "1px solid rgba(255,45,111,.3)", textAlign: "center", padding: "28px 24px",
+              }}>
+                <div style={{ fontSize: 30, marginBottom: 8 }}>📊</div>
+                <h3 style={{ margin: "0 0 6px" }}>Аналитика доступна в Pro</h3>
+                <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 16px" }}>
+                  Подписчики, лайки образов, заказы по статусам, рейтинг и отзывы мастерских — в одном месте.
+                </p>
+                <a href="/pro" className="btn btn-primary">Подключить Pro · 6 мес бесплатно</a>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 12px" }}>Профиль</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
+                  <StatCard val={analytics.profile.followers} label="Подписчиков" />
+                  <StatCard val={analytics.profile.looks} label="Образов" />
+                  <StatCard val={analytics.profile.look_likes} label="Лайков образов" />
+                  <StatCard val={analytics.profile.following} label="Подписок" />
+                </div>
+
+                {analytics.business && (
+                  <>
+                    <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 12px" }}>Бизнес · мастерские</h3>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 16 }}>
+                      <StatCard val={analytics.business.workshops} label="Мастерских" />
+                      <StatCard val={analytics.business.orders_total} label="Заказов всего" />
+                      <StatCard val={analytics.business.products} label="Товаров" />
+                      <StatCard val={analytics.business.reviews} label="Отзывов" />
+                      <StatCard val={analytics.business.rating_avg > 0 ? `★ ${analytics.business.rating_avg}` : "—"} label="Рейтинг" />
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {Object.entries(analytics.business.orders_by_status as Record<string, number>)
+                        .filter(([, n]) => n > 0)
+                        .map(([st, n]) => (
+                          <span key={st} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 20, background: "var(--bg-2)", border: "1px solid var(--line)", color: "var(--ink-dim)" }}>
+                            {ORD_LABELS[st] || st}: <b style={{ color: "var(--ink)" }}>{n}</b>
+                          </span>
+                        ))}
+                    </div>
+                  </>
+                )}
+
+                <p style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 20 }}>
+                  Просмотры профиля появятся позже (нужен трекинг показов).
+                </p>
+              </>
+            )}
+          </div>
         );
       }
 

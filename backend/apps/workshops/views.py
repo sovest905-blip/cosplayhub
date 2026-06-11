@@ -19,6 +19,13 @@ class WorkshopViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["type", "city"]  # is_pro теперь вычисляемое (billing), не фильтруется в БД
 
+    def get_queryset(self):
+        # Pro-мастерские выше в каталоге (льгота «Boost в каталоге услуг»).
+        from apps.billing.models import active_workshop_subquery
+        return (Workshop.objects.all().prefetch_related("services")
+                .annotate(pro_active=active_workshop_subquery())
+                .order_by("-pro_active", "-created_at"))
+
     def get_permissions(self):
         if self.action in ("create", "mine"):
             return [IsAuthenticated()]
