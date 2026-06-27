@@ -2,14 +2,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-// CTA тарифа на странице /pro. Free → регистрация. Pro → активировать триал.
-// Workshop → в кабинет, где тариф включается на конкретную мастерскую.
+// CTA тарифа на странице /pro. Free → регистрация. Pro → активировать триал
+// (единый тариф покрывает профиль и мастерские).
 export default function ProCta({
   planKey,
   label,
   highlight,
 }: {
-  planKey: "free" | "pro" | "workshop";
+  planKey: "free" | "pro";
   label: string;
   highlight: boolean;
 }) {
@@ -28,11 +28,6 @@ export default function ProCta({
       const me = await fetch("/api/v1/auth/me/", { credentials: "include" });
       if (!me.ok) {
         router.push(`/auth/login?next=${encodeURIComponent("/pro")}`);
-        return;
-      }
-      if (planKey === "workshop") {
-        // тариф включается на конкретную мастерскую — ведём в кабинет
-        router.push("/cabinet?tab=subs");
         return;
       }
       const r = await fetch("/api/v1/billing/activate/", {

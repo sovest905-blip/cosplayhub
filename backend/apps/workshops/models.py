@@ -21,9 +21,8 @@ class Workshop(models.Model):
 
     @property
     def is_pro(self) -> bool:
-        """PRO-тариф мастерской — вычисляется из активной подписки (billing)."""
-        sub = self.subscriptions.filter(plan="workshop").first()
-        return bool(sub and sub.is_active)
+        """Единый тариф: мастерская Pro, если её владелец — Pro (billing)."""
+        return self.owner.is_pro
 
     def __str__(self):
         return self.name

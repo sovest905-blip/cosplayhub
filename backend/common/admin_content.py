@@ -345,7 +345,7 @@ class AdminUserPhotosView(_StaffView):
         prof = self._profile(pk)
         if not prof:
             return Response({"detail": "Не найдено"}, status=404)
-        limit = gallery_limit(prof.roles)
+        limit = gallery_limit(prof.roles, prof.user.is_pro)
         if limit == 0:
             return Response({"detail": "Галерея недоступна для ролей этого пользователя"}, status=400)
         if prof.photos.count() >= limit:

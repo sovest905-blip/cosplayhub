@@ -7,6 +7,8 @@ from django.utils import timezone
 
 # Длительность бесплатного триала (мес) при активации Pro/тарифа мастерской.
 TRIAL_MONTHS = 6
+# Во сколько раз Pro поднимает бесплатные лимиты (галерея/фото мастерской/гайда).
+PRO_LIMIT_MULTIPLIER = 4
 # Справочные цены ₸/мес (для отображения; реальная оплата подключится позже).
 PLAN_PRICES = {"pro": 1990, "workshop": 1990}
 
@@ -21,15 +23,18 @@ def add_months(dt, months: int):
 
 
 class Subscription(models.Model):
-    """Подписка/тариф со сроком действия.
+    """Подписка со сроком действия.
 
-    Источник истины для Pro профиля и тарифа мастерской. `is_pro` у User и
-    Workshop вычисляется отсюда — никакого крона: просрочка отключается сама
-    (active_until в прошлом → не активна).
+    ЕДИНЫЙ тариф (с 2026-06-27): один Pro юзера разблокирует ВСЕ его роли,
+    включая мастерские. `is_pro` у User и Workshop вычисляется отсюда —
+    никакого крона: просрочка отключается сама (active_until в прошлом → не активна).
 
-    workshop = NULL  → Pro профиля пользователя (plan="pro").
-    workshop задан    → тариф конкретной мастерской (plan="workshop").
+    workshop = NULL  → Pro юзера (plan="pro"). Покрывает профиль + все его мастерские.
     active_until = NULL → бессрочно (ручной грант админом).
+
+    plan="workshop" с FK на мастерскую — ЛЕГАСИ (до объединения тарифов). Больше
+    не создаётся; миграция 0004 перенесла такие подписки в Pro владельца. Выбор
+    в choices оставлен для истории. Workshop.is_pro теперь = owner.is_pro.
     """
     PLAN_CHOICES = [("pro", "Pro профиля"), ("workshop", "Тариф мастерской")]
     SOURCE_CHOICES = [("trial", "Триал"), ("manual", "Вручную"), ("payment", "Оплата")]
@@ -109,10 +114,8 @@ def active_pro_subquery(user_field="user_id"):
     return Exists(subs)
 
 
-def active_workshop_subquery(workshop_field="pk"):
-    """Exists: у мастерской (OuterRef) активная подписка тарифа.
+def active_workshop_subquery(owner_field="owner_id"):
+    """Exists: у ВЛАДЕЛЬЦА мастерской (OuterRef owner_id) активный Pro.
+    Единый тариф: Pro владельца разблокирует boost всех его мастерских.
     Для annotate на Workshop queryset."""
-    subs = Subscription.objects.filter(
-        plan="workshop", workshop=OuterRef(workshop_field),
-    ).filter(_active_window())
-    return Exists(subs)
+    return active_pro_subquery(owner_field)

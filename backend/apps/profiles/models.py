@@ -37,8 +37,13 @@ class SocialLink(models.Model):
 GALLERY_LIMITS = {"location": 20, "photographer": 15, "cosplayer": 15}
 
 
-def gallery_limit(roles) -> int:
-    return max([GALLERY_LIMITS.get(r, 0) for r in (roles or [])] or [0])
+def gallery_limit(roles, is_pro: bool = False) -> int:
+    """Лимит фото галереи = max по ролям; Pro поднимает его в PRO_LIMIT_MULTIPLIER раз."""
+    base = max([GALLERY_LIMITS.get(r, 0) for r in (roles or [])] or [0])
+    if base and is_pro:
+        from apps.billing.models import PRO_LIMIT_MULTIPLIER
+        return base * PRO_LIMIT_MULTIPLIER
+    return base
 
 
 class ProfilePhoto(models.Model):
@@ -69,6 +74,25 @@ class Favorite(models.Model):
 
     def __str__(self):
         return f"{self.user_id} ♥ {self.kind}:{self.object_id}"
+
+
+class ProfileView(models.Model):
+    """Просмотр профиля. Pro-льгота «кто смотрел». Дедуп: одна строка на
+    (viewer, profile, день) — поле day хранит дату для уникальности. Аноним
+    НЕ трекается (viewer=NULL не пишем), владелец своего профиля — тоже."""
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="views")
+    viewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                               related_name="profile_views")
+    day = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("profile", "viewer", "day")
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["profile", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.viewer_id} 👁 {self.profile_id} @ {self.day}"
 
 
 class Follow(models.Model):

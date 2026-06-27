@@ -50,28 +50,44 @@ def test_activate_requires_auth(api):
     assert api.post(ACTIVATE, {"plan": "pro"}).status_code == 403
 
 
-# ── Тариф мастерской: только своей ────────────────────────────────────────────────
+# ── Единый тариф: Pro владельца покрывает его мастерские ──────────────────────────
 
 @pytest.mark.django_db
-def test_activate_workshop_tariff_for_own(api, make_user, make_workshop):
+def test_pro_covers_owner_workshops(api, make_user, make_workshop):
+    """Активация Pro владельцем → все его мастерские становятся Pro (boost)."""
+    owner = make_user()
+    ws = make_workshop(owner=owner)
+    assert ws.is_pro is False
+    api.force_authenticate(user=owner)
+    resp = api.post(ACTIVATE, {"plan": "pro"})
+    assert resp.status_code == 201
+    ws.refresh_from_db()
+    assert ws.is_pro is True  # = owner.is_pro (единый тариф)
+
+
+@pytest.mark.django_db
+def test_legacy_workshop_plan_activates_user_pro(api, make_user, make_workshop):
+    """Легаси {plan:"workshop"} обратно-совместимо: активирует Pro юзера."""
     owner = make_user()
     ws = make_workshop(owner=owner)
     api.force_authenticate(user=owner)
     resp = api.post(ACTIVATE, {"plan": "workshop", "workshop": ws.id})
     assert resp.status_code == 201
+    assert owner.subscriptions.filter(plan="pro", workshop__isnull=True).exists()
     ws.refresh_from_db()
-    assert ws.is_pro is True  # property считает активную подписку
+    assert ws.is_pro is True
 
 
 @pytest.mark.django_db
-def test_cannot_activate_foreign_workshop(api, make_user, make_workshop):
+def test_foreign_pro_does_not_make_workshop_pro(api, make_user, make_workshop):
+    """Чужой Pro не делает мастерскую Pro — только Pro её владельца."""
     owner = make_user(username="o1", email="o1@example.com")
     intruder = make_user(username="o2", email="o2@example.com")
     ws = make_workshop(owner=owner)
     api.force_authenticate(user=intruder)
-    resp = api.post(ACTIVATE, {"plan": "workshop", "workshop": ws.id})
-    assert resp.status_code == 404
-    assert not Subscription.objects.filter(workshop=ws).exists()
+    api.post(ACTIVATE, {"plan": "pro"})  # активирует Pro чужаку
+    ws.refresh_from_db()
+    assert ws.is_pro is False
 
 
 # ── Срок действия (без крона) ─────────────────────────────────────────────────────

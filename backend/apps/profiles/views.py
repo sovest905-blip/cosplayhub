@@ -1,10 +1,11 @@
 from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
 from common.permissions import IsOwnerOrReadOnly
-from .models import Profile, Follow, Favorite, ProfilePhoto, gallery_limit
+from .models import Profile, Follow, Favorite, ProfilePhoto, ProfileView, gallery_limit
 from .serializers import ProfileSerializer, ProfilePhotoSerializer
 
 MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 МБ
@@ -67,6 +68,25 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated],
+            authentication_classes=[CsrfExemptSessionAuthentication])
+    def view(self, request, pk=None):
+        """Зафиксировать просмотр профиля (Pro-льгота «кто смотрел»). Зовётся
+        с клиента (есть сессия). SSR-фетч детальной идёт анонимно — поэтому
+        отдельный ping. Дедуп per-день через unique_together; свой профиль не
+        считаем."""
+        obj = self.get_object()
+        if obj.user_id and obj.user_id != request.user.id:
+            from django.db import IntegrityError
+            from django.utils import timezone
+            try:
+                ProfileView.objects.get_or_create(
+                    profile=obj, viewer=request.user, day=timezone.localdate(),
+                )
+            except IntegrityError:
+                pass  # гонка — строка дня уже есть
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 # ─────────── Галерея фото профиля (фотозоны) ───────────
 
@@ -89,7 +109,7 @@ class MyPhotosView(APIView):
 
     def post(self, request):
         prof = _my_profile(request)
-        limit = gallery_limit(prof.roles)
+        limit = gallery_limit(prof.roles, request.user.is_pro)
         if limit == 0:
             return Response({"detail": "Галерея недоступна для ваших ролей"}, status=status.HTTP_400_BAD_REQUEST)
         if prof.photos.count() >= limit:
@@ -256,6 +276,48 @@ class FanMatchesView(APIView):
         } for score, p, cf, ch in scored[:30]]
 
         return Response({"ready": True, "matches": matches})
+
+
+# ─────────── Кто смотрел профиль (Pro-льгота) ───────────
+
+class MyViewersView(APIView):
+    """GET — кто смотрел мой профиль (Pro). Не-Pro → {pro: false} (апселл).
+    Отдаёт последних зрителей (по дню) + сводку за 30 дней."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def get(self, request):
+        if not request.user.is_pro:
+            return Response({"pro": False})
+
+        from datetime import timedelta
+        from django.utils import timezone
+
+        prof = getattr(request.user, "profile", None)
+        if not prof:
+            return Response({"pro": True, "total_30d": 0, "unique_30d": 0, "viewers": []})
+
+        since = timezone.localdate() - timedelta(days=30)
+        recent = prof.views.filter(day__gte=since)
+        qs = (prof.views.select_related("viewer", "viewer__profile")
+              .order_by("-created_at")[:30])
+
+        viewers = [{
+            "user_id": v.viewer_id,
+            "profile_id": getattr(getattr(v.viewer, "profile", None), "id", None),
+            "display_name": (getattr(getattr(v.viewer, "profile", None), "display_name", None)
+                             or v.viewer.username),
+            "avatar": (v.viewer.profile.avatar.url
+                       if getattr(v.viewer, "profile", None) and v.viewer.profile.avatar else None),
+            "day": v.day,
+        } for v in qs]
+
+        return Response({
+            "pro": True,
+            "total_30d": recent.count(),
+            "unique_30d": recent.values("viewer_id").distinct().count(),
+            "viewers": viewers,
+        })
 
 
 # ─────────── Избранное (закладки) ───────────

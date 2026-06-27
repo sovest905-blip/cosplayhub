@@ -11,16 +11,17 @@
 export const CURRENCY = "₸";
 
 export type Plan = {
-  key: "free" | "pro" | "workshop";
+  key: "free" | "pro";
   name: string;
   price: number;        // 0 = бесплатно
   period: string;       // «навсегда» / «в месяц»
 };
 
+// ЕДИНЫЙ тариф (2026-06-27): один Pro покрывает профиль И мастерские.
+// Прежний отдельный тариф «Мастерская» объединён в Pro.
 export const PLANS: Record<Plan["key"], Plan> = {
-  free:     { key: "free",     name: "Бесплатный", price: 0,    period: "навсегда" },
-  pro:      { key: "pro",      name: "Pro",        price: 1990, period: "в месяц" },
-  workshop: { key: "workshop", name: "Мастерская", price: 1990, period: "в месяц" },
+  free: { key: "free", name: "Бесплатный", price: 0,    period: "навсегда" },
+  pro:  { key: "pro",  name: "Pro",        price: 1990, period: "в месяц" },
 };
 
 // Подписка фанатов («Поддержать · от N₸») на странице косплеера.

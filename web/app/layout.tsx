@@ -81,6 +81,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     <div className="drop-ic">♛</div>
                     <div><b>Команды</b><small>{pl(s?.teams ?? 0, ["команда", "команды", "команд"])}</small></div>
                   </a>
+                  <a href="/shoots">
+                    <div className="drop-ic">📸</div>
+                    <div><b>Съёмки</b><small>собрать команду</small></div>
+                  </a>
                 </div>
               </div>
               <div className="menu-item has-drop">
@@ -157,6 +161,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <a href="/photographers">Фотографы</a>
                 <a href="/looks">Образы</a>
                 <a href="/teams">Команды</a>
+                <a href="/shoots">Съёмки</a>
               </div>
               <div>
                 <h4>Услуги</h4>

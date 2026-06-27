@@ -53,7 +53,7 @@ def test_pro_workshop_ranks_first(api, make_user, make_workshop):
     plain = make_workshop(owner=make_user(username="w1"), name="Plain WS")
     prouser = make_user(username="w2")
     prows = make_workshop(owner=prouser, name="Pro WS")
-    Subscription.objects.create(user=prouser, plan="workshop", workshop=prows, source="manual")
+    _pro(prouser)  # единый Pro владельца → его мастерская выше в каталоге
 
     resp = api.get(WORKSHOPS)
     results = resp.data["results"] if isinstance(resp.data, dict) else resp.data

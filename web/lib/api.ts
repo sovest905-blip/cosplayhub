@@ -287,6 +287,40 @@ export async function getTeam(id: string | number): Promise<any | null> {
   return data && data.id ? data : null;
 }
 
+// ── Съёмки (сбор команды) ──
+export const SHOOT_ROLES: { key: string; label: string }[] = [
+  { key: "cosplayer", label: "Косплеер" },
+  { key: "photographer", label: "Фотограф" },
+  { key: "model", label: "Модель" },
+  { key: "location", label: "Локация" },
+  { key: "workshop", label: "Мастерская" },
+  { key: "other", label: "Другое" },
+];
+export const SHOOT_ROLE_RU: Record<string, string> =
+  Object.fromEntries(SHOOT_ROLES.map((r) => [r.key, r.label]));
+export const SHOOT_STATUS_RU: Record<string, string> = {
+  open: "Набор открыт", full: "Команда собрана", done: "Прошла", cancelled: "Отменена",
+};
+
+export type ShootListItem = {
+  id: number; title: string; city: string; date: string | null; status: string;
+  status_display: string; cover: string | null; looking_for: string[];
+  organizer: { username: string; profile_id: number | null; avatar: string | null };
+  confirmed_count: number;
+};
+
+export async function getShoots(query = ""): Promise<ShootListItem[] | null> {
+  const data = await get(`/shoots/${query}`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+export async function getShoot(id: string | number): Promise<any | null> {
+  const data = await get(`/shoots/${id}/`);
+  return data && data.id ? data : null;
+}
+
 // ── Товары магазина (витрина продавца) ──
 export type Product = {
   id: number; title: string; description: string; price: number | null;

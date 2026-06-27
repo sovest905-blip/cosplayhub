@@ -65,11 +65,6 @@ type MyOrder = {
   created_at: string;
 };
 
-type BillingSub = {
-  id: number; plan: string; workshop: number | null; workshop_name: string | null;
-  active_until: string | null; is_active: boolean; status: string;
-};
-
 type IncomingOrder = {
   id: number; workshop_name: string; customer_username: string;
   description: string; budget: number | null; status: string; status_display: string;
@@ -146,6 +141,8 @@ export default function CabinetPage() {
   const [myEvents, setMyEvents] = useState<{ id: number; title: string; city: string; place: string; date: string; day: number | string; month: string; going_total: number }[]>([]);
   // Аналитика (Pro): null=не загружено, {pro:false}=апселл, иначе данные
   const [analytics, setAnalytics] = useState<any>(null);
+  const [viewers, setViewers] = useState<any>(null);
+  const [myShoots, setMyShoots] = useState<{ organized: any[]; participating: any[] } | null>(null);
   // Отзыв о мастерской по завершённому заказу
   const [reviewFor, setReviewFor] = useState<number | null>(null);
   const [revRating, setRevRating] = useState(5);
@@ -167,7 +164,6 @@ export default function CabinetPage() {
   const [followersCount, setFollowersCount] = useState(0);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
-  const [billingSubs, setBillingSubs] = useState<BillingSub[]>([]);
   const [activating, setActivating] = useState<string | null>(null);
   const [showWsForm, setShowWsForm] = useState(false);
   const [wsSaving, setWsSaving] = useState(false);
@@ -245,6 +241,14 @@ export default function CabinetPage() {
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (!cancelled && data) setAnalytics(data); }).catch(() => {});
 
+    fetch(`/api/v1/profiles/me/viewers/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && data) setViewers(data); }).catch(() => {});
+
+    fetch(`/api/v1/shoots/mine/`, { credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (!cancelled && data) setMyShoots(data); }).catch(() => {});
+
     fetch(`/api/v1/orders/incoming/`, { credentials: "include" })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
@@ -316,11 +320,6 @@ export default function CabinetPage() {
         setWorkshops(Array.isArray(list) ? list : []);
       }).catch(() => {});
 
-    fetch(`/api/v1/billing/me/`, { credentials: "include" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (!cancelled && Array.isArray(data)) setBillingSubs(data); })
-      .catch(() => {});
-
     return () => { cancelled = true; };
   }, [router]);
 
@@ -329,27 +328,21 @@ export default function CabinetPage() {
     window.history.pushState({}, "", `/cabinet?tab=${id}`);
   }
 
-  // Активировать Pro/тариф мастерской (6 мес бесплатно). После — обновляем статусы.
-  async function activatePlan(plan: "pro" | "workshop", workshopId?: number) {
-    const key = plan === "workshop" ? `ws-${workshopId}` : "pro";
-    setActivating(key);
+  // Активировать единый Pro (6 мес бесплатно). Покрывает профиль и все мастерские.
+  async function activatePlan() {
+    setActivating("pro");
     try {
       const res = await fetch("/api/v1/billing/activate/", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify(plan === "workshop" ? { plan, workshop: workshopId } : { plan }),
+        body: JSON.stringify({ plan: "pro" }),
       });
       if (res.ok) {
-        const [bill, meR] = await Promise.all([
-          fetch("/api/v1/billing/me/", { credentials: "include" }).then((r) => r.ok ? r.json() : []),
-          fetch("/api/v1/auth/me/", { credentials: "include" }).then((r) => r.ok ? r.json() : null),
-        ]);
-        if (Array.isArray(bill)) setBillingSubs(bill);
+        const meR = await fetch("/api/v1/auth/me/", { credentials: "include" }).then((r) => r.ok ? r.json() : null);
         if (meR) setMe(meR);
-        if (workshopId) {
-          fetch("/api/v1/workshops/mine/", { credentials: "include" })
-            .then((r) => r.ok ? r.json() : null)
-            .then((d) => { const l = d?.results ?? d; if (Array.isArray(l)) setWorkshops(l); });
-        }
+        // Pro покрывает мастерские — обновим их статусы (is_pro).
+        fetch("/api/v1/workshops/mine/", { credentials: "include" })
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => { const l = d?.results ?? d; if (Array.isArray(l)) setWorkshops(l); });
       } else {
         const e = await res.json().catch(() => ({}));
         alert(e.detail || "Не удалось активировать");
@@ -574,7 +567,7 @@ export default function CabinetPage() {
 
   async function uploadGalleryPhoto(file: File) {
     setPhotoErr("");
-    const lim = galleryLimit(roles);
+    const lim = galleryLimit(roles, user.is_pro);
     if (photos.length >= lim) { setPhotoErr(`Лимит ${lim} фото`); return; }
     if (file.size > 5 * 1024 * 1024) { setPhotoErr("Максимум 5 МБ"); return; }
     setPhotoUp(true);
@@ -858,6 +851,8 @@ export default function CabinetPage() {
     { label: "За команды", val: likesTeams, count: myTeams.length, icon: "♛" },
   ];
 
+  const shootInvites = (myShoots?.participating || []).filter((s) => s.my_participation?.status === "invited").length;
+
   const NAV_ITEMS = [
     { id: "dashboard", icon: "▤", label: "Обзор" },
     { id: "profile",   icon: "◉", label: "Профиль" },
@@ -869,6 +864,7 @@ export default function CabinetPage() {
     { id: "responses", icon: "↗", label: "Отклики",    num: newIncoming || undefined },
     { id: "messages",  icon: "✉", label: "Сообщения",  num: unreadMsgs || undefined },
     { id: "favs",      icon: "♥", label: "Избранное" },
+    { id: "shoots",    icon: "📸", label: "Мои съёмки", num: shootInvites || undefined },
     ...(roles.includes("fan") ? [{ id: "matches", icon: "❤", label: "Единомышленники" }] : []),
     { id: "listings",  icon: "⌂", label: "Объявления", num: activeListings || undefined },
     { id: "settings",  icon: "⚙", label: "Настройки" },
@@ -1076,7 +1072,7 @@ export default function CabinetPage() {
 
   // Блок фотогалереи ВНУТРИ анкеты роли (привязан к своей форме). title/hint зависят от роли.
   function galleryBlock(title: string, hint: string) {
-    const limit = galleryLimit(roles);
+    const limit = galleryLimit(roles, user.is_pro);
     return (
       <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -1086,6 +1082,11 @@ export default function CabinetPage() {
           </span>
         </div>
         <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>{hint} До {limit} фото, каждое ≤5 МБ.</p>
+        {!user.is_pro && photos.length >= limit && (
+          <p style={{ fontSize: 12, color: "var(--accent-3)", margin: "0 0 12px" }}>
+            Лимит достигнут. <a href="/pro" style={{ color: "var(--accent-2)", fontWeight: 600 }}>Pro</a> поднимает галерею до {limit * 4} фото.
+          </p>
+        )}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 10 }}>
           {photos.map((p) => (
             <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
@@ -1788,55 +1789,31 @@ export default function CabinetPage() {
 
       case "subs": {
         const fmt = (s: string | null) => { try { return s ? new Date(s).toLocaleDateString("ru-RU") : ""; } catch { return ""; } };
-        const wsSub = (wid: number) => billingSubs.find((b) => b.plan === "workshop" && b.workshop === wid);
         return (
           <>
           <div className="acc-card" style={{ marginBottom: 18 }}>
-            <h3 style={{ margin: "0 0 4px" }}>Pro и тарифы</h3>
+            <h3 style={{ margin: "0 0 4px" }}>Pro</h3>
             <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 16px" }}>
-              Первые 6 месяцев бесплатно. Оплата подключится позже — продление будет автоматическим.
+              Единый тариф: один Pro покрывает профиль и все ваши мастерские.
+              Первые 6 месяцев бесплатно — оплата подключится позже, продление будет автоматическим.
             </p>
 
-            {/* Pro профиля */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
-              padding: "13px 16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 10 }}>
+              padding: "13px 16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
               <div>
-                <b style={{ fontSize: 14 }}>Pro профиля</b>
+                <b style={{ fontSize: 14 }}>Pro · профиль и мастерские</b>
                 <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
                   {user.is_pro
                     ? <span style={{ color: "var(--green)" }}>Активен{user.pro_active_until ? ` до ${fmt(user.pro_active_until)}` : " · бессрочно"}</span>
-                    : "Синяя галочка, приоритет в каталоге, монетизация"}
+                    : "Синяя галочка, приоритет в каталоге и поиске, аналитика, boost мастерских"}
                 </div>
               </div>
               {user.is_pro
                 ? <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, background: "rgba(124,249,255,.12)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.3)" }}>✓ Pro</span>
-                : <button className="btn btn-primary btn-sm" disabled={activating === "pro"} onClick={() => activatePlan("pro")}>
+                : <button className="btn btn-primary btn-sm" disabled={activating === "pro"} onClick={() => activatePlan()}>
                     {activating === "pro" ? "..." : "Активировать · 6 мес бесплатно"}
                   </button>}
             </div>
-
-            {/* Тарифы мастерских */}
-            {workshops.map((w) => {
-              const sub = wsSub(w.id);
-              return (
-                <div key={w.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
-                  padding: "13px 16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 10 }}>
-                  <div>
-                    <b style={{ fontSize: 14 }}>Тариф «Мастерская» · {w.name}</b>
-                    <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-                      {w.is_pro
-                        ? <span style={{ color: "var(--green)" }}>Активен{sub?.active_until ? ` до ${fmt(sub.active_until)}` : " · бессрочно"}</span>
-                        : "Boost в каталоге, бизнес-аналитика, 0% комиссии"}
-                    </div>
-                  </div>
-                  {w.is_pro
-                    ? <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, background: "rgba(255,210,74,.12)", color: "var(--accent-3)", border: "1px solid rgba(255,210,74,.3)" }}>✓ PRO</span>
-                    : <button className="btn btn-primary btn-sm" disabled={activating === `ws-${w.id}`} onClick={() => activatePlan("workshop", w.id)}>
-                        {activating === `ws-${w.id}` ? "..." : "Активировать · 6 мес"}
-                      </button>}
-                </div>
-              );
-            })}
           </div>
 
           <div className="acc-card">
@@ -1912,6 +1889,8 @@ export default function CabinetPage() {
               <>
                 <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 12px" }}>Профиль</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
+                  <StatCard val={analytics.profile.views_30d ?? 0} label="Просмотров · 30 дн" />
+                  <StatCard val={analytics.profile.unique_viewers_30d ?? 0} label="Уник. зрителей" />
                   <StatCard val={analytics.profile.followers} label="Подписчиков" />
                   <StatCard val={analytics.profile.looks} label="Образов" />
                   <StatCard val={analytics.profile.look_likes} label="Лайков образов" />
@@ -1940,9 +1919,27 @@ export default function CabinetPage() {
                   </>
                 )}
 
-                <p style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 20 }}>
-                  Просмотры профиля появятся позже (нужен трекинг показов).
-                </p>
+                {viewers && viewers.pro !== false && (
+                  <div style={{ marginTop: 24 }}>
+                    <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 12px" }}>Кто смотрел профиль</h3>
+                    {Array.isArray(viewers.viewers) && viewers.viewers.length > 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {viewers.viewers.map((v: any, i: number) => (
+                          <a key={`${v.user_id}-${i}`} href={v.profile_id ? `/people/${v.profile_id}` : "#"}
+                            style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 12px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+                            {v.avatar
+                              ? <img src={v.avatar} alt="" style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }} />
+                              : <span style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--bg-3)", display: "grid", placeItems: "center", fontSize: 14, color: "var(--ink-dim)" }}>{(v.display_name || "?")[0]?.toUpperCase()}</span>}
+                            <span style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{v.display_name}</span>
+                            <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{v.day ? new Date(v.day).toLocaleDateString("ru-RU") : ""}</span>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: 13, color: "var(--ink-dim)" }}>Пока никто не смотрел ваш профиль. Заполните анкету и публикуйте образы — вас заметят.</p>
+                    )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -1981,6 +1978,44 @@ export default function CabinetPage() {
             </div>
           </div>
         );
+
+      case "shoots": {
+        const renderShootRow = (sh: any) => (
+          <a key={sh.id} href={`/shoots/${sh.id}`} className="info-row" style={{ alignItems: "center" }}>
+            <span style={{ display: "flex", flexDirection: "column" }}>
+              <b style={{ fontSize: 14 }}>{sh.title}</b>
+              <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                📍 {sh.city || "—"}{sh.date ? ` · ${new Date(sh.date).toLocaleDateString("ru-RU")}` : ""} · {sh.confirmed_count} в команде
+              </span>
+            </span>
+            <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {sh.my_participation?.status === "invited" && <span style={{ fontSize: 11, color: "var(--accent-3)", border: "1px solid rgba(255,210,74,.3)", borderRadius: 20, padding: "2px 9px" }}>приглашение</span>}
+              <span style={{ fontSize: 11, color: sh.status === "open" ? "var(--green)" : "var(--ink-dim)" }}>{sh.status_display}</span>
+            </span>
+          </a>
+        );
+        const org = myShoots?.organized || [];
+        const part = myShoots?.participating || [];
+        return (
+          <div className="acc-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
+              <h2 style={{ margin: 0 }}>Мои съёмки</h2>
+              <a href="/shoots/new" className="btn btn-primary btn-sm">+ Собрать команду</a>
+            </div>
+            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
+              Собирайте команду на съёмку: косплееры, фотограф, локация, костюм от мастерской.
+            </p>
+
+            <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 8px" }}>Я организую ({org.length})</h3>
+            {org.length > 0 ? org.map(renderShootRow)
+              : <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 16px" }}>Вы пока не создавали съёмок.</p>}
+
+            <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "18px 0 8px" }}>Я участвую ({part.length})</h3>
+            {part.length > 0 ? part.map(renderShootRow)
+              : <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>Откликнитесь на съёмку в <a href="/shoots">каталоге</a>.</p>}
+          </div>
+        );
+      }
 
       case "matches":
         return (

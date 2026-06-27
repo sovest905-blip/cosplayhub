@@ -554,7 +554,7 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
             {(role === "location"
               || (role === "photographer" && !roles.includes("location"))
               || (role === "cosplayer" && !roles.includes("location") && !roles.includes("photographer"))) && (
-              <AdminLocationGallery userId={user.id} roles={roles} />
+              <AdminLocationGallery userId={user.id} roles={roles} isPro={!!user.is_pro} />
             )}
           </div>
         );
@@ -673,11 +673,11 @@ function AdminSlotsEditor({ userId }: { userId: number }) {
 }
 
 // Фотогалерея в админке (за юзера). Лимит зависит от ролей (Локация 20 / Фотограф 15).
-function AdminLocationGallery({ userId, roles }: { userId: number; roles: string[] }) {
+function AdminLocationGallery({ userId, roles, isPro }: { userId: number; roles: string[]; isPro?: boolean }) {
   const [photos, setPhotos] = useState<{ id: number; url: string }[]>([]);
   const [up, setUp] = useState(false);
   const [err, setErr] = useState("");
-  const MAX = galleryLimit(roles);
+  const MAX = galleryLimit(roles, !!isPro);
   const isPhotographer = roles.includes("photographer") && !roles.includes("location");
   function load() {
     api(`/admin-panel/users/${userId}/photos/`).then((r) => (r.ok ? r.json() : [])).then((d) => setPhotos(Array.isArray(d) ? d : []));
@@ -1543,7 +1543,6 @@ type SubRow = {
 function SubscriptionsAdmin() {
   const [items, setItems] = useState<SubRow[]>([]);
   const [q, setQ] = useState("");
-  const [plan, setPlan] = useState("");
   const [status, setStatus] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -1554,12 +1553,11 @@ function SubscriptionsAdmin() {
   function load() {
     const p = new URLSearchParams();
     if (q.trim()) p.set("q", q.trim());
-    if (plan) p.set("plan", plan);
     if (status) p.set("status", status);
     api(`/admin-panel/subscriptions/${p.toString() ? `?${p}` : ""}`)
       .then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
   }
-  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, plan, status]);
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, status]);
 
   useEffect(() => {
     const term = userQ.trim();
@@ -1597,7 +1595,7 @@ function SubscriptionsAdmin() {
   }
 
   return (
-    <Card title="Подписки Pro и тарифы" sub="Контроль сроков Pro-профилей и тарифов мастерских. Активна, пока не истёк срок (пусто = бессрочно). После подключения оплаты продление будет автоматическим.">
+    <Card title="Подписки Pro" sub="Единый тариф: Pro покрывает профиль и все мастерские юзера. Активна, пока не истёк срок (пусто = бессрочно). После подключения оплаты продление будет автоматическим.">
       {msg && <div style={{ color: "var(--green)", fontSize: 13, marginBottom: 12 }}>{msg}</div>}
 
       {/* Выдать Pro вручную */}
@@ -1619,12 +1617,7 @@ function SubscriptionsAdmin() {
       {/* Фильтры списка */}
       <h3 style={{ margin: "22px 0 10px", fontSize: 15 }}>Все подписки ({items.length})</h3>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 юзер / мастерская" style={{ flex: "1 1 200px" }} />
-        <select value={plan} onChange={(e) => setPlan(e.target.value)} style={{ maxWidth: 180 }}>
-          <option value="">Все тарифы</option>
-          <option value="pro">Pro профиля</option>
-          <option value="workshop">Тариф мастерской</option>
-        </select>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 юзер" style={{ flex: "1 1 200px" }} />
         <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 160 }}>
           <option value="">Любой статус</option>
           {Object.entries(SUB_STATUS_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

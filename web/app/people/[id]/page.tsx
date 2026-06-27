@@ -6,6 +6,7 @@ import OwnerOnly from "../../components/OwnerOnly";
 import SlotList from "../../components/SlotList";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
+import ProfileViewTracker from "../../components/ProfileViewTracker";
 import { getProfile, getLooksByAuthor, getProductsByOwner, type Person, type LookItem, type Product, ROLE_DETAIL_FIELDS, fmtDetailValue, fmtPrice, PRODUCT_STATUS_META, SOCIAL_META, socialUrl } from "../../../lib/api";
 import { FAN_SUPPORT_FROM } from "../../../lib/pricing";
 
@@ -39,6 +40,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="wrap">
+      <ProfileViewTracker id={id} />
       <div className="crumbs">
         <a href="/">Главная</a>
         <span className="sep">›</span>

@@ -402,7 +402,39 @@ class Command(BaseCommand):
                                     time_start=start, time_end=end, price=price)
                 n_slot += 1
 
+        # ── Демо-съёмки (сбор команды), идемпотентно ──
+        from apps.shoots.models import Shoot, ShootParticipant
+        n_shoot = 0
+        shoot_plans = [
+            {"organizer": "yuki_cos", "title": "Genshin на закате", "city": "Алматы",
+             "days": 10, "looking_for": ["photographer", "model"],
+             "description": "Групповой сет по Genshin Impact на крыше. Нужен фотограф и модель на роль Паймон.",
+             "location": "studio_neon", "confirm": ["nightframe"]},
+            {"organizer": "rin_kz", "title": "Тёмное фэнтези в лофте", "city": "Астана",
+             "days": 18, "looking_for": ["cosplayer", "photographer"],
+             "description": "Атмосферная съёмка тёмного фэнтези. Ищем косплееров и фотографа со светом.",
+             "location": "loft21", "confirm": []},
+        ]
+        for sp in shoot_plans:
+            org = User.objects.filter(username=sp["organizer"]).first()
+            if not org or Shoot.objects.filter(organizer=org, title=sp["title"]).exists():
+                continue
+            loc = User.objects.filter(username=sp["location"]).first()
+            shoot = Shoot.objects.create(
+                organizer=org, title=sp["title"], city=sp["city"],
+                date=timezone.localdate() + timedelta(days=sp["days"]),
+                description=sp["description"], looking_for=sp["looking_for"],
+                location=loc, status="open",
+            )
+            for uname in sp["confirm"]:
+                u = User.objects.filter(username=uname).first()
+                if u:
+                    ShootParticipant.objects.get_or_create(
+                        shoot=shoot, user=u,
+                        defaults={"role": "photographer", "status": "confirmed"})
+            n_shoot += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, товаров +{n_prod}, новостей +{n_news}, "
-            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, слотов +{n_slot}. Пароль всех демо: {PWD}"
+            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, слотов +{n_slot}, съёмок +{n_shoot}. Пароль всех демо: {PWD}"
         ))

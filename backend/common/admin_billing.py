@@ -69,24 +69,23 @@ class AdminSubscriptionsView(_StaffView):
 
     def post(self, request):
         d = request.data
-        user = User.objects.filter(pk=d.get("user_id")).first()
-        if not user:
-            return Response({"detail": "Пользователь не найден"}, status=404)
-        plan = (d.get("plan") or "").strip()
+        plan = (d.get("plan") or "pro").strip()
         if plan not in ("pro", "workshop"):
             return Response({"detail": "Неизвестный тариф"}, status=400)
 
-        workshop = None
+        # Единый тариф: грант «мастерской» = Pro её владельцу. Pro покрывает
+        # профиль и все мастерские юзера, отдельных workshop-подписок больше нет.
         if plan == "workshop":
             workshop = Workshop.objects.filter(pk=d.get("workshop_id")).first()
             if not workshop:
                 return Response({"detail": "Мастерская не найдена"}, status=400)
-
-        # Найти существующую или создать
-        if plan == "pro":
-            sub = user.subscriptions.filter(plan="pro", workshop__isnull=True).first()
+            user = workshop.owner
         else:
-            sub = Subscription.objects.filter(workshop=workshop).first()
+            user = User.objects.filter(pk=d.get("user_id")).first()
+            if not user:
+                return Response({"detail": "Пользователь не найден"}, status=404)
+
+        sub = user.subscriptions.filter(plan="pro", workshop__isnull=True).first()
 
         unlimited = bool(d.get("unlimited"))
         months = d.get("months")
@@ -95,7 +94,7 @@ class AdminSubscriptionsView(_StaffView):
                 timezone.now(), int(months) if months else 6
             )
             sub = Subscription.objects.create(
-                user=user, workshop=workshop, plan=plan, source="manual",
+                user=user, workshop=None, plan="pro", source="manual",
                 active_until=until, note=(d.get("note") or "").strip(),
             )
         else:

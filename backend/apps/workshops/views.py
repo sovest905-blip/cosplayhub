@@ -11,6 +11,12 @@ from .serializers import WorkshopSerializer
 
 MAX_PHOTOS = 5
 
+
+def _photo_limit(user) -> int:
+    """Базовый лимит фото; Pro поднимает его в PRO_LIMIT_MULTIPLIER раз."""
+    from apps.billing.models import PRO_LIMIT_MULTIPLIER
+    return MAX_PHOTOS * PRO_LIMIT_MULTIPLIER if user.is_pro else MAX_PHOTOS
+
 class WorkshopViewSet(viewsets.ModelViewSet):
     queryset = Workshop.objects.all().prefetch_related("services").order_by("-created_at")
     serializer_class = WorkshopSerializer
@@ -48,8 +54,9 @@ class WorkshopViewSet(viewsets.ModelViewSet):
         workshop = self.get_object()
         if workshop.owner_id != request.user.id:
             return Response({"detail": "Не ваша мастерская"}, status=status.HTTP_403_FORBIDDEN)
-        if workshop.photos.count() >= MAX_PHOTOS:
-            return Response({"detail": f"Максимум {MAX_PHOTOS} фото"}, status=status.HTTP_400_BAD_REQUEST)
+        limit = _photo_limit(workshop.owner)
+        if workshop.photos.count() >= limit:
+            return Response({"detail": f"Максимум {limit} фото"}, status=status.HTTP_400_BAD_REQUEST)
         image = request.FILES.get("image")
         if not image:
             return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)

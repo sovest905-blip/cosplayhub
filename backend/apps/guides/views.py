@@ -11,6 +11,12 @@ from .serializers import GuideSerializer
 MAX_PHOTOS = 5
 
 
+def _photo_limit(user) -> int:
+    """Базовый лимит фото гайда; Pro поднимает его в PRO_LIMIT_MULTIPLIER раз."""
+    from apps.billing.models import PRO_LIMIT_MULTIPLIER
+    return MAX_PHOTOS * PRO_LIMIT_MULTIPLIER if (user and user.is_pro) else MAX_PHOTOS
+
+
 class IsAuthorOrStaffOrReadOnly(BasePermission):
     """Читать — все; менять/удалять — автор или staff."""
     def has_object_permission(self, request, view, obj):
@@ -57,8 +63,9 @@ class GuideViewSet(viewsets.ModelViewSet):
         guide = self.get_object()
         if not self._can_edit(request, guide):
             return Response({"detail": "Не ваш гайд"}, status=status.HTTP_403_FORBIDDEN)
-        if guide.photos.count() >= MAX_PHOTOS:
-            return Response({"detail": f"Максимум {MAX_PHOTOS} фото"}, status=status.HTTP_400_BAD_REQUEST)
+        limit = _photo_limit(guide.author)
+        if guide.photos.count() >= limit:
+            return Response({"detail": f"Максимум {limit} фото"}, status=status.HTTP_400_BAD_REQUEST)
         image = request.FILES.get("image")
         if not image:
             return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)

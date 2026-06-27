@@ -2,6 +2,7 @@
 services:
   db:
     image: postgres:17-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -13,11 +14,13 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     expose:
       - "6379"
 
   web:
     build: .
+    restart: unless-stopped
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -41,6 +44,7 @@ services:
     build:
       context: ..
       dockerfile: web/Dockerfile
+    restart: unless-stopped
     environment:
       - NEXT_PUBLIC_API_URL=/api/v1
       - API_URL=http://web:8000/api/v1
@@ -51,6 +55,7 @@ services:
 
   mailhog:
     image: mailhog/mailhog:latest
+    restart: unless-stopped
     ports:
       - "8025:8025"   # веб-интерфейс: http://109.235.118.28:8025
     expose:
@@ -73,6 +78,7 @@ services:
 
   nginx:
     image: nginx:alpine
+    restart: unless-stopped
     ports:
       - "8080:80"
     volumes:

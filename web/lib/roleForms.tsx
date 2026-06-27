@@ -3,9 +3,12 @@
 "use client";
 
 // Лимит фотогалереи по ролям (макс среди ролей профиля). 0 = галерея недоступна.
+// Pro поднимает лимит в PRO_LIMIT_MULTIPLIER раз (зеркало profiles.gallery_limit).
 export const GALLERY_LIMITS: Record<string, number> = { location: 20, photographer: 15, cosplayer: 15 };
-export function galleryLimit(roles: string[]): number {
-  return Math.max(0, ...(roles || []).map((r) => GALLERY_LIMITS[r] || 0));
+export const PRO_LIMIT_MULTIPLIER = 4;
+export function galleryLimit(roles: string[], isPro = false): number {
+  const base = Math.max(0, ...(roles || []).map((r) => GALLERY_LIMITS[r] || 0));
+  return base && isPro ? base * PRO_LIMIT_MULTIPLIER : base;
 }
 
 export type RoleField = {

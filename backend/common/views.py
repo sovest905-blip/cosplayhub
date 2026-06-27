@@ -207,33 +207,40 @@ from apps.users.backends import CsrfExemptSessionAuthentication
 
 class AnalyticsMeView(APIView):
     """Аналитика текущего пользователя. Доступна только при активном Pro
-    (профильном ИЛИ хотя бы одной Pro-мастерской) — иначе {pro: false} (апселл).
+    (единый тариф покрывает профиль и мастерские) — иначе {pro: false} (апселл).
     Все цифры из существующих данных; «просмотры профиля» пока не трекаются."""
     permission_classes = [IsAuthenticated]
     authentication_classes = [CsrfExemptSessionAuthentication]
 
     def get(self, request):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
         from apps.looks.models import Look, LookLike
         from apps.orders.models import Order, Review
         from apps.products.models import Product
-        from apps.profiles.models import Follow
+        from apps.profiles.models import Follow, ProfileView
         from apps.workshops.models import Workshop
 
         user = request.user
         workshops = list(Workshop.objects.filter(owner=user))
-        has_ws_pro = any(w.is_pro for w in workshops)
-        pro = bool(user.is_pro or has_ws_pro)
-        if not pro:
+        # Единый тариф: Pro юзера покрывает профиль и все мастерские.
+        if not user.is_pro:
             return Response({"pro": False})
 
         # ── Профиль ──
         my_looks = Look.objects.filter(author=user)
         look_ids = list(my_looks.values_list("id", flat=True))
+        since = timezone.localdate() - timedelta(days=30)
+        my_views = ProfileView.objects.filter(profile__user=user, day__gte=since)
         profile = {
             "followers": Follow.objects.filter(target=user).count(),
             "following": Follow.objects.filter(follower=user).count(),
             "looks": my_looks.filter(is_published=True).count(),
             "look_likes": LookLike.objects.filter(look_id__in=look_ids).count(),
+            "views_30d": my_views.count(),
+            "unique_viewers_30d": my_views.values("viewer_id").distinct().count(),
         }
 
         # ── Бизнес (если есть мастерские) ──

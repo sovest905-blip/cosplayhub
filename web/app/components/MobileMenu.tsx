@@ -11,6 +11,7 @@ const SECTIONS = [
       { href: "/photographers", label: "Фотографы" },
       { href: "/looks", label: "Образы" },
       { href: "/teams", label: "Команды" },
+      { href: "/shoots", label: "Съёмки" },
     ],
   },
   {
