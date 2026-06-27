@@ -110,6 +110,7 @@ class MeSerializer(serializers.ModelSerializer):
     accent_color = serializers.CharField(required=False, allow_blank=True)
     hide_from_catalog = serializers.BooleanField(required=False)
     pinned_look_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
+    donation_methods = serializers.ListField(child=serializers.DictField(), required=False)
 
     class Meta:
         model = User
@@ -117,7 +118,7 @@ class MeSerializer(serializers.ModelSerializer):
             "id", "username", "email", "phone", "city",
             "bio", "experience", "roles", "available_for_work", "accept_messages",
             "role_details", "socials", "profile_id",
-            "slug", "accent_color", "hide_from_catalog", "pinned_look_ids",
+            "slug", "accent_color", "hide_from_catalog", "pinned_look_ids", "donation_methods",
             "is_email_verified", "is_phone_verified", "is_verified", "is_staff",
         ]
         read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified", "is_staff"]
@@ -145,6 +146,7 @@ class MeSerializer(serializers.ModelSerializer):
         data["accent_color"] = prof.accent_color if prof else "#ff2d6f"
         data["hide_from_catalog"] = prof.hide_from_catalog if prof else False
         data["pinned_look_ids"] = (prof.pinned_look_ids or []) if prof else []
+        data["donation_methods"] = (prof.donation_methods or []) if prof else []
         # Pro-статус из billing (вычисляется по сроку)
         pro_sub = instance.subscriptions.filter(plan="pro", workshop__isnull=True).first()
         data["is_pro"] = bool(pro_sub and pro_sub.is_active)
@@ -155,7 +157,7 @@ class MeSerializer(serializers.ModelSerializer):
         """Pro-кастомизация (slug/accent/hide/pinned) — пишется ТОЛЬКО при активном Pro.
         Не-Pro значения молча игнорируем (поля просто не применяются)."""
         from django.utils.text import slugify
-        pro_keys = ("slug", "accent_color", "hide_from_catalog", "pinned_look_ids")
+        pro_keys = ("slug", "accent_color", "hide_from_catalog", "pinned_look_ids", "donation_methods")
         incoming = {k: validated_data.pop(k) for k in pro_keys if k in validated_data}
         if not incoming or not instance.is_pro:
             return
@@ -177,6 +179,15 @@ class MeSerializer(serializers.ModelSerializer):
             prof_fields["hide_from_catalog"] = bool(incoming["hide_from_catalog"])
         if "pinned_look_ids" in incoming:
             prof_fields["pinned_look_ids"] = list(incoming["pinned_look_ids"])[:3]  # максимум 3
+        if "donation_methods" in incoming:
+            valid_kinds = {"usdt_trc20", "ton", "btc"}
+            cleaned = []
+            for m in (incoming["donation_methods"] or [])[:6]:
+                kind = str(m.get("kind", "")).strip()
+                addr = str(m.get("address", "")).strip()
+                if kind in valid_kinds and addr:
+                    cleaned.append({"kind": kind, "address": addr[:120]})
+            prof_fields["donation_methods"] = cleaned
 
     def update(self, instance, validated_data):
         socials = validated_data.pop("socials", None)

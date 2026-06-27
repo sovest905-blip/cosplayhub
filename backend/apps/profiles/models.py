@@ -25,6 +25,9 @@ class Profile(models.Model):
     slug = models.SlugField("ссылка /u/", max_length=40, unique=True, null=True, blank=True)
     pinned_look_ids = models.JSONField("закреплённые образы", default=list, blank=True)
     hide_from_catalog = models.BooleanField("скрыт из каталога", default=False)
+    # Крипто-донаты P2P (Pro): список {kind, address}. Платформа НЕ хранит средства —
+    # перевод напрямую косплееру (см. donations в ProfileSerializer, гейт за Pro).
+    donation_methods = models.JSONField("приём донатов", default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

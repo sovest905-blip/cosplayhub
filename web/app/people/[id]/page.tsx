@@ -1,14 +1,13 @@
 import { PEOPLE } from "../../../lib/mock";
 import { notFound } from "next/navigation";
-import GatedButton from "../../components/GatedButton";
 import MessageButton from "../../components/MessageButton";
 import OwnerOnly from "../../components/OwnerOnly";
 import SlotList from "../../components/SlotList";
 import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
 import ProfileViewTracker from "../../components/ProfileViewTracker";
+import DonateButton from "../../components/DonateButton";
 import { getProfile, getLooksByAuthor, getProductsByOwner, type Person, type LookItem, type Product, ROLE_DETAIL_FIELDS, fmtDetailValue, fmtPrice, PRODUCT_STATUS_META, SOCIAL_META, socialUrl } from "../../../lib/api";
-import { FAN_SUPPORT_FROM } from "../../../lib/pricing";
 
 const ROLE_RU: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -303,20 +302,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
                 </a>
               </div>
             </OwnerOnly>
-          ) : (
+          ) : (person.donations && person.donations.length > 0) ? (
             <div className="about" style={{
               background: "linear-gradient(135deg,rgba(157,124,255,.15),rgba(255,45,111,.08))",
               border: "1px solid rgba(157,124,255,.3)",
             }}>
               <h3 style={{ color: "var(--accent-4)" }}>Поддержать</h3>
               <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
-                Подпишитесь, чтобы получить эксклюзивные образы и ранний доступ.
+                Нравится творчество? Поддержите криптой — напрямую, без комиссии платформы.
               </p>
-              <GatedButton className="btn btn-primary" fullWidth>
-                Подписаться · от {FAN_SUPPORT_FROM}₸
-              </GatedButton>
+              <DonateButton methods={person.donations} name={person.display_name} />
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

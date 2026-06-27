@@ -27,14 +27,24 @@ class ProfileSerializer(serializers.ModelSerializer):
     looks_count = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
     pinned_looks = serializers.SerializerMethodField()
+    donations = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "user_id", "display_name", "username", "bio", "roles", "role_details",
                   "avatar", "cover", "available_for_work", "experience", "rating", "accent_color",
-                  "slug", "pinned_looks", "city", "is_verified", "socials", "photos",
+                  "slug", "pinned_looks", "donations", "city", "is_verified", "socials", "photos",
                   "followers_count", "looks_count", "is_following", "created_at"]
         read_only_fields = ["rating", "slug", "created_at"]
+
+    def get_donations(self, obj):
+        # Кнопка «Поддержать» только у активного Pro (фан-монетизация — фишка Pro).
+        if not obj.user_id:
+            return []
+        pro = getattr(obj, "pro_active", None)
+        if pro is None:
+            pro = obj.user.is_pro
+        return (obj.donation_methods or []) if pro else []
 
     def get_pinned_looks(self, obj):
         ids = obj.pinned_look_ids or []

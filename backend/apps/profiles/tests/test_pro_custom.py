@@ -103,6 +103,38 @@ def test_media_kit_pdf_for_pro(api, make_user):
 
 
 @pytest.mark.django_db
+def test_donation_methods_require_pro(api, make_user):
+    user = make_user(); _profile(user)
+    api.force_authenticate(user=user)
+    api.patch(ME, {"donation_methods": [{"kind": "usdt_trc20", "address": "TXxx"}]}, format="json")
+    user.profile.refresh_from_db()
+    assert user.profile.donation_methods == []  # не-Pro не может
+
+
+@pytest.mark.django_db
+def test_donation_methods_cleaned_for_pro(api, make_user):
+    user = make_user(); _profile(user); _pro(user)
+    api.force_authenticate(user=user)
+    api.patch(ME, {"donation_methods": [
+        {"kind": "usdt_trc20", "address": "TXabc"},
+        {"kind": "bogus", "address": "x"},          # неизвестный тип — отбросить
+        {"kind": "ton", "address": ""},              # пустой адрес — отбросить
+    ]}, format="json")
+    user.profile.refresh_from_db()
+    assert user.profile.donation_methods == [{"kind": "usdt_trc20", "address": "TXabc"}]
+
+
+@pytest.mark.django_db
+def test_donations_shown_only_for_pro_in_profile(api, make_user):
+    user = make_user(); prof = _profile(user); _pro(user)
+    api.force_authenticate(user=user)
+    api.patch(ME, {"donation_methods": [{"kind": "btc", "address": "bc1xyz"}]}, format="json")
+    api.force_authenticate(user=None)
+    resp = api.get(f"{PROFILES}{prof.id}/")
+    assert resp.data["donations"] == [{"kind": "btc", "address": "bc1xyz"}]
+
+
+@pytest.mark.django_db
 def test_pinned_capped_at_three(api, make_user):
     user = make_user(); _profile(user); _pro(user)
     ids = [Look.objects.create(author=user, title=f"L{i}").id for i in range(5)]

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SOCIAL_META } from "../../lib/api";
+import { SOCIAL_META, DONATION_KINDS, DONATION_KIND_META } from "../../lib/api";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
 import MessagesPanel from "../components/MessagesPanel";
 
@@ -139,6 +139,8 @@ export default function CabinetPage() {
   const [custAccent, setCustAccent] = useState("#ff2d6f");
   const [custHide, setCustHide] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<number[]>([]);
+  const [donMethods, setDonMethods] = useState<{ kind: string; address: string }[]>([]);
+  const [donDraft, setDonDraft] = useState({ kind: "usdt_trc20", address: "" });
   const [custMsg, setCustMsg] = useState("");
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
@@ -233,6 +235,7 @@ export default function CabinetPage() {
         setCustAccent(data.accent_color || "#ff2d6f");
         setCustHide(!!data.hide_from_catalog);
         setPinnedIds(Array.isArray(data.pinned_look_ids) ? data.pinned_look_ids : []);
+        setDonMethods(Array.isArray(data.donation_methods) ? data.donation_methods : []);
         setAuthed(true);
       })
       .catch(() => router.replace("/auth/login"));
@@ -462,10 +465,10 @@ export default function CabinetPage() {
     setCustMsg("");
     const res = await fetch(`/api/v1/auth/me/`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ slug: custSlug, accent_color: custAccent, hide_from_catalog: custHide, pinned_look_ids: pinnedIds }),
+      body: JSON.stringify({ slug: custSlug, accent_color: custAccent, hide_from_catalog: custHide, pinned_look_ids: pinnedIds, donation_methods: donMethods }),
     });
     const data = await res.json().catch(() => ({}));
-    if (res.ok) { setMe(data); setCustSlug(data.slug || ""); setCustMsg("Сохранено ✓"); setTimeout(() => setCustMsg(""), 2500); }
+    if (res.ok) { setMe(data); setCustSlug(data.slug || ""); setDonMethods(Array.isArray(data.donation_methods) ? data.donation_methods : []); setCustMsg("Сохранено ✓"); setTimeout(() => setCustMsg(""), 2500); }
     else { setCustMsg(data.slug?.[0] || data.detail || "Не удалось сохранить"); }
   }
 
@@ -2283,6 +2286,26 @@ export default function CabinetPage() {
                       </div>
                     </div>
                   )}
+                  <div className="field"><label>Приём донатов (крипта · без комиссии платформы)</label>
+                    {donMethods.map((dm, i) => {
+                      const meta = DONATION_KIND_META[dm.kind] || { label: dm.kind, network: "" };
+                      return (
+                        <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                          <span style={{ fontSize: 11, color: "var(--accent-2)", whiteSpace: "nowrap" }}>{meta.label} · {meta.network}</span>
+                          <code style={{ flex: 1, fontSize: 11, wordBreak: "break-all", background: "var(--bg-3)", padding: "4px 8px", borderRadius: 6 }}>{dm.address}</code>
+                          <button onClick={() => setDonMethods((p) => p.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 16 }}>×</button>
+                        </div>
+                      );
+                    })}
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <select value={donDraft.kind} onChange={(e) => setDonDraft({ ...donDraft, kind: e.target.value })} style={{ maxWidth: 120 }}>
+                        {DONATION_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
+                      </select>
+                      <input value={donDraft.address} onChange={(e) => setDonDraft({ ...donDraft, address: e.target.value })} placeholder="адрес кошелька" style={{ flex: 1 }} />
+                      <button className="btn btn-ghost btn-sm" onClick={() => { if (donDraft.address.trim()) { setDonMethods((p) => [...p, { kind: donDraft.kind, address: donDraft.address.trim() }]); setDonDraft({ ...donDraft, address: "" }); } }}>+ Добавить</button>
+                    </div>
+                    <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "6px 0 0" }}>Перевод идёт напрямую вам. Указывайте правильную сеть (напр. USDT — только TRC-20).</p>
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
                     <button className="btn btn-primary btn-sm" onClick={saveCustomization}>Сохранить</button>
                     {custMsg && <span style={{ fontSize: 12, color: custMsg.includes("✓") ? "var(--green)" : "var(--red)" }}>{custMsg}</span>}

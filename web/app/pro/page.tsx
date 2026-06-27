@@ -1,6 +1,8 @@
 import { PLANS as PRICE_PLANS, fmtPrice, PRO_FREE_BETA } from "../../lib/pricing";
 import ProCta from "../components/ProCta";
 
+type Feat = string | { t: string; soon?: boolean };
+
 const PLANS = [
   {
     key: PRICE_PLANS.free.key,
@@ -13,7 +15,7 @@ const PLANS = [
       "Каталог и поиск",
       "Заявки в мастерские",
       "Участие в событиях",
-    ],
+    ] as Feat[],
     cta: "Начать бесплатно",
     highlight: false,
   },
@@ -31,8 +33,8 @@ const PLANS = [
       "Расширенная аналитика профиля и бизнеса",
       "Boost мастерских в каталоге услуг",
       "Управление заказами и статусами",
-      { t: "Подписки фанатов (монетизация)", soon: true },
-    ],
+      "Донаты от фанатов криптой (без комиссии)",
+    ] as Feat[],
     cta: "Оформить Pro",
     highlight: true,
   },

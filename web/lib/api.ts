@@ -26,7 +26,17 @@ export type Person = {
   photos: { id: number; url: string }[];
   accent_color?: string;
   pinned_looks?: { id: number; title: string; character: string; image: string | null }[];
+  donations?: { kind: string; address: string }[];
 };
+
+// Крипто-методы приёма донатов (P2P, без комиссии платформы).
+export const DONATION_KINDS: { key: string; label: string; network: string }[] = [
+  { key: "usdt_trc20", label: "USDT", network: "TRC-20 (Tron)" },
+  { key: "ton", label: "TON", network: "The Open Network" },
+  { key: "btc", label: "Bitcoin", network: "Bitcoin" },
+];
+export const DONATION_KIND_META: Record<string, { label: string; network: string }> =
+  Object.fromEntries(DONATION_KINDS.map((k) => [k.key, { label: k.label, network: k.network }]));
 
 // Доступные соцсети: подпись, иконка-символ и база для ссылки (если ввели только ник).
 export const SOCIAL_META: Record<string, { label: string; icon: string; base: string }> = {
@@ -142,6 +152,7 @@ export function normalizeProfile(p: any): Person {
       : [],
     accent_color: p.accent_color || undefined,
     pinned_looks: Array.isArray(p.pinned_looks) ? p.pinned_looks : [],
+    donations: Array.isArray(p.donations) ? p.donations : [],
   };
 }
 
