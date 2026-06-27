@@ -1,5 +1,5 @@
 import { getTeams, type TeamListItem } from "../../lib/api";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -8,8 +8,9 @@ export default async function TeamsPage() {
 
   if (teams.length === 0) {
     return (
-      <ComingSoon icon="♛" title="Команды"
-        desc="Косплей-команды для групповых сетов и конвентов. Создай свою команду в один клик." />
+      <EmptyState icon="♛" title="Команды"
+        desc="Команд пока нет. Создайте свою для групповых сетов и конвентов — в один клик."
+        ctaHref="/teams/new" ctaLabel="+ Создать команду" />
     );
   }
 

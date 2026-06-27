@@ -1,6 +1,6 @@
 import { getLooks } from "../../lib/api";
 import LooksGrid from "../components/LooksGrid";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +9,9 @@ export default async function LooksPage() {
 
   if (looks.length === 0) {
     return (
-      <ComingSoon icon="✧" title="Образы"
-        desc="Галерея косплей-образов: работы участников, теги по персонажам, лайки. Добавь свой образ в кабинете (роль «Косплеер»)." />
+      <EmptyState icon="✧" title="Образы"
+        desc="Образов пока нет. Добавьте свой косплей-образ в кабинете (роль «Косплеер») — с тегами по персонажам и лайками."
+        ctaHref="/cabinet?tab=roles" ctaLabel="+ Добавить образ" />
     );
   }
 

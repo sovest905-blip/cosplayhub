@@ -1,5 +1,5 @@
 import { getShoots, type ShootListItem, SHOOT_ROLE_RU } from "../../lib/api";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -8,17 +8,9 @@ export default async function ShootsPage() {
 
   if (shoots.length === 0) {
     return (
-      <div className="wrap" style={{ paddingTop: 28, paddingBottom: 48 }}>
-        <div className="crumbs">
-          <a href="/">Главная</a><span className="sep">›</span><span className="cur">Съёмки</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, margin: "8px 0 24px" }}>
-          <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 30, margin: 0 }}>Съёмки</h1>
-          <a href="/shoots/new" className="btn btn-primary btn-sm">+ Собрать команду</a>
-        </div>
-        <ComingSoon icon="📸" title="Собери команду на съёмку"
-          desc="Косплеер + фотограф + локация + костюм от мастерской — в одном проекте. Создай первую съёмку и позови команду." />
-      </div>
+      <EmptyState icon="📸" title="Съёмки"
+        desc="Здесь пока пусто. Косплеер + фотограф + локация + костюм от мастерской — соберите команду на съёмку первым."
+        ctaHref="/shoots/new" ctaLabel="+ Собрать команду" />
     );
   }
 

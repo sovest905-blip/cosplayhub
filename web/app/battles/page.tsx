@@ -1,5 +1,5 @@
 import { getBattles, type BattleListItem } from "../../lib/api";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -12,17 +12,9 @@ export default async function BattlesPage() {
 
   if (battles.length === 0) {
     return (
-      <div className="wrap" style={{ paddingTop: 28, paddingBottom: 48 }}>
-        <div className="crumbs">
-          <a href="/">Главная</a><span className="sep">›</span><span className="cur">Баттлы</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, margin: "8px 0 24px" }}>
-          <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 30, margin: 0 }}>Косплей-баттлы</h1>
-          <a href="/battles/new" className="btn btn-primary btn-sm">+ Создать баттл</a>
-        </div>
-        <ComingSoon icon="⚔" title="Косплей-баттлы"
-          desc="Тематические конкурсы образов с народным голосованием. Заявите свой образ и поборитесь за топ." />
-      </div>
+      <EmptyState icon="⚔" title="Косплей-баттлы"
+        desc="Баттлов пока нет. Создайте тематический конкурс образов и позовите участников голосовать."
+        ctaHref="/battles/new" ctaLabel="+ Создать баттл" />
     );
   }
 

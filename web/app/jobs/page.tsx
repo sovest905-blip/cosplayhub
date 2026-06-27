@@ -1,5 +1,5 @@
 import { getPublicListings } from "../../lib/api";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 import PostListingButton from "../components/PostListingButton";
 import JobListings from "../components/JobListings";
 
@@ -10,8 +10,9 @@ export default async function JobsPage() {
 
   if (items.length === 0) {
     return (
-      <ComingSoon icon="⚒" title="Слоты и коллабы"
-        desc="Поиск специалистов и косплей-коллаборации: ищу фотографа, ищу пару на сет и т.д. Размести запрос в кабинете." />
+      <EmptyState icon="⚒" title="Слоты и коллабы"
+        desc="Пока нет открытых слотов и коллабов. Ищете фотографа или пару на сет? Разместите запрос в кабинете."
+        ctaHref="/cabinet?tab=listings" ctaLabel="+ Разместить" />
     );
   }
 

@@ -1,5 +1,5 @@
 import { getGuides, type GuideItem } from "../../lib/api";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +13,9 @@ export default async function GuidesPage() {
 
   if (guides.length === 0) {
     return (
-      <ComingSoon icon="▤" title="Гайды"
-        desc="Туториалы по крафту: EVA, термоформовка, покраска, парики, грим. Скоро здесь появятся материалы." />
+      <EmptyState icon="▤" title="Гайды"
+        desc="Гайдов пока нет. Туториалы по крафту — EVA, термоформовка, покраска, парики, грим. Напишите первый."
+        ctaHref="/guides/new" ctaLabel="+ Написать гайд" />
     );
   }
 

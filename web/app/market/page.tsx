@@ -1,5 +1,5 @@
 import { getPublicListings } from "../../lib/api";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 import PostListingButton from "../components/PostListingButton";
 import MarketListings from "../components/MarketListings";
 
@@ -10,8 +10,9 @@ export default async function MarketPage() {
 
   if (items.length === 0) {
     return (
-      <ComingSoon icon="✄" title="Барахолка"
-        desc="Продажа и обмен б/у костюмов, париков, реквизита и материалов. Размести объявление в кабинете." />
+      <EmptyState icon="✄" title="Барахолка"
+        desc="Пока пусто. Продажа и обмен б/у костюмов, париков, реквизита и материалов — разместите объявление в кабинете."
+        ctaHref="/cabinet?tab=listings" ctaLabel="+ Разместить объявление" />
     );
   }
 

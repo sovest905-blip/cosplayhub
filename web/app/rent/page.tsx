@@ -1,6 +1,6 @@
 import { getCostumes, type CostumeListItem } from "../../lib/api";
 import { fmtPrice } from "../../lib/pricing";
-import ComingSoon from "../components/ComingSoon";
+import EmptyState from "../components/EmptyState";
 
 export const dynamic = "force-dynamic";
 
@@ -9,17 +9,9 @@ export default async function RentPage() {
 
   if (costumes.length === 0) {
     return (
-      <div className="wrap" style={{ paddingTop: 28, paddingBottom: 48 }}>
-        <div className="crumbs">
-          <a href="/">Главная</a><span className="sep">›</span><span className="cur">Прокат</span>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, margin: "8px 0 24px" }}>
-          <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 30, margin: 0 }}>Прокат костюмов</h1>
-          <a href="/rent/new" className="btn btn-primary btn-sm">+ Сдать костюм</a>
-        </div>
-        <ComingSoon icon="👗" title="Прокат костюмов"
-          desc="Костюм дорогой, а носят 1–2 раза. Сдавайте готовые костюмы напрокат и берите чужие на съёмку или фестиваль." />
-      </div>
+      <EmptyState icon="👗" title="Прокат костюмов"
+        desc="Костюмов пока нет. Костюм дорогой, а носят 1–2 раза — сдайте свой напрокат или загляните позже."
+        ctaHref="/rent/new" ctaLabel="+ Сдать костюм" />
     );
   }
 
