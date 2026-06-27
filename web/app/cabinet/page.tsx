@@ -1939,6 +1939,9 @@ export default function CabinetPage() {
               </div>
             ) : (
               <>
+                <div style={{ marginBottom: 16 }}>
+                  <a href="/api/v1/profiles/me/media-kit/" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">⬇ Скачать медиа-кит (PDF)</a>
+                </div>
                 <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 12px" }}>Профиль</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginBottom: 24 }}>
                   <StatCard val={analytics.profile.views_30d ?? 0} label="Просмотров · 30 дн" />

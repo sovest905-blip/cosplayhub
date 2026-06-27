@@ -94,6 +94,88 @@ class ProfileViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _pdf_font():
+    """Регистрирует Unicode-шрифт (кириллица) для reportlab. DejaVu есть в Docker
+    (fonts-dejavu-core) и в CI (ubuntu). Фолбэк — Helvetica (без кириллицы)."""
+    import os
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    if "DejaVu" in pdfmetrics.getRegisteredFontNames():
+        return "DejaVu", "DejaVu-Bold"
+    base = "/usr/share/fonts/truetype/dejavu"
+    reg, bold = f"{base}/DejaVuSans.ttf", f"{base}/DejaVuSans-Bold.ttf"
+    if os.path.exists(reg):
+        pdfmetrics.registerFont(TTFont("DejaVu", reg))
+        if os.path.exists(bold):
+            pdfmetrics.registerFont(TTFont("DejaVu-Bold", bold))
+            return "DejaVu", "DejaVu-Bold"
+        return "DejaVu", "DejaVu"
+    return "Helvetica", "Helvetica-Bold"
+
+
+class MyMediaKitView(APIView):
+    """GET — медиа-кит профиля в PDF (Pro-льгота). Не-Pro → {pro: false}.
+    Для подачи на фестивали / брендам: имя, роли, био, статистика, соцсети."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+
+    def get(self, request):
+        user = request.user
+        if not user.is_pro:
+            return Response({"pro": False})
+
+        from io import BytesIO
+        from django.http import HttpResponse
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.units import mm
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+
+        from apps.looks.models import Look, LookLike
+
+        prof = getattr(user, "profile", None)
+        font, font_b = _pdf_font()
+        roles = " · ".join((prof.roles or [])) if prof else ""
+        look_ids = list(user.looks.filter(is_published=True).values_list("id", flat=True))
+        stats = {
+            "Подписчиков": user.follower_set.count(),
+            "Образов": len(look_ids),
+            "Лайков образов": LookLike.objects.filter(look_id__in=look_ids).count(),
+        }
+        socials = list(prof.socials.all()) if prof else []
+
+        styles = getSampleStyleSheet()
+        h1 = ParagraphStyle("h1", parent=styles["Title"], fontName=font_b, fontSize=26, leading=30)
+        sub = ParagraphStyle("sub", parent=styles["Normal"], fontName=font, fontSize=12,
+                             textColor="#888888", leading=16)
+        body = ParagraphStyle("body", parent=styles["Normal"], fontName=font, fontSize=11, leading=16)
+        hd = ParagraphStyle("hd", parent=styles["Normal"], fontName=font_b, fontSize=13, leading=18,
+                            spaceBefore=12)
+
+        buf = BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=22 * mm, bottomMargin=18 * mm,
+                                leftMargin=20 * mm, rightMargin=20 * mm, title="Медиа-кит")
+        story = [Paragraph((prof.display_name if prof else None) or user.username, h1)]
+        line = " · ".join(x for x in [roles, (user.city or "")] if x)
+        if line:
+            story.append(Paragraph(line, sub))
+        if prof and prof.bio:
+            story += [Spacer(1, 8), Paragraph(prof.bio, body)]
+        story += [Spacer(1, 6), Paragraph("Статистика", hd)]
+        for k, v in stats.items():
+            story.append(Paragraph(f"{k}: <b>{v}</b>", body))
+        if socials:
+            story += [Paragraph("Соцсети", hd)]
+            for s in socials:
+                story.append(Paragraph(f"{s.platform}: {s.handle}", body))
+        story += [Spacer(1, 16), Paragraph("Сгенерировано на КосплейХаб · cosplayhub.kz", sub)]
+        doc.build(story)
+
+        resp = HttpResponse(buf.getvalue(), content_type="application/pdf")
+        resp["Content-Disposition"] = 'attachment; filename="cosplayhub-mediakit.pdf"'
+        return resp
+
+
 class ProfileBySlugView(APIView):
     """GET /profiles/by-slug/<slug>/ → {profile_id, user_id} (для кастомного URL /u/<slug>)."""
     permission_classes = [AllowAny]

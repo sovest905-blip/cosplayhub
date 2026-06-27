@@ -84,6 +84,25 @@ def test_pinned_looks_in_serializer(api, make_user):
 
 
 @pytest.mark.django_db
+def test_media_kit_gated_for_non_pro(api, make_user):
+    user = make_user(); _profile(user)
+    api.force_authenticate(user=user)
+    resp = api.get("/api/v1/profiles/me/media-kit/")
+    assert resp.status_code == 200
+    assert resp.data == {"pro": False}
+
+
+@pytest.mark.django_db
+def test_media_kit_pdf_for_pro(api, make_user):
+    user = make_user(); _profile(user); _pro(user)
+    api.force_authenticate(user=user)
+    resp = api.get("/api/v1/profiles/me/media-kit/")
+    assert resp.status_code == 200
+    assert resp["Content-Type"] == "application/pdf"
+    assert resp.content[:4] == b"%PDF"
+
+
+@pytest.mark.django_db
 def test_pinned_capped_at_three(api, make_user):
     user = make_user(); _profile(user); _pro(user)
     ids = [Look.objects.create(author=user, title=f"L{i}").id for i in range(5)]
