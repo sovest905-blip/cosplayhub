@@ -252,14 +252,24 @@ export async function getGuide(id: string | number): Promise<GuideItem | null> {
 export type LookItem = {
   id: number; title: string; character: string; description: string; image: string | null;
   is_published: boolean; author_name: string; author_id: number | null;
+  stage?: string; stage_display?: string;
   likes_count: number; is_liked: boolean; created_at: string;
 };
 
-export async function getLooks(): Promise<LookItem[] | null> {
-  const data = await get(`/looks/`);
+export const LOOK_STAGE_RU: Record<string, string> = {
+  planned: "Хочу скосплеить", wip: "В работе", done: "Готов",
+};
+
+export async function getLooks(query = ""): Promise<LookItem[] | null> {
+  const data = await get(`/looks/${query}`);
   if (!data) return null;
   const list = data.results ?? data;
   return Array.isArray(list) ? list : [];
+}
+
+export async function getLook(id: string | number): Promise<any | null> {
+  const data = await get(`/looks/${id}/`);
+  return data && data.id ? data : null;
 }
 
 // Опубликованные образы конкретного автора (user_id) — для страницы профиля.

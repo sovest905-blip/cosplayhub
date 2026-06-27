@@ -468,8 +468,29 @@ class Command(BaseCommand):
                                                   defaults={"user": look.author})
             n_battle += 1
 
+        # ── Демо WIP-образы (стадии + этапы работы, идемпотентно) ──
+        from apps.looks.models import Look as LookM, LookUpdate
+        from apps.workshops.models import Workshop as WS
+        n_wip = 0
+        yuki = User.objects.filter(username="yuki_cos").first()
+        if yuki:
+            if not LookM.objects.filter(author=yuki, title="Фурина — хочу скосплеить").exists():
+                LookM.objects.create(author=yuki, title="Фурина — хочу скосплеить",
+                                     character="Genshin Impact", stage="planned",
+                                     description="В планах на следующий сезон. Ищу референсы и ткани.")
+                n_wip += 1
+            wip = LookM.objects.filter(author=yuki, title="Эи — в работе").first()
+            if not wip:
+                wip = LookM.objects.create(author=yuki, title="Эи — в работе",
+                                           character="Genshin Impact", stage="wip",
+                                           description="Собираю образ по этапам.")
+                ws = WS.objects.filter(type="wigs").first() or WS.objects.first()
+                LookUpdate.objects.create(look=wip, text="Сшила основу кимоно, подобрала ткань.")
+                LookUpdate.objects.create(look=wip, text="Заказала парик у мастерской.", workshop=ws)
+                n_wip += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, товаров +{n_prod}, новостей +{n_news}, "
             f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, слотов +{n_slot}, съёмок +{n_shoot}, "
-            f"костюмов +{n_costume}, баттлов +{n_battle}. Пароль всех демо: {PWD}"
+            f"костюмов +{n_costume}, баттлов +{n_battle}, WIP-образов +{n_wip}. Пароль всех демо: {PWD}"
         ))

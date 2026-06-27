@@ -47,7 +47,12 @@ export default function LooksGrid({ looks }: { looks: LookItem[] }) {
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 16 }}>
         {looks.map((l, i) => (
-          <article key={l.id} style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <article key={l.id} style={{ position: "relative", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            {l.stage && l.stage !== "done" && (
+              <span style={{ position: "absolute", top: 8, left: 8, zIndex: 1, fontSize: 11,
+                background: "rgba(0,0,0,.65)", color: l.stage === "wip" ? "var(--accent-3)" : "var(--accent-2)",
+                borderRadius: 20, padding: "3px 9px" }}>{l.stage_display}</span>
+            )}
             <button
               onClick={() => setOpen(i)}
               aria-label={`Открыть образ «${l.title}»`}
@@ -60,6 +65,7 @@ export default function LooksGrid({ looks }: { looks: LookItem[] }) {
             <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
               <h3 style={{ fontSize: 15, margin: 0, cursor: "pointer" }} onClick={() => setOpen(i)}>{l.title}</h3>
               {l.character && <div style={{ fontSize: 12, color: "var(--accent-2)" }}>{l.character}</div>}
+              <a href={`/looks/${l.id}`} style={{ fontSize: 12, color: "var(--accent-2)" }}>Прогресс →</a>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto", paddingTop: 8 }}>
                 {l.author_id
                   ? <a href={`/people/${l.author_id}`} style={{ fontSize: 12, color: "var(--ink-dim)" }}>@{l.author_name}</a>

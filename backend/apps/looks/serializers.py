@@ -1,21 +1,50 @@
 from rest_framework import serializers
-from .models import Look
+from .models import Look, LookUpdate
+
+
+class LookUpdateSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    workshop_name = serializers.CharField(source="workshop.name", read_only=True, default=None)
+
+    class Meta:
+        model = LookUpdate
+        fields = ["id", "text", "image", "workshop", "workshop_name", "created_at"]
+        read_only_fields = ["created_at"]
+
+    def get_image(self, obj):
+        return obj.image.url if obj.image else None
 
 
 class LookSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
     author_name = serializers.SerializerMethodField()
     author_id = serializers.SerializerMethodField()
+    author_profile_id = serializers.SerializerMethodField()
     likes_count = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
     team_name = serializers.SerializerMethodField()
+    stage_display = serializers.CharField(source="get_stage_display", read_only=True)
+    updates = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = Look
         fields = ["id", "title", "character", "description", "image", "is_published",
-                  "author_name", "author_id", "team", "team_name",
-                  "likes_count", "is_liked", "created_at"]
-        read_only_fields = ["author_name", "author_id", "team_name", "likes_count", "is_liked", "created_at"]
+                  "stage", "stage_display", "author_name", "author_id", "author_profile_id",
+                  "team", "team_name", "likes_count", "is_liked", "updates", "is_mine", "created_at"]
+        read_only_fields = ["author_name", "author_id", "author_profile_id", "team_name",
+                            "likes_count", "is_liked", "stage_display", "updates", "is_mine", "created_at"]
+
+    def get_updates(self, obj):
+        return LookUpdateSerializer(obj.updates.all(), many=True).data
+
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.author_id == request.user.id)
+
+    def get_author_profile_id(self, obj):
+        prof = getattr(obj.author, "profile", None) if obj.author else None
+        return prof.id if prof else None
 
     def to_representation(self, instance):
         # Относительный URL картинки (/media/...): работает на любом origin —

@@ -102,7 +102,7 @@ export default function CabinetPage() {
   const [photoErr, setPhotoErr] = useState("");
   const [myLooks, setMyLooks] = useState<any[]>([]);
   const [myTeams, setMyTeams] = useState<any[]>([]);
-  const [lookForm, setLookForm] = useState({ title: "", character: "", team: "" });
+  const [lookForm, setLookForm] = useState({ title: "", character: "", team: "", stage: "done" });
   const [lookImg, setLookImg] = useState<File | null>(null);
   const [lookUp, setLookUp] = useState(false);
   const [lookErr, setLookErr] = useState("");
@@ -599,18 +599,20 @@ export default function CabinetPage() {
   async function addLook() {
     setLookErr("");
     if (!lookForm.title.trim()) { setLookErr("Введите название образа"); return; }
-    if (!lookImg) { setLookErr("Добавьте фото"); return; }
-    if (lookImg.size > 5 * 1024 * 1024) { setLookErr("Максимум 5 МБ"); return; }
+    // Фото обязательно для готового образа; «Хочу скосплеить»/«В работе» можно без фото.
+    if (lookForm.stage === "done" && !lookImg) { setLookErr("Добавьте фото готового образа"); return; }
+    if (lookImg && lookImg.size > 5 * 1024 * 1024) { setLookErr("Максимум 5 МБ"); return; }
     setLookUp(true);
     try {
       const fd = new FormData();
       fd.append("title", lookForm.title);
       fd.append("character", lookForm.character);
+      fd.append("stage", lookForm.stage);
       if (lookForm.team) fd.append("team", lookForm.team);
-      fd.append("image", lookImg);
+      if (lookImg) fd.append("image", lookImg);
       const res = await fetch(`/api/v1/looks/`, { method: "POST", credentials: "include", body: fd });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) { setMyLooks((prev) => [data, ...prev]); setLookForm({ title: "", character: "", team: "" }); setLookImg(null); }
+      if (res.ok) { setMyLooks((prev) => [data, ...prev]); setLookForm({ title: "", character: "", team: "", stage: "done" }); setLookImg(null); }
       else setLookErr(data.detail || data.image?.[0] || "Не удалось");
     } finally { setLookUp(false); }
   }
@@ -925,10 +927,17 @@ export default function CabinetPage() {
           <h4 style={{ margin: 0, fontSize: 14 }}>Мои образы</h4>
           <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{myLooks.length} в ленте</span>
         </div>
-        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Покажи свои косплеи — они появятся в разделе «Образы» с лайками.</p>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>Покажи свои косплеи — они появятся в разделе «Образы» с лайками. «Хочу скосплеить» и «В работе» можно добавить без фото и вести прогресс.</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px", marginBottom: 8 }}>
           <div className="field"><label>Название образа</label><input value={lookForm.title} onChange={(e) => setLookForm({ ...lookForm, title: e.target.value })} placeholder="Райден Сёгун" /></div>
           <div className="field"><label>Персонаж / фандом</label><input value={lookForm.character} onChange={(e) => setLookForm({ ...lookForm, character: e.target.value })} placeholder="Genshin Impact" /></div>
+        </div>
+        <div className="field"><label>Стадия</label>
+          <select value={lookForm.stage} onChange={(e) => setLookForm({ ...lookForm, stage: e.target.value })}>
+            <option value="done">Готов</option>
+            <option value="wip">В работе</option>
+            <option value="planned">Хочу скосплеить</option>
+          </select>
         </div>
         {myTeams.length > 0 && (
           <div className="field"><label>Команда (необязательно)</label>
@@ -947,9 +956,15 @@ export default function CabinetPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(100px,1fr))", gap: 10 }}>
             {myLooks.map((l) => (
               <div key={l.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
-                <div style={{ aspectRatio: "3/4", backgroundSize: "cover", backgroundPosition: "center",
-                  backgroundImage: `url('${l.image || "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=300&q=80"}')` }} />
-                <div style={{ fontSize: 10, padding: "4px 6px", color: "var(--ink-dim)" }}>{l.title} · ♥ {l.likes_count}</div>
+                <a href={`/looks/${l.id}`} title="Открыть прогресс">
+                  <div style={{ aspectRatio: "3/4", backgroundSize: "cover", backgroundPosition: "center",
+                    backgroundImage: `url('${l.image || "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=300&q=80"}')` }} />
+                </a>
+                {l.stage && l.stage !== "done" && (
+                  <span style={{ position: "absolute", top: 4, left: 4, fontSize: 9, background: "rgba(0,0,0,.65)",
+                    color: l.stage === "wip" ? "var(--accent-3)" : "var(--accent-2)", borderRadius: 10, padding: "2px 6px" }}>{l.stage_display}</span>
+                )}
+                <a href={`/looks/${l.id}`} style={{ display: "block", fontSize: 10, padding: "4px 6px", color: "var(--ink-dim)" }}>{l.title} · ♥ {l.likes_count}</a>
                 <button onClick={() => delLook(l.id)} title="Удалить"
                   style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none",
                     background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
