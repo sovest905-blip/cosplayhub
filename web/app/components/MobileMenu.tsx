@@ -21,6 +21,7 @@ const SECTIONS = [
       { href: "/shops", label: "Магазины" },
       { href: "/jobs", label: "Слоты" },
       { href: "/locations", label: "Локации" },
+      { href: "/rent", label: "Прокат" },
     ],
   },
   {

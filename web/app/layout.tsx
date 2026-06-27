@@ -106,6 +106,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     <div className="drop-ic">⌖</div>
                     <div><b>Локации</b><small>{pl(s?.locations ?? 0, ["место", "места", "мест"])}</small></div>
                   </a>
+                  <a href="/rent">
+                    <div className="drop-ic">👗</div>
+                    <div><b>Прокат</b><small>костюмы напрокат</small></div>
+                  </a>
                 </div>
               </div>
               <div className="menu-item has-drop">
@@ -169,6 +173,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <a href="/shops">Магазины</a>
                 <a href="/locations">Локации</a>
                 <a href="/jobs">Слоты</a>
+                <a href="/rent">Прокат</a>
               </div>
               <div>
                 <h4>Сообщество</h4>

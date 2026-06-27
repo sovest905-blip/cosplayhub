@@ -434,7 +434,26 @@ class Command(BaseCommand):
                         defaults={"role": "photographer", "status": "confirmed"})
             n_shoot += 1
 
+        # ── Демо-костюмы напрокат (идемпотентно) ──
+        from apps.rentals.models import Costume
+        n_costume = 0
+        costume_plans = [
+            {"owner": "yuki_cos", "title": "Костюм Райдэн Сёгун", "character": "Genshin Impact",
+             "city": "Алматы", "size": "M / рост 165", "price_day": 6000, "deposit": 20000,
+             "description": "Полный сет: кимоно, парик, катана-бутафория, обувь. Состояние отличное."},
+            {"owner": "rin_kz", "title": "Школьная форма Ререм", "character": "Тёмное фэнтези",
+             "city": "Астана", "size": "S-M", "price_day": 3500, "deposit": 10000,
+             "description": "Платье + аксессуары. Подходит для фотосессий."},
+        ]
+        for cp in costume_plans:
+            u = User.objects.filter(username=cp["owner"]).first()
+            if not u or Costume.objects.filter(owner=u, title=cp["title"]).exists():
+                continue
+            Costume.objects.create(owner=u, **{k: v for k, v in cp.items() if k != "owner"})
+            n_costume += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, товаров +{n_prod}, новостей +{n_news}, "
-            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, слотов +{n_slot}, съёмок +{n_shoot}. Пароль всех демо: {PWD}"
+            f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, слотов +{n_slot}, съёмок +{n_shoot}, "
+            f"костюмов +{n_costume}. Пароль всех демо: {PWD}"
         ))

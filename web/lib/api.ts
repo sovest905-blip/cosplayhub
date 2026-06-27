@@ -321,6 +321,33 @@ export async function getShoot(id: string | number): Promise<any | null> {
   return data && data.id ? data : null;
 }
 
+// ── Прокат костюмов ──
+export const RENTAL_STATUS_RU: Record<string, string> = {
+  pending: "Заявка", approved: "Подтверждена", declined: "Отклонена", cancelled: "Отменена",
+};
+export const COSTUME_STATUS_RU: Record<string, string> = {
+  available: "Свободен", rented: "В аренде", unavailable: "Недоступен",
+};
+
+export type CostumeListItem = {
+  id: number; title: string; character: string; city: string; size: string;
+  price_day: number | null; deposit: number | null; image: string | null;
+  status: string; status_display: string;
+  owner_name: string; owner_profile_id: number | null;
+};
+
+export async function getCostumes(query = ""): Promise<CostumeListItem[] | null> {
+  const data = await get(`/costumes/${query}`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+export async function getCostume(id: string | number): Promise<any | null> {
+  const data = await get(`/costumes/${id}/`);
+  return data && data.id ? data : null;
+}
+
 // ── Товары магазина (витрина продавца) ──
 export type Product = {
   id: number; title: string; description: string; price: number | null;
