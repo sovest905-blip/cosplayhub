@@ -30,7 +30,8 @@ export default function NewShootPage() {
       fd.append("title", f.title); fd.append("city", f.city);
       if (f.date) fd.append("date", f.date);
       fd.append("description", f.description);
-      roles.forEach((r) => fd.append("looking_for", r));
+      // JSONField в multipart ждёт JSON-строку (повторяющийся ключ → «не корректный JSON»)
+      fd.append("looking_for", JSON.stringify(roles));
       if (cover) fd.append("cover", cover);
       const res = await fetch("/api/v1/shoots/", { method: "POST", credentials: "include", body: fd });
       const data = await res.json().catch(() => ({}));
