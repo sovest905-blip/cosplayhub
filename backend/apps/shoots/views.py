@@ -31,6 +31,13 @@ def _notify(user, text, url):
     notify(user, "system", text, url)
 
 
+def _fresh(shoot_id, request):
+    """Сериализовать съёмку из СВЕЖЕГО queryset (после мутаций participants —
+    префетч у get_object() кэширует старые статусы → counts/requests врут)."""
+    obj = _qs().get(pk=shoot_id)
+    return ShootSerializer(obj, context={"request": request}).data
+
+
 class ShootViewSet(viewsets.ModelViewSet):
     """Съёмки (сбор команды). Витрина всем; создаёт залогиненный; правит организатор/staff."""
     serializer_class = ShootSerializer
@@ -94,7 +101,7 @@ class ShootViewSet(viewsets.ModelViewSet):
         if created:
             _notify(shoot.organizer, f"Заявка в съёмку «{shoot.title}» от {user.username}",
                     f"/shoots/{shoot.id}")
-        return Response(ShootSerializer(shoot, context={"request": request}).data,
+        return Response(_fresh(shoot.id, request),
                         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     # ── Приглашение участника организатором ──
@@ -118,7 +125,7 @@ class ShootViewSet(viewsets.ModelViewSet):
         )
         if created:
             _notify(target, f"Вас зовут в съёмку «{shoot.title}»", f"/shoots/{shoot.id}")
-        return Response(ShootSerializer(shoot, context={"request": request}).data,
+        return Response(_fresh(shoot.id, request),
                         status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     # ── Управление участником ──
@@ -156,7 +163,7 @@ class ShootViewSet(viewsets.ModelViewSet):
         else:
             return Response({"detail": "action: confirm|decline|remove"}, status=400)
 
-        return Response(ShootSerializer(shoot, context={"request": request}).data)
+        return Response(_fresh(shoot.id, request))
 
 
 class MyShootsView(APIView):
