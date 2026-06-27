@@ -1,6 +1,6 @@
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated, SAFE_METHODS
 from rest_framework.response import Response
 
@@ -37,7 +37,7 @@ class BattleViewSet(viewsets.ModelViewSet):
     serializer_class = BattleSerializer
     authentication_classes = [CsrfExemptSessionAuthentication]
     permission_classes = [IsCreatorOrStaffOrReadOnly]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_queryset(self):
         qs = _qs()
