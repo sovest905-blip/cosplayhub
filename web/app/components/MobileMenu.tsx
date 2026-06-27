@@ -12,6 +12,7 @@ const SECTIONS = [
       { href: "/looks", label: "Образы" },
       { href: "/teams", label: "Команды" },
       { href: "/shoots", label: "Съёмки" },
+      { href: "/battles", label: "Баттлы" },
     ],
   },
   {

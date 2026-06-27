@@ -85,6 +85,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     <div className="drop-ic">📸</div>
                     <div><b>Съёмки</b><small>собрать команду</small></div>
                   </a>
+                  <a href="/battles">
+                    <div className="drop-ic">⚔</div>
+                    <div><b>Баттлы</b><small>конкурсы образов</small></div>
+                  </a>
                 </div>
               </div>
               <div className="menu-item has-drop">
@@ -166,6 +170,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <a href="/looks">Образы</a>
                 <a href="/teams">Команды</a>
                 <a href="/shoots">Съёмки</a>
+                <a href="/battles">Баттлы</a>
               </div>
               <div>
                 <h4>Услуги</h4>

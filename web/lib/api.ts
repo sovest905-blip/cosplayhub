@@ -348,6 +348,29 @@ export async function getCostume(id: string | number): Promise<any | null> {
   return data && data.id ? data : null;
 }
 
+// ── Косплей-баттлы ──
+export const BATTLE_STATUS_RU: Record<string, string> = {
+  upcoming: "Скоро", voting: "Идёт голосование", finished: "Завершён",
+};
+
+export type BattleListItem = {
+  id: number; title: string; theme: string; cover: string | null;
+  status: string; status_display: string; entries_count: number;
+  starts_at: string | null; ends_at: string | null;
+};
+
+export async function getBattles(query = ""): Promise<BattleListItem[] | null> {
+  const data = await get(`/battles/${query}`);
+  if (!data) return null;
+  const list = data.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+export async function getBattle(id: string | number): Promise<any | null> {
+  const data = await get(`/battles/${id}/`);
+  return data && data.id ? data : null;
+}
+
 // ── Товары магазина (витрина продавца) ──
 export type Product = {
   id: number; title: string; description: string; price: number | null;

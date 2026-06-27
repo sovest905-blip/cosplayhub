@@ -48,6 +48,7 @@ api_v1 = [
     path("", include("apps.bookings.urls")),
     path("", include("apps.shoots.urls")),
     path("", include("apps.rentals.urls")),
+    path("", include("apps.battles.urls")),
     # ── Веб админ-панель (только staff) ──
     path("admin-panel/users/", AdminUsersView.as_view(), name="ap-users"),
     path("admin-panel/users/<int:pk>/set-roles/", AdminUserRolesView.as_view(), name="ap-roles"),

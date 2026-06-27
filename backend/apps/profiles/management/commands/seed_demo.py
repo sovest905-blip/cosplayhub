@@ -452,8 +452,24 @@ class Command(BaseCommand):
             Costume.objects.create(owner=u, **{k: v for k, v in cp.items() if k != "owner"})
             n_costume += 1
 
+        # ── Демо-баттл с участниками (идемпотентно) ──
+        from apps.battles.models import Battle, BattleEntry
+        from apps.looks.models import Look as LookModel
+        n_battle = 0
+        if not Battle.objects.filter(title="Образ месяца").exists():
+            battle = Battle.objects.create(
+                title="Образ месяца", theme="Любой фандом",
+                description="Народное голосование за лучший косплей-образ. Заявляйте свои работы!",
+                starts_at=timezone.localdate() - timedelta(days=2),
+                ends_at=timezone.localdate() + timedelta(days=14),
+            )
+            for look in LookModel.objects.filter(is_published=True, author__isnull=False)[:4]:
+                BattleEntry.objects.get_or_create(battle=battle, look=look,
+                                                  defaults={"user": look.author})
+            n_battle += 1
+
         self.stdout.write(self.style.SUCCESS(
             f"Готово: профилей {n_prof}, мастерских +{n_ws}, объявлений +{n_list}, товаров +{n_prod}, новостей +{n_news}, "
             f"событий +{n_ev}, гайдов +{n_guide}, образов +{n_look}, команд +{n_team}, слотов +{n_slot}, съёмок +{n_shoot}, "
-            f"костюмов +{n_costume}. Пароль всех демо: {PWD}"
+            f"костюмов +{n_costume}, баттлов +{n_battle}. Пароль всех демо: {PWD}"
         ))
