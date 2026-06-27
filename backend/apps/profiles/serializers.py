@@ -26,14 +26,29 @@ class ProfileSerializer(serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField()
     looks_count = serializers.SerializerMethodField()
     is_following = serializers.SerializerMethodField()
+    pinned_looks = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "user_id", "display_name", "username", "bio", "roles", "role_details",
                   "avatar", "cover", "available_for_work", "experience", "rating", "accent_color",
-                  "city", "is_verified", "socials", "photos", "followers_count", "looks_count",
-                  "is_following", "created_at"]
-        read_only_fields = ["rating", "created_at"]
+                  "slug", "pinned_looks", "city", "is_verified", "socials", "photos",
+                  "followers_count", "looks_count", "is_following", "created_at"]
+        read_only_fields = ["rating", "slug", "created_at"]
+
+    def get_pinned_looks(self, obj):
+        ids = obj.pinned_look_ids or []
+        if not ids or not obj.user_id:
+            return []
+        from apps.looks.models import Look
+        looks = {l.id: l for l in Look.objects.filter(id__in=ids, author_id=obj.user_id, is_published=True)}
+        out = []
+        for i in ids:  # сохраняем порядок закрепления
+            l = looks.get(i)
+            if l:
+                out.append({"id": l.id, "title": l.title, "character": l.character,
+                            "image": l.image.url if l.image else None})
+        return out
 
     def to_representation(self, instance):
         # Относительные URL медиа (/media/...): корректны и в браузере, и при SSR.

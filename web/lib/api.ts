@@ -24,6 +24,8 @@ export type Person = {
   followers: number; looks: number; photo: string; specialization: string; bio: string;
   roles: string[]; role_details: Record<string, Record<string, any>>; socials: Social[];
   photos: { id: number; url: string }[];
+  accent_color?: string;
+  pinned_looks?: { id: number; title: string; character: string; image: string | null }[];
 };
 
 // Доступные соцсети: подпись, иконка-символ и база для ссылки (если ввели только ник).
@@ -138,6 +140,8 @@ export function normalizeProfile(p: any): Person {
     photos: Array.isArray(p.photos)
       ? p.photos.filter((ph: any) => ph && ph.url).map((ph: any) => ({ id: ph.id, url: ph.url }))
       : [],
+    accent_color: p.accent_color || undefined,
+    pinned_looks: Array.isArray(p.pinned_looks) ? p.pinned_looks : [],
   };
 }
 

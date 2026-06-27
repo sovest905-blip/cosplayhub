@@ -105,6 +105,11 @@ class MeSerializer(serializers.ModelSerializer):
     role_details = serializers.DictField(required=False)
     socials = serializers.ListField(child=serializers.DictField(), required=False)
     profile_id = serializers.SerializerMethodField()
+    # Pro-кастомизация (записывается только при активном Pro; см. update)
+    slug = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    accent_color = serializers.CharField(required=False, allow_blank=True)
+    hide_from_catalog = serializers.BooleanField(required=False)
+    pinned_look_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
 
     class Meta:
         model = User
@@ -112,6 +117,7 @@ class MeSerializer(serializers.ModelSerializer):
             "id", "username", "email", "phone", "city",
             "bio", "experience", "roles", "available_for_work", "accept_messages",
             "role_details", "socials", "profile_id",
+            "slug", "accent_color", "hide_from_catalog", "pinned_look_ids",
             "is_email_verified", "is_phone_verified", "is_verified", "is_staff",
         ]
         read_only_fields = ["email", "phone", "is_email_verified", "is_phone_verified", "is_verified", "is_staff"]
@@ -135,11 +141,42 @@ class MeSerializer(serializers.ModelSerializer):
         )
         data["avatar"] = prof.avatar.url if prof and prof.avatar else None
         data["cover"] = prof.cover.url if prof and prof.cover else None
+        data["slug"] = prof.slug if prof else None
+        data["accent_color"] = prof.accent_color if prof else "#ff2d6f"
+        data["hide_from_catalog"] = prof.hide_from_catalog if prof else False
+        data["pinned_look_ids"] = (prof.pinned_look_ids or []) if prof else []
         # Pro-статус из billing (вычисляется по сроку)
         pro_sub = instance.subscriptions.filter(plan="pro", workshop__isnull=True).first()
         data["is_pro"] = bool(pro_sub and pro_sub.is_active)
         data["pro_active_until"] = pro_sub.active_until if (pro_sub and pro_sub.is_active) else None
         return data
+
+    def _apply_pro_fields(self, instance, validated_data, prof_fields):
+        """Pro-кастомизация (slug/accent/hide/pinned) — пишется ТОЛЬКО при активном Pro.
+        Не-Pro значения молча игнорируем (поля просто не применяются)."""
+        from django.utils.text import slugify
+        pro_keys = ("slug", "accent_color", "hide_from_catalog", "pinned_look_ids")
+        incoming = {k: validated_data.pop(k) for k in pro_keys if k in validated_data}
+        if not incoming or not instance.is_pro:
+            return
+        if "slug" in incoming:
+            raw = (incoming["slug"] or "").strip()
+            if not raw:
+                prof_fields["slug"] = None
+            else:
+                s = slugify(raw, allow_unicode=False)[:40]
+                if not s:
+                    raise serializers.ValidationError({"slug": "Недопустимая ссылка (только латиница/цифры/дефис)"})
+                from apps.profiles.models import Profile
+                if Profile.objects.filter(slug=s).exclude(user=instance).exists():
+                    raise serializers.ValidationError({"slug": "Эта ссылка уже занята"})
+                prof_fields["slug"] = s
+        if "accent_color" in incoming:
+            prof_fields["accent_color"] = (incoming["accent_color"] or "#ff2d6f")[:7]
+        if "hide_from_catalog" in incoming:
+            prof_fields["hide_from_catalog"] = bool(incoming["hide_from_catalog"])
+        if "pinned_look_ids" in incoming:
+            prof_fields["pinned_look_ids"] = list(incoming["pinned_look_ids"])[:3]  # максимум 3
 
     def update(self, instance, validated_data):
         socials = validated_data.pop("socials", None)
@@ -147,6 +184,7 @@ class MeSerializer(serializers.ModelSerializer):
         for key in ("bio", "experience", "roles", "available_for_work", "accept_messages", "role_details"):
             if key in validated_data:
                 prof_fields[key] = validated_data.pop(key)
+        self._apply_pro_fields(instance, validated_data, prof_fields)
 
         # User-поля (ник, город)
         for attr, value in validated_data.items():

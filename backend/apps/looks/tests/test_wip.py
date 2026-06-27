@@ -98,3 +98,39 @@ def test_updates_in_serializer(api, make_user):
     assert len(data["updates"]) == 1
     assert data["updates"][0]["text"] == "первый этап"
     assert data["stage_display"] == "В работе"
+
+
+# ── Продвижение в ленте (Pro 1.5) ─────────────────────────────────────────────────
+
+@pytest.mark.django_db
+def test_boost_requires_pro(api, make_user):
+    user = make_user()
+    look = _look(user)
+    api.force_authenticate(user=user)
+    assert api.post(f"{LOOKS}{look.id}/boost/").status_code == 403  # без Pro нельзя
+
+
+@pytest.mark.django_db
+def test_boost_sets_flag_for_pro(api, make_user):
+    from apps.billing.models import Subscription
+    user = make_user()
+    Subscription.objects.create(user=user, plan="pro", source="manual")
+    look = _look(user)
+    api.force_authenticate(user=user)
+    resp = api.post(f"{LOOKS}{look.id}/boost/")
+    assert resp.status_code == 200 and resp.data["is_boosted"] is True
+    assert api.get(f"{LOOKS}{look.id}/").data["is_boosted"] is True
+    # снять
+    api.delete(f"{LOOKS}{look.id}/boost/")
+    assert api.get(f"{LOOKS}{look.id}/").data["is_boosted"] is False
+
+
+@pytest.mark.django_db
+def test_cannot_boost_foreign(api, make_user):
+    from apps.billing.models import Subscription
+    owner = make_user(username="o", email="o@e.com")
+    other = make_user(username="x", email="x@e.com")
+    Subscription.objects.create(user=other, plan="pro", source="manual")
+    look = _look(owner)
+    api.force_authenticate(user=other)
+    assert api.post(f"{LOOKS}{look.id}/boost/").status_code == 403

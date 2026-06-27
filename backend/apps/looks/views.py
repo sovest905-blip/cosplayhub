@@ -49,7 +49,7 @@ class LookViewSet(viewsets.ModelViewSet):
         # like ОБЯЗАН быть тут: иначе падает в IsOwnerOrStaffOrReadOnly и лайкнуть
         # чужой образ может только автор/staff (поймано test_like_toggle). get_permissions
         # перекрывает permission_classes у @action, поэтому действие надо перечислять явно.
-        if self.action in ("create", "like", "updates"):
+        if self.action in ("create", "like", "updates", "boost"):
             return [IsAuthenticated()]
         return [IsOwnerOrStaffOrReadOnly()]
 
@@ -94,6 +94,24 @@ class LookViewSet(viewsets.ModelViewSet):
             ws = Workshop.objects.filter(pk=wid).first()
         upd = LookUpdate.objects.create(look=look, text=text, image=image, workshop=ws)
         return Response(LookUpdateSerializer(upd).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post", "delete"])
+    def boost(self, request, pk=None):
+        """POST — продвинуть образ в ленте на 7 дней (Pro, только свой). DELETE — снять."""
+        look = self.get_object()
+        if not (request.user.is_staff or look.author_id == request.user.id):
+            return Response({"detail": "Не ваш образ"}, status=status.HTTP_403_FORBIDDEN)
+        if request.method == "DELETE":
+            look.boosted_until = None
+            look.save(update_fields=["boosted_until"])
+            return Response({"is_boosted": False})
+        if not request.user.is_pro:
+            return Response({"detail": "Продвижение образа — фишка Pro"}, status=status.HTTP_403_FORBIDDEN)
+        from datetime import timedelta
+        from django.utils import timezone
+        look.boosted_until = timezone.now() + timedelta(days=7)
+        look.save(update_fields=["boosted_until"])
+        return Response({"is_boosted": True, "boosted_until": look.boosted_until})
 
     @action(detail=True, methods=["delete"], url_path=r"updates/(?P<update_id>\d+)")
     def delete_update(self, request, pk=None, update_id=None):

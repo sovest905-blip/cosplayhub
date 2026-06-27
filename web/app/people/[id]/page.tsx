@@ -218,6 +218,20 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
             </div>
           )}
 
+          {person.pinned_looks && person.pinned_looks.length > 0 && (
+            <div className="about">
+              <h3>📌 Избранные образы</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
+                {person.pinned_looks.map((l) => (
+                  <a key={l.id} href={`/looks/${l.id}`} title={l.title} style={{
+                    aspectRatio: "3/4", borderRadius: 10, display: "block",
+                    backgroundImage: `url('${l.image || person.photo}')`, backgroundSize: "cover", backgroundPosition: "center",
+                  }} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {looks.length > 0 ? (
             <div className="about">
               <h3>Образы <span style={{ color: "var(--ink-dim)", fontWeight: 400, fontSize: 13 }}>· {looks.length}</span></h3>

@@ -134,6 +134,12 @@ export default function CabinetPage() {
   const [emBusy, setEmBusy] = useState(false);
   const [emMsg, setEmMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [availForWork, setAvailForWork] = useState(false);
+  // Pro-кастомизация (1.4/1.6)
+  const [custSlug, setCustSlug] = useState("");
+  const [custAccent, setCustAccent] = useState("#ff2d6f");
+  const [custHide, setCustHide] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<number[]>([]);
+  const [custMsg, setCustMsg] = useState("");
   const [acceptMessages, setAcceptMessages] = useState(true);
   const [ordersCount, setOrdersCount] = useState(0);
   const [myOrders, setMyOrders] = useState<MyOrder[]>([]);
@@ -223,6 +229,10 @@ export default function CabinetPage() {
         setAcceptMessages(data.accept_messages !== false);
         setAvatarUrl(data.avatar || null);
         setCoverUrl(data.cover || null);
+        setCustSlug(data.slug || "");
+        setCustAccent(data.accent_color || "#ff2d6f");
+        setCustHide(!!data.hide_from_catalog);
+        setPinnedIds(Array.isArray(data.pinned_look_ids) ? data.pinned_look_ids : []);
         setAuthed(true);
       })
       .catch(() => router.replace("/auth/login"));
@@ -442,6 +452,21 @@ export default function CabinetPage() {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       credentials: "include", body: JSON.stringify(patch),
     });
+  }
+
+  function togglePin(id: number) {
+    setPinnedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : (prev.length >= 3 ? prev : [...prev, id]));
+  }
+
+  async function saveCustomization() {
+    setCustMsg("");
+    const res = await fetch(`/api/v1/auth/me/`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ slug: custSlug, accent_color: custAccent, hide_from_catalog: custHide, pinned_look_ids: pinnedIds }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { setMe(data); setCustSlug(data.slug || ""); setCustMsg("Сохранено ✓"); setTimeout(() => setCustMsg(""), 2500); }
+    else { setCustMsg(data.slug?.[0] || data.detail || "Не удалось сохранить"); }
   }
 
   async function submitReview(orderId: number) {
@@ -2209,6 +2234,58 @@ export default function CabinetPage() {
                 <div className={`toggle${acceptMessages ? " on" : ""}`} style={{ cursor: "pointer" }}
                   onClick={() => { const v = !acceptMessages; setAcceptMessages(v); patchProfile({ accept_messages: v }); }} />
               </div>
+            </div>
+
+            {/* Pro-кастомизация (1.4/1.6) */}
+            <div className="acc-card">
+              <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 4px" }}>Pro-кастомизация</h2>
+              {!user.is_pro ? (
+                <div style={{ fontSize: 13, color: "var(--ink-dim)" }}>
+                  Свой адрес профиля, акцентный цвет, закреплённые образы и скрытие из каталога — фишки{" "}
+                  <a href="/pro" style={{ color: "var(--accent-2)" }}>Pro</a>.
+                </div>
+              ) : (
+                <>
+                  <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 14px" }}>Персонализируйте профиль — это видят гости.</p>
+                  <div className="field"><label>Свой адрес профиля</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 13, color: "var(--ink-dim)" }}>/u/</span>
+                      <input value={custSlug} onChange={(e) => setCustSlug(e.target.value)} placeholder="nick" style={{ flex: 1 }} />
+                    </div>
+                  </div>
+                  <div className="field"><label>Акцентный цвет</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <input type="color" value={custAccent} onChange={(e) => setCustAccent(e.target.value)} style={{ width: 48, height: 34, padding: 2, background: "none", border: "1px solid var(--line)", borderRadius: 8, cursor: "pointer" }} />
+                      <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{custAccent}</span>
+                    </div>
+                  </div>
+                  <div className="toggle-row" style={{ padding: "8px 0" }}>
+                    <div><strong style={{ fontSize: 13 }}>Скрыть из каталога</strong><div style={{ fontSize: 12, color: "var(--ink-dim)" }}>Профиль не показывается в списках, но доступен по прямой ссылке</div></div>
+                    <div className={`toggle${custHide ? " on" : ""}`} style={{ cursor: "pointer" }} onClick={() => setCustHide((v) => !v)} />
+                  </div>
+                  {myLooks.length > 0 && (
+                    <div className="field"><label>Закреплённые образы (до 3)</label>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                        {myLooks.map((l) => {
+                          const on = pinnedIds.includes(l.id);
+                          return (
+                            <button key={l.id} type="button" onClick={() => togglePin(l.id)}
+                              style={{ fontSize: 12, padding: "5px 11px", borderRadius: 16, cursor: "pointer",
+                                border: `1px solid ${on ? "var(--accent)" : "var(--line)"}`,
+                                background: on ? "rgba(255,45,111,.12)" : "transparent", color: on ? "var(--accent)" : "var(--ink-dim)" }}>
+                              {on ? "📌 " : ""}{l.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
+                    <button className="btn btn-primary btn-sm" onClick={saveCustomization}>Сохранить</button>
+                    {custMsg && <span style={{ fontSize: 12, color: custMsg.includes("✓") ? "var(--green)" : "var(--red)" }}>{custMsg}</span>}
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Смена пароля */}

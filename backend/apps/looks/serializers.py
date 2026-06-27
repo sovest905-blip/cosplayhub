@@ -26,14 +26,21 @@ class LookSerializer(serializers.ModelSerializer):
     stage_display = serializers.CharField(source="get_stage_display", read_only=True)
     updates = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    is_boosted = serializers.SerializerMethodField()
 
     class Meta:
         model = Look
         fields = ["id", "title", "character", "description", "image", "is_published",
                   "stage", "stage_display", "author_name", "author_id", "author_profile_id",
-                  "team", "team_name", "likes_count", "is_liked", "updates", "is_mine", "created_at"]
+                  "team", "team_name", "likes_count", "is_liked", "updates", "is_mine",
+                  "is_boosted", "created_at"]
         read_only_fields = ["author_name", "author_id", "author_profile_id", "team_name",
-                            "likes_count", "is_liked", "stage_display", "updates", "is_mine", "created_at"]
+                            "likes_count", "is_liked", "stage_display", "updates", "is_mine",
+                            "is_boosted", "created_at"]
+
+    def get_is_boosted(self, obj):
+        from django.utils import timezone
+        return bool(obj.boosted_until and obj.boosted_until > timezone.now())
 
     def get_updates(self, obj):
         return LookUpdateSerializer(obj.updates.all(), many=True).data

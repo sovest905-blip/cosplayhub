@@ -22,6 +22,7 @@ W_EVENT_CITY = 30   # событие в моём городе
 W_EVENT = 12        # любое ближайшее событие
 W_NEWS_PIN = 18     # закреплённая новость
 W_NEWS = 8          # обычная новость
+W_BOOST = 35        # образ, продвигаемый автором (Pro 1.5)
 MAX_LOOKS_PER_AUTHOR = 5  # разнообразие: не даём одному автору забить ленту
 
 
@@ -83,6 +84,11 @@ class FeedView(APIView):
         for lk in published_looks:
             if lk.author_id and lk.author_id in following_ids:
                 add_look(lk, f"Вы подписаны на @{lk.author.username}", W_FOLLOW)
+
+        # 1b. Продвигаемые образы (Pro-буст) — подмешиваем в ленту всем.
+        for lk in published_looks:
+            if lk.boosted_until and lk.boosted_until > now:
+                add_look(lk, "Продвигается автором", W_BOOST)
 
         # 2. Образы по фандомам/персонажам из интересов
         if fandoms:

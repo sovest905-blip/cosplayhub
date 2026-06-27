@@ -24,6 +24,7 @@ class Look(models.Model):
     image = models.ImageField("фото", upload_to="looks/", blank=True, null=True)
     stage = models.CharField("стадия", max_length=10, choices=STAGE_CHOICES, default="done")
     is_published = models.BooleanField("опубликовано", default=True)
+    boosted_until = models.DateTimeField("продвижение в ленте до", null=True, blank=True)  # Pro 1.5
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

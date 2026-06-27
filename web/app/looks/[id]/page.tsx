@@ -65,6 +65,11 @@ export default function LookDetailPage({ params }: { params: Promise<{ id: strin
     const res = await api(`/looks/${id}/`, { method: "DELETE" });
     if (res.ok || res.status === 204) router.push("/looks");
   }
+  async function toggleBoost() {
+    const res = await api(`/looks/${id}/boost/`, { method: l.is_boosted ? "DELETE" : "POST" });
+    if (res.ok) load();
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
 
   const updates = l.updates || [];
 
@@ -101,6 +106,11 @@ export default function LookDetailPage({ params }: { params: Promise<{ id: strin
                     className={l.stage === k ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}>{v}</button>
                 ))}
                 <button onClick={removeLook} className="btn btn-ghost btn-sm" style={{ color: "var(--red)", marginLeft: "auto" }}>Удалить образ</button>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <button onClick={toggleBoost} className={l.is_boosted ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm"}>
+                  {l.is_boosted ? "✦ Продвигается в ленте · снять" : "✦ Продвинуть в ленте (Pro)"}
+                </button>
               </div>
             </div>
           )}

@@ -32,6 +32,12 @@ class ProfileViewSet(viewsets.ModelViewSet):
         avail = self.request.query_params.get("available_for_work")
         if avail in ("true", "1"):
             qs = qs.filter(available_for_work=True)
+        # Приватность (Pro 1.6): скрытые профили не показываем в КАТАЛОГЕ (list),
+        # но прямая ссылка /people/<id> (retrieve) работает — потому гейтим по action.
+        if self.action == "list":
+            user = self.request.user
+            if not (user.is_authenticated and user.is_staff):
+                qs = qs.exclude(hide_from_catalog=True)
         # Pro-профили выше в каталоге (льгота подписки «приоритет в каталоге»).
         from apps.billing.models import active_pro_subquery
         return qs.annotate(pro_active=active_pro_subquery()).order_by("-pro_active", "-created_at")
@@ -86,6 +92,17 @@ class ProfileViewSet(viewsets.ModelViewSet):
             except IntegrityError:
                 pass  # гонка — строка дня уже есть
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProfileBySlugView(APIView):
+    """GET /profiles/by-slug/<slug>/ → {profile_id, user_id} (для кастомного URL /u/<slug>)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug):
+        prof = Profile.objects.filter(slug=slug).select_related("user").first()
+        if not prof:
+            return Response({"detail": "Не найдено"}, status=404)
+        return Response({"profile_id": prof.id, "user_id": prof.user_id})
 
 
 # ─────────── Галерея фото профиля (фотозоны) ───────────

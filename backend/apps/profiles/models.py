@@ -21,6 +21,10 @@ class Profile(models.Model):
     role_details = models.JSONField("анкеты ролей", default=dict, blank=True)  # {role: {...поля}}
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0)
     accent_color = models.CharField(max_length=7, default="#ff2d6f")  # конструктор
+    # Pro-кастомизация (1.4): свой URL /u/<slug>, закреплённые образы. hide_from_catalog (1.6).
+    slug = models.SlugField("ссылка /u/", max_length=40, unique=True, null=True, blank=True)
+    pinned_look_ids = models.JSONField("закреплённые образы", default=list, blank=True)
+    hide_from_catalog = models.BooleanField("скрыт из каталога", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
