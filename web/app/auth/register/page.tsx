@@ -98,7 +98,7 @@ export default function RegisterPage() {
             Регистрация
           </h1>
           <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>
-            Первые 200 участников — Pro бесплатно на 3 месяца
+            Первые 200 участников — Pro бесплатно на 6 месяцев
           </p>
         </div>
 
