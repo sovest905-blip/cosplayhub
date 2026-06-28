@@ -53,7 +53,7 @@ export default function LoginPage() {
             <span style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 900, fontSize: 17 }}>КОСПЛЕЙ.ХАБ</span>
           </a>
           <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 24, fontWeight: 800, margin: "0 0 6px" }}>Войти</h1>
-          <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>Бета-доступ по инвайту</p>
+          <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>Войдите в свой аккаунт</p>
         </div>
 
         <form onSubmit={handleSubmit}>

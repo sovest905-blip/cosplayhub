@@ -216,13 +216,13 @@ export default async function HomePage() {
 
         {/* CTA */}
         <div className="cta-strip">
-          <h2>Вступай в бету первым.</h2>
+          <h2>Вступай первым.</h2>
           <p>
-            Закрытый запуск — только по инвайтам. Первые 200 участников получают
+            Регистрация открыта. Первые 200 участников получают
             Pro-статус бесплатно на 3 месяца.
           </p>
           <a href="/auth/register" className="btn btn-primary btn-big">
-            Запросить инвайт →
+            Создать аккаунт →
           </a>
         </div>
       </div>

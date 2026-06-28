@@ -93,7 +93,7 @@ export default function RegisterPage() {
             <div className="logo-mark" />
             <span style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 900, fontSize: 17 }}>КОСПЛЕЙ.ХАБ</span>
           </a>
-          <div className="eyebrow" style={{ justifyContent: "center" }}>закрытая бета · по инвайту</div>
+          <div className="eyebrow" style={{ justifyContent: "center" }}>регистрация открыта</div>
           <h1 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 24, fontWeight: 800, margin: "0 0 6px" }}>
             Регистрация
           </h1>
