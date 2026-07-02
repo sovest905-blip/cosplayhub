@@ -82,7 +82,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     <div><b>Команды</b><small>{pl(s?.teams ?? 0, ["команда", "команды", "команд"])}</small></div>
                   </a>
                   <a href="/shoots">
-                    <div className="drop-ic">📸</div>
+                    <div className="drop-ic">◎</div>
                     <div><b>Съёмки</b><small>собрать команду</small></div>
                   </a>
                   <a href="/battles">
@@ -111,7 +111,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                     <div><b>Локации</b><small>{pl(s?.locations ?? 0, ["место", "места", "мест"])}</small></div>
                   </a>
                   <a href="/rent">
-                    <div className="drop-ic">👗</div>
+                    <div className="drop-ic">❖</div>
                     <div><b>Прокат</b><small>костюмы напрокат</small></div>
                   </a>
                 </div>
@@ -186,6 +186,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <a href="/guides">Гайды</a>
                 <a href="/market">Барахолка</a>
                 <a href="/pro">Pro</a>
+              </div>
+              <div>
+                <h4>Документы</h4>
+                <a href="/legal/terms">Соглашение</a>
+                <a href="/legal/privacy">Конфиденциальность</a>
+                <a href="/legal/offer">Оферта</a>
+                <a href="/legal/rules">Правила</a>
+                <a href="/legal/cookies">Cookie</a>
               </div>
             </div>
             <div className="foot-bottom">

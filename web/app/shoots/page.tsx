@@ -8,7 +8,7 @@ export default async function ShootsPage() {
 
   if (shoots.length === 0) {
     return (
-      <EmptyState icon="📸" title="Съёмки"
+      <EmptyState icon="◎" title="Съёмки"
         desc="Здесь пока пусто. Косплеер + фотограф + локация + костюм от мастерской — соберите команду на съёмку первым."
         ctaHref="/shoots/new" ctaLabel="+ Собрать команду" />
     );

@@ -25,6 +25,7 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false);
   const [invite, setInvite] = useState("");
   const [inviteRequired, setInviteRequired] = useState(false);
+  const [agree, setAgree] = useState(false);
 
   // Код из инвайт-ссылки (?invite=XXXX) + узнаём у бэка, обязателен ли инвайт.
   useEffect(() => {
@@ -44,6 +45,12 @@ export default function RegisterPage() {
 
     if (!identifier.includes("@")) {
       setError("Введите корректный email");
+      setLoading(false);
+      return;
+    }
+
+    if (!agree) {
+      setError("Примите Пользовательское соглашение и Политику конфиденциальности");
       setLoading(false);
       return;
     }
@@ -177,8 +184,30 @@ export default function RegisterPage() {
             После регистрации придёт код на почту — подтверди email и войдёшь.
           </div>
 
-          <button type="submit" disabled={loading} className="btn btn-primary btn-big"
-            style={{ width: "100%", justifyContent: "center", opacity: loading ? 0.7 : 1 }}>
+          <label style={{
+            display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer",
+            fontSize: 12, color: "var(--ink-dim)", lineHeight: 1.6, marginBottom: 16,
+          }}>
+            <input
+              type="checkbox"
+              checked={agree}
+              onChange={(e) => setAgree(e.target.checked)}
+              style={{ width: 16, height: 16, marginTop: 2, flexShrink: 0, accentColor: "var(--accent)", cursor: "pointer" }}
+            />
+            <span>
+              Я принимаю{" "}
+              <a href="/legal/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-2)" }}>
+                Пользовательское соглашение
+              </a>{" "}
+              и{" "}
+              <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-2)" }}>
+                Политику конфиденциальности
+              </a>, включая согласие на обработку персональных данных.
+            </span>
+          </label>
+
+          <button type="submit" disabled={loading || !agree} className="btn btn-primary btn-big"
+            style={{ width: "100%", justifyContent: "center", opacity: (loading || !agree) ? 0.6 : 1, cursor: (loading || !agree) ? "not-allowed" : "pointer" }}>
             {loading ? "Создаём аккаунт..." : "Создать аккаунт →"}
           </button>
         </form>
