@@ -1,6 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
@@ -18,7 +18,9 @@ class ProfileViewSet(viewsets.ModelViewSet):
     """Каталог профилей + детальная. GET — всем, изменение — владельцу.
     Фильтры: ?role=photo|cosplayer|... ?q=поиск по нику."""
     serializer_class = ProfileSerializer
-    permission_classes = [AllowAny, IsOwnerOrReadOnly]
+    # Чтение (каталог/детальная) — всем; создание/изменение — аутентифицированным,
+    # правки — только владельцу (объектная проверка).
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def get_queryset(self):
         qs = Profile.objects.all().select_related("user").prefetch_related("socials", "photos")

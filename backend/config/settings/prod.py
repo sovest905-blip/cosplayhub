@@ -1,7 +1,19 @@
 """Боевое окружение. Жёсткие настройки ИБ."""
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa
 
 DEBUG = False
+
+# Fail-fast: не запускаемся в проде с дефолтным ключом/пустым списком хостов.
+if SECRET_KEY == "insecure-dev-key":
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY не задан — отказ запускаться в проде с небезопасным дефолтным ключом."
+    )
+if ALLOWED_HOSTS == ["localhost"]:
+    raise ImproperlyConfigured(
+        "DJANGO_ALLOWED_HOSTS не задан для прода (осталось значение по умолчанию 'localhost')."
+    )
 
 # === ИБ ===
 # Пока тест-сервер работает по HTTP (нет TLS) — Secure-куки ВЫКЛ, иначе браузер
