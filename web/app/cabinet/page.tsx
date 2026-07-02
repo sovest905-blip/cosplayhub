@@ -12,6 +12,35 @@ const ROLE_MAP: Record<string, string> = {
 
 const CITIES = ["Алматы", "Астана", "Шымкент", "Караганда", "Бишкек", "Ташкент", "Москва", "Другой"];
 
+// Селект города с поддержкой «Другой» → текстовое поле для ручного ввода.
+// value — реальное название города (для «Другой» хранится введённый текст, а не слово «Другой»).
+function CitySelect({ value, onChange, emptyLabel = "Не выбран" }: {
+  value: string; onChange: (v: string) => void; emptyLabel?: string;
+}) {
+  const [other, setOther] = useState(!!value && !CITIES.includes(value));
+  // город подгрузился извне и его нет в списке → включаем ручной ввод
+  useEffect(() => { if (value && !CITIES.includes(value)) setOther(true); }, [value]);
+  return (
+    <>
+      <select
+        value={other ? "Другой" : value}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === "Другой") { setOther(true); onChange(""); }
+          else { setOther(false); onChange(v); }
+        }}
+      >
+        <option value="">{emptyLabel}</option>
+        {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
+      {other && (
+        <input style={{ marginTop: 8 }} value={value} placeholder="Введите название города"
+          onChange={(e) => onChange(e.target.value)} />
+      )}
+    </>
+  );
+}
+
 const ALL_ROLES = [
   { slug: "cosplayer",    icon: "◉", name: "Косплеер",   desc: "Создаёшь образы"  },
   { slug: "photographer", icon: "◐", name: "Фотограф",   desc: "Снимаешь"          },
@@ -1232,10 +1261,7 @@ export default function CabinetPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="field">
                 <label>Город</label>
-                <select value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })}>
-                  <option value="">Не выбран</option>
-                  {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <CitySelect value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
               </div>
               <div className="field">
                 <label>Опыт</label>
@@ -1322,10 +1348,7 @@ export default function CabinetPage() {
                     </div>
                     <div className="field">
                       <label>Город</label>
-                      <select value={wsForm.city} onChange={(e) => setWsForm({ ...wsForm, city: e.target.value })}>
-                        <option value="">Выбери город</option>
-                        {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                      <CitySelect value={wsForm.city} onChange={(v) => setWsForm({ ...wsForm, city: v })} emptyLabel="Выбери город" />
                     </div>
                   </div>
                   <div className="field">
@@ -1695,10 +1718,7 @@ export default function CabinetPage() {
                   </div>
                   <div className="field" style={{ margin: 0 }}>
                     <label>Город <span style={{ color: "var(--accent)" }}>*</span></label>
-                    <select value={listingForm.city} onChange={(e) => setListingForm({ ...listingForm, city: e.target.value })}>
-                      <option value="">— выберите город —</option>
-                      {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <CitySelect value={listingForm.city} onChange={(v) => setListingForm({ ...listingForm, city: v })} emptyLabel="— выберите город —" />
                   </div>
                 </div>
                 <div className="field">
