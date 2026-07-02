@@ -61,14 +61,22 @@ class RegisterView(APIView):
                      "tg_link": link, "tg_token": token},
                     status=status.HTTP_201_CREATED,
                 )
-            else:
-                # Telegram не настроен — логиним без верификации (только для теста)
+            elif settings.DEBUG:
+                # ТОЛЬКО dev/тест: Telegram не настроен — логиним без верификации.
                 user.is_phone_verified = True
                 user.save(update_fields=["is_phone_verified"])
                 login(request, user)
                 return Response(
                     {"id": user.id, "kind": "phone", "phone": user.phone, "auto_login": True},
                     status=status.HTTP_201_CREATED,
+                )
+            else:
+                # Прод без Telegram: подтвердить владение номером нечем — регистрацию
+                # НЕ завершаем и не выдаём сессию (иначе можно завести аккаунт на чужой номер).
+                user.delete()
+                return Response(
+                    {"detail": "Регистрация по телефону временно недоступна"},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
 
