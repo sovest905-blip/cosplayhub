@@ -119,3 +119,49 @@ def active_workshop_subquery(owner_field="owner_id"):
     Единый тариф: Pro владельца разблокирует boost всех его мастерских.
     Для annotate на Workshop queryset."""
     return active_pro_subquery(owner_field)
+
+
+# ── Платежи через Cryptomus (крипто-оплата Pro и донат сайту) ─────────────────
+class Payment(models.Model):
+    """Крипто-платёж через Cryptomus.
+
+    purpose=pro          → после оплаты продлевает Pro плательщика на `months`.
+    purpose=donate_site  → донат на поддержку платформы (Pro не выдаётся).
+    Донаты АВТОРАМ здесь НЕ проходят — у авторов прямой кошелёк (P2P).
+    Идемпотентность: активация Pro применяется один раз (paid_at выставляется
+    в вебхуке при первом переходе в paid).
+    """
+    PURPOSE_CHOICES = [("pro", "Оплата Pro"), ("donate_site", "Донат сайту")]
+    STATUS_CHOICES = [
+        ("pending", "Ожидает оплаты"),
+        ("paid", "Оплачено"),
+        ("failed", "Ошибка/отмена"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="payments", help_text="Плательщик (может быть пусто для анонимного доната)",
+    )
+    purpose = models.CharField("назначение", max_length=20, choices=PURPOSE_CHOICES)
+    amount = models.DecimalField("сумма", max_digits=12, decimal_places=2)
+    currency = models.CharField("валюта", max_length=10, default="USD")
+    months = models.PositiveSmallIntegerField("месяцев Pro", default=1)
+
+    order_id = models.CharField("наш ид заказа", max_length=64, unique=True)
+    invoice_uuid = models.CharField("uuid Cryptomus", max_length=64, blank=True)
+    pay_url = models.URLField("ссылка на оплату", blank=True, max_length=500)
+
+    status = models.CharField("статус", max_length=20, choices=STATUS_CHOICES, default="pending")
+    paid_at = models.DateTimeField("оплачено", null=True, blank=True)
+    raw = models.JSONField("сырой ответ/вебхук", default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "платёж"
+        verbose_name_plural = "платежи"
+
+    def __str__(self):
+        return f"{self.get_purpose_display()} {self.amount}{self.currency} #{self.pk} ({self.status})"
