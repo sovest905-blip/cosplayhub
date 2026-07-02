@@ -9,7 +9,7 @@ export default async function RentPage() {
 
   if (costumes.length === 0) {
     return (
-      <EmptyState icon="👗" title="Прокат костюмов"
+      <EmptyState icon="❖" title="Прокат костюмов"
         desc="Костюмов пока нет. Костюм дорогой, а носят 1–2 раза — сдайте свой напрокат или загляните позже."
         ctaHref="/rent/new" ctaLabel="+ Сдать костюм" />
     );

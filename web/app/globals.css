@@ -1418,3 +1418,56 @@ input[type="date"], input[type="time"], input[type="datetime-local"] { color-sch
   text-align: center;
 }
 .search-all:hover { background: rgba(255,45,111,.18); }
+
+/* ── Юридические документы (/legal/*) ───────────────────────── */
+.legal-head { margin: 8px 0 8px; }
+.legal-head h1 {
+  font-family: var(--font-display), sans-serif;
+  font-size: 32px; line-height: 1.15; margin: 0 0 10px;
+}
+.legal-meta {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  color: var(--ink-dim); font-size: 13px; margin-bottom: 8px;
+}
+.legal-meta .dot { color: var(--line); }
+.legal-nav {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 18px 0 30px;
+}
+.legal-nav a {
+  font-size: 13px; color: var(--ink-dim);
+  border: 1px solid var(--line); border-radius: 20px;
+  padding: 6px 14px; transition: .15s;
+}
+.legal-nav a:hover { color: var(--ink); border-color: var(--accent); }
+.legal-nav a.cur { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+
+.legal {
+  max-width: 780px;
+  color: var(--ink); line-height: 1.75; font-size: 15.5px;
+}
+.legal .lead {
+  color: var(--ink-dim); font-size: 16px; line-height: 1.7;
+  padding-bottom: 22px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.legal h2 {
+  font-family: var(--font-display), sans-serif;
+  font-size: 21px; margin: 38px 0 12px; scroll-margin-top: 90px;
+}
+.legal h3 { font-size: 16.5px; margin: 24px 0 8px; color: var(--ink); }
+.legal p { margin: 0 0 14px; }
+.legal ul, .legal ol { margin: 0 0 16px; padding-left: 22px; }
+.legal li { margin: 0 0 8px; }
+.legal a { color: var(--accent-2); }
+.legal a:hover { text-decoration: underline; }
+.legal strong { color: var(--ink); font-weight: 600; }
+.legal .box {
+  background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 14px; padding: 18px 20px; margin: 18px 0;
+}
+.legal .box.warn { border-color: rgba(255,210,74,.35); }
+.legal table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+.legal th, .legal td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.legal th { color: var(--ink-dim); font-weight: 600; }
+.legal .updated { color: var(--ink-dim); font-size: 13px; margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); }
