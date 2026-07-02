@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import AuthNav from "./components/AuthNav";
+import SiteDonate from "./components/SiteDonate";
 import CsrfFetch from "./components/CsrfFetch";
 import MobileMenu from "./components/MobileMenu";
 import SearchBox from "./components/SearchBox";
@@ -194,6 +195,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <a href="/legal/offer">Оферта</a>
                 <a href="/legal/rules">Правила</a>
                 <a href="/legal/cookies">Cookie</a>
+                <SiteDonate />
               </div>
             </div>
             <div className="foot-bottom">

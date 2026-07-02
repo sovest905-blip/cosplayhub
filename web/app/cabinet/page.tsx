@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { SOCIAL_META, DONATION_KINDS, DONATION_KIND_META } from "../../lib/api";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
 import MessagesPanel from "../components/MessagesPanel";
+import CryptoPayButton from "../components/CryptoPayButton";
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -1870,7 +1871,7 @@ export default function CabinetPage() {
             <h3 style={{ margin: "0 0 4px" }}>Pro</h3>
             <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 16px" }}>
               Единый тариф: один Pro покрывает профиль и все ваши мастерские.
-              Первые 6 месяцев бесплатно — оплата подключится позже, продление будет автоматическим.
+              Первые 6 месяцев бесплатно, дальше — оплата криптой (USDT / TON / BTC), зачисление автоматически.
             </p>
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
@@ -1884,10 +1885,16 @@ export default function CabinetPage() {
                 </div>
               </div>
               {user.is_pro
-                ? <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, background: "rgba(124,249,255,.12)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.3)" }}>✓ Pro</span>
-                : <button className="btn btn-primary btn-sm" disabled={activating === "pro"} onClick={() => activatePlan()}>
-                    {activating === "pro" ? "..." : "Активировать · 6 мес бесплатно"}
-                  </button>}
+                ? <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, background: "rgba(124,249,255,.12)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.3)" }}>✓ Pro</span>
+                    <CryptoPayButton purpose="pro" months={1} label="Продлить криптой" className="btn btn-ghost btn-sm" nextPath="/cabinet?tab=subs" />
+                  </div>
+                : <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <button className="btn btn-primary btn-sm" disabled={activating === "pro"} onClick={() => activatePlan()}>
+                      {activating === "pro" ? "..." : "Активировать · 6 мес бесплатно"}
+                    </button>
+                    <CryptoPayButton purpose="pro" months={1} label="Оплатить криптой" className="btn btn-ghost btn-sm" nextPath="/cabinet?tab=subs" />
+                  </div>}
             </div>
           </div>
 

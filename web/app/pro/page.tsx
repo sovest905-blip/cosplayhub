@@ -1,5 +1,6 @@
 import { PLANS as PRICE_PLANS, fmtPrice, PRO_FREE_BETA } from "../../lib/pricing";
 import ProCta from "../components/ProCta";
+import CryptoPayButton from "../components/CryptoPayButton";
 
 type Feat = string | { t: string; soon?: boolean };
 
@@ -116,6 +117,20 @@ export default function ProPage() {
               })}
             </ul>
             <ProCta planKey={p.key} label={p.cta} highlight={p.highlight} />
+            {p.key === "pro" && (
+              <>
+                <CryptoPayButton
+                  purpose="pro"
+                  months={1}
+                  label={`Оплатить криптой · ${fmtPrice(PRICE_PLANS.pro.price)}/мес`}
+                  className="btn btn-ghost"
+                  style={{ width: "100%", justifyContent: "center", marginTop: 10 }}
+                />
+                <p style={{ fontSize: 11, color: "var(--ink-dim)", textAlign: "center", margin: "8px 0 0" }}>
+                  USDT · TON · BTC и др. Оплата в крипте, зачисление автоматически.
+                </p>
+              </>
+            )}
           </div>
         ))}
       </div>
