@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.backends import CsrfExemptSessionAuthentication
-from . import cryptomus
+from . import nowpayments
 from .models import Payment, Subscription, TRIAL_MONTHS, add_months
 from .serializers import SubscriptionSerializer
 
@@ -74,18 +74,18 @@ def _apply_pro(user, months: int):
 
 
 class CreatePaymentView(APIView):
-    """POST — создать крипто-инвойс Cryptomus.
+    """POST — создать крипто-инвойс NOWPayments.
 
     body: {purpose: "pro"|"donate_site", months?, amount?}
       pro         → сумма = PRO_PRICE * months (месяц 1..12), нужен вход.
       donate_site → сумма из amount (валюта PAY_CURRENCY), можно анонимно.
-    Возвращает {url} — страница оплаты Cryptomus.
+    Возвращает {url} — хостед-страница оплаты NOWPayments.
     """
     permission_classes = [AllowAny]
     authentication_classes = [CsrfExemptSessionAuthentication]
 
     def post(self, request):
-        if not cryptomus.is_configured():
+        if not nowpayments.is_configured():
             return Response({"detail": "Оплата временно недоступна"},
                             status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -103,6 +103,7 @@ class CreatePaymentView(APIView):
             except (TypeError, ValueError):
                 months = 1
             amount = (Decimal(str(settings.PRO_PRICE)) * months).quantize(Decimal("0.01"))
+            description = f"CosplayHub Pro — {months} мес."
         else:  # donate_site
             try:
                 amount = Decimal(str(request.data.get("amount", "0"))).quantize(Decimal("0.01"))
@@ -111,6 +112,7 @@ class CreatePaymentView(APIView):
             if amount <= 0:
                 return Response({"detail": "Сумма должна быть больше нуля"},
                                 status=status.HTTP_400_BAD_REQUEST)
+            description = "Донат на поддержку КосплейХаб"
 
         order_id = uuid.uuid4().hex
         payment = Payment.objects.create(
@@ -122,20 +124,21 @@ class CreatePaymentView(APIView):
         base = settings.SITE_URL
         return_url = f"{base}/cabinet?tab=subs" if purpose == "pro" else f"{base}/?donate=thanks"
         try:
-            result = cryptomus.create_invoice(
+            result = nowpayments.create_invoice(
                 amount=amount, currency=settings.PAY_CURRENCY, order_id=order_id,
-                callback_url=f"{base}/api/v1/billing/cryptomus/webhook/",
-                return_url=return_url, success_url=return_url,
+                description=description,
+                ipn_callback_url=f"{base}/api/v1/billing/nowpayments/webhook/",
+                success_url=return_url, cancel_url=return_url,
             )
-        except cryptomus.GatewayError as e:
-            log.warning("Cryptomus create_invoice failed: %s", e)
+        except nowpayments.GatewayError as e:
+            log.warning("NOWPayments create_invoice failed: %s", e)
             payment.status = "failed"
             payment.save(update_fields=["status", "updated_at"])
             return Response({"detail": "Платёжный шлюз недоступен, попробуйте позже"},
                             status=status.HTTP_502_BAD_GATEWAY)
 
-        payment.invoice_uuid = result.get("uuid", "")
-        payment.pay_url = result.get("url", "")
+        payment.invoice_uuid = str(result.get("id", ""))
+        payment.pay_url = result.get("invoice_url", "")
         payment.raw = result
         payment.save(update_fields=["invoice_uuid", "pay_url", "raw", "updated_at"])
 
@@ -145,33 +148,35 @@ class CreatePaymentView(APIView):
         return Response({"url": payment.pay_url}, status=status.HTTP_201_CREATED)
 
 
-class CryptomusWebhookView(APIView):
-    """POST — вебхук (IPN) Cryptomus. Публичный, но с проверкой подписи.
+class NowPaymentsWebhookView(APIView):
+    """POST — вебхук (IPN) NOWPayments. Публичный, с проверкой HMAC-SHA512.
 
-    При переходе в оплаченный статус — продлевает Pro (идемпотентно по paid_at).
-    Всегда отвечает 200, чтобы Cryptomus не ретраил бесконечно (кроме плохой подписи).
+    При статусе finished — продлевает Pro (идемпотентно по paid_at).
+    Всегда отвечает 200, чтобы шлюз не ретраил бесконечно (кроме плохой подписи).
     """
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request):
+        signature = request.headers.get("x-nowpayments-sig", "")
+        if not nowpayments.verify_webhook(request.body, signature):
+            log.warning("NOWPayments webhook: bad sign")
+            return Response({"detail": "bad sign"}, status=status.HTTP_403_FORBIDDEN)
+
         try:
             data = json.loads(request.body.decode() or "{}")
         except (ValueError, UnicodeDecodeError):
             return Response({"detail": "bad body"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not cryptomus.verify_webhook(data):
-            log.warning("Cryptomus webhook: bad sign (order_id=%s)", data.get("order_id"))
-            return Response({"detail": "bad sign"}, status=status.HTTP_403_FORBIDDEN)
 
         payment = Payment.objects.filter(order_id=data.get("order_id", "")).first()
         if not payment:
             return Response({"detail": "unknown order"}, status=status.HTTP_200_OK)
 
         payment.raw = data
-        gw_status = (data.get("status") or "").lower()
-        paid_statuses = {"paid", "paid_over"}
-        fail_statuses = {"fail", "cancel", "system_fail", "wrong_amount", "refund_process", "refund_fail"}
+        gw_status = (data.get("payment_status") or "").lower()
+        # finished = оплачено и зачислено; confirmed можно тоже считать успехом.
+        paid_statuses = {"finished", "confirmed"}
+        fail_statuses = {"failed", "refunded", "expired"}
 
         if gw_status in paid_statuses and payment.status != "paid":
             payment.status = "paid"

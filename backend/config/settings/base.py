@@ -158,16 +158,17 @@ INVITE_REQUIRED = os.getenv("INVITE_REQUIRED", "false").lower() == "true"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
 
-# ── Cryptomus (крипто-оплата Pro и донатов сайту) ─────────────────────────────
-# Деньги идут на кошелёк мерчанта t50.team. Донаты АВТОРАМ через шлюз НЕ идут —
-# у авторов прямой кошелёк (P2P), чтобы платформа не была держателем средств.
-# Ключи получить в кабинете Cryptomus (merchant → API). Пусто = оплата отключена.
-CRYPTOMUS_MERCHANT_ID = os.getenv("CRYPTOMUS_MERCHANT_ID", "")
-CRYPTOMUS_API_KEY = os.getenv("CRYPTOMUS_API_KEY", "")   # платёжный API-ключ
-PRO_PRICE = os.getenv("PRO_PRICE", "1990")               # цена Pro за 1 мес в PAY_CURRENCY
-# Валюта инвойса: Cryptomus сконвертит фиат в крипту. По умолчанию KZT — совпадает
-# с ценой ₸1990 на сайте. Если Cryptomus не примет KZT — поставить USD и цену в USD.
-PAY_CURRENCY = os.getenv("PAY_CURRENCY", "KZT")
+# ── NOWPayments (крипто-оплата Pro и донатов сайту) ───────────────────────────
+# NOWPayments — некастодиальный шлюз: деньги идут напрямую на выплатной кошелёк
+# мерчанта t50.team (задаётся в кабинете NOWPayments → Payout wallets). Донаты
+# АВТОРАМ через шлюз НЕ идут — у авторов прямой кошелёк (P2P). Ключи: кабинет
+# NOWPayments → Settings → Payments (API key / IPN secret). Пусто = оплата отключена.
+NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY", "")       # x-api-key
+NOWPAYMENTS_IPN_SECRET = os.getenv("NOWPAYMENTS_IPN_SECRET", "")  # для подписи вебхука
+PRO_PRICE = os.getenv("PRO_PRICE", "5")                  # цена Pro за 1 мес в PAY_CURRENCY
+# Валюта инвойса (фиат, NOWPayments сконвертит в крипту). По умолчанию USD.
+# Если нужен ₸ и NOWPayments примет — поставить PAY_CURRENCY=kzt и PRO_PRICE=1990.
+PAY_CURRENCY = os.getenv("PAY_CURRENCY", "usd")
 SITE_URL = os.getenv("SITE_URL", "https://www.cosplayhub.kz").rstrip("/")
 
 AUTHENTICATION_BACKENDS = [
