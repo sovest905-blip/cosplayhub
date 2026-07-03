@@ -165,10 +165,10 @@ TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
 # NOWPayments → Settings → Payments (API key / IPN secret). Пусто = оплата отключена.
 NOWPAYMENTS_API_KEY = os.getenv("NOWPAYMENTS_API_KEY", "")       # x-api-key
 NOWPAYMENTS_IPN_SECRET = os.getenv("NOWPAYMENTS_IPN_SECRET", "")  # для подписи вебхука
-PRO_PRICE = os.getenv("PRO_PRICE", "5")                  # цена Pro за 1 мес в PAY_CURRENCY
-# Валюта инвойса (фиат, NOWPayments сконвертит в крипту). По умолчанию USD.
-# Если нужен ₸ и NOWPayments примет — поставить PAY_CURRENCY=kzt и PRO_PRICE=1990.
-PAY_CURRENCY = os.getenv("PAY_CURRENCY", "usd")
+PRO_PRICE = os.getenv("PRO_PRICE", "1990")               # цена Pro за 1 мес в PAY_CURRENCY
+# Валюта инвойса (фиат, NOWPayments сконвертит в крипту). KZT принимается шлюзом
+# (проверено: ₸1990 ≈ 4.19 USDT) и совпадает с ценой на сайте. Можно сменить на usd.
+PAY_CURRENCY = os.getenv("PAY_CURRENCY", "kzt")
 SITE_URL = os.getenv("SITE_URL", "https://www.cosplayhub.kz").rstrip("/")
 
 AUTHENTICATION_BACKENDS = [
