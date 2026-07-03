@@ -115,4 +115,4 @@ jobs:
             docker compose restart nginx
             docker compose exec -T web python manage.py migrate --noinput
             docker compose exec -T web python manage.py collectstatic --noinput
-            echo "Deploy done! Site: http://109.235.118.28:8080"
+            echo "Deploy done! Site: https://cosplayhub.kz"
