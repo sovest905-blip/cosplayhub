@@ -16,8 +16,8 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ["id", "purpose", "user", "amount", "currency", "months", "status", "paid_at", "created_at"]
-    list_filter = ["purpose", "status", "currency"]
+    list_display = ["id", "purpose", "gateway", "user", "amount", "currency", "months", "status", "paid_at", "created_at"]
+    list_filter = ["purpose", "gateway", "status", "currency"]
     search_fields = ["order_id", "invoice_uuid", "user__username", "user__email"]
     raw_id_fields = ["user"]
     readonly_fields = ["order_id", "invoice_uuid", "pay_url", "raw", "paid_at", "created_at", "updated_at"]

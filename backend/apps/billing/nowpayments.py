@@ -14,6 +14,9 @@ import urllib.request
 from django.conf import settings
 
 API_URL = "https://api.nowpayments.io/v1"
+# NOWPayments за Cloudflare, который отдаёт 403 на дефолтный UA Python-urllib.
+# Явный User-Agent обязателен, иначе запрос из контейнера блокируется.
+USER_AGENT = "CosplayHub/1.0 (+https://cosplayhub.kz)"
 
 # Ошибка вызова шлюза (сеть/HTTP) — вьюха ловит и отдаёт 502.
 GatewayError = urllib.error.URLError
@@ -37,7 +40,11 @@ def create_invoice(*, amount, currency, order_id, description, ipn_callback_url,
     body = json.dumps(payload).encode()
     req = urllib.request.Request(
         f"{API_URL}/invoice", data=body, method="POST",
-        headers={"x-api-key": settings.NOWPAYMENTS_API_KEY, "Content-Type": "application/json"},
+        headers={
+            "x-api-key": settings.NOWPAYMENTS_API_KEY,
+            "Content-Type": "application/json",
+            "User-Agent": USER_AGENT,
+        },
     )
     with urllib.request.urlopen(req, timeout=20) as resp:
         return json.loads(resp.read().decode())
