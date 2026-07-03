@@ -82,7 +82,9 @@ services:
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "8080:80"
+      # Только loopback: наружу сайт отдаёт Plesk (443, TLS) → 127.0.0.1:8080.
+      # Открытый на все интерфейсы 8080 отдавал сайт по голому http в обход HTTPS.
+      - "127.0.0.1:8080:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - media:/media
