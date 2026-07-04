@@ -39,8 +39,6 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "КОСПЛЕЙ.ХАБ — экосистема косплея СНГ",
   description: "Косплееры, мастерские, магазины, фотографы, события — в одном месте. Казахстан и СНГ.",
-  // Верификация домена для крипто-шлюза Cryptomus (приём донатов).
-  other: { cryptomus: "9fc678f8" },
 };
 
 export const viewport = {

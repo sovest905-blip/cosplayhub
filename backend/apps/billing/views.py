@@ -74,21 +74,23 @@ def _apply_pro(user, months: int):
 
 
 class CreatePaymentView(APIView):
-    """POST — создать крипто-инвойс Cryptomus (единый шлюз для Pro и донатов).
+    """POST — создать крипто-инвойс NOWPayments (единый шлюз для Pro и донатов).
 
-    Cryptomus держит низкий минимум приёма (~0.5 USDT), поэтому проходят и Pro
-    (₸1990), и мелкие донаты (₸500+). NOWPayments оставлен в коде как резерв.
+    NOWPayments некастодиальный: деньги идут сразу на выплатной кошелёк мерчанта,
+    без одобрения/модерации. Мелкие суммы (₸500) проходят в дешёвых сетях
+    (USDT-BEP20/Polygon/TON, TRX, LTC) — дорогие (USDT-TRC20, BTC) отключены в
+    кабинете NOWPayments. Cryptomus/старый роутинг оставлены в коде как резерв.
 
     body: {purpose: "pro"|"donate_site", months?, amount?}
       pro         → сумма = PRO_PRICE * months (месяц 1..12), нужен вход.
       donate_site → сумма из amount (валюта PAY_CURRENCY), можно анонимно.
-    Возвращает {url} — хостед-страница оплаты Cryptomus.
+    Возвращает {url} — хостед-страница оплаты NOWPayments.
     """
     permission_classes = [AllowAny]
     authentication_classes = [CsrfExemptSessionAuthentication]
 
     def post(self, request):
-        if not cryptomus.is_configured():
+        if not nowpayments.is_configured():
             return Response({"detail": "Оплата временно недоступна"},
                             status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -106,6 +108,7 @@ class CreatePaymentView(APIView):
             except (TypeError, ValueError):
                 months = 1
             amount = (Decimal(str(settings.PRO_PRICE)) * months).quantize(Decimal("0.01"))
+            description = f"CosplayHub Pro — {months} мес."
         else:  # donate_site
             try:
                 amount = Decimal(str(request.data.get("amount", "0"))).quantize(Decimal("0.01"))
@@ -114,31 +117,33 @@ class CreatePaymentView(APIView):
             if amount <= 0:
                 return Response({"detail": "Сумма должна быть больше нуля"},
                                 status=status.HTTP_400_BAD_REQUEST)
+            description = "Донат на поддержку КосплейХаб"
 
         order_id = uuid.uuid4().hex
         payment = Payment.objects.create(
             user=request.user if request.user.is_authenticated else None,
-            purpose=purpose, gateway="cryptomus", amount=amount, currency=settings.PAY_CURRENCY,
+            purpose=purpose, gateway="nowpayments", amount=amount, currency=settings.PAY_CURRENCY,
             months=months, order_id=order_id,
         )
 
         base = settings.SITE_URL
         return_url = f"{base}/cabinet?tab=subs" if purpose == "pro" else f"{base}/?donate=thanks"
         try:
-            result = cryptomus.create_invoice(
+            result = nowpayments.create_invoice(
                 amount=amount, currency=settings.PAY_CURRENCY, order_id=order_id,
-                callback_url=f"{base}/api/v1/billing/cryptomus/webhook/",
-                return_url=return_url, success_url=return_url,
+                description=description,
+                ipn_callback_url=f"{base}/api/v1/billing/nowpayments/webhook/",
+                success_url=return_url, cancel_url=return_url,
             )
-        except cryptomus.GatewayError as e:
-            log.warning("Cryptomus create_invoice failed: %s", e)
+        except nowpayments.GatewayError as e:
+            log.warning("NOWPayments create_invoice failed: %s", e)
             payment.status = "failed"
             payment.save(update_fields=["status", "updated_at"])
             return Response({"detail": "Платёжный шлюз недоступен, попробуйте позже"},
                             status=status.HTTP_502_BAD_GATEWAY)
 
-        payment.invoice_uuid = str(result.get("uuid", ""))
-        payment.pay_url = result.get("url", "")
+        payment.invoice_uuid = str(result.get("id", ""))
+        payment.pay_url = result.get("invoice_url", "")
         payment.raw = result
         payment.save(update_fields=["invoice_uuid", "pay_url", "raw", "updated_at"])
 
