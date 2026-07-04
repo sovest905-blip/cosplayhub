@@ -1,7 +1,8 @@
 // Серверные хелперы: тянут реальные данные из API, нормализуют под UI.
 // API публичный на чтение (profiles/workshops). Фолбэк на mock — у вызывающего.
 
-const PLACEHOLDER_PERSON = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&q=80";
+// Нейтральный силуэт (без реального человека) — дефолт, пока юзер не загрузил своё фото.
+const PLACEHOLDER_PERSON = "/avatar-placeholder.svg";
 const PLACEHOLDER_WS = "https://images.unsplash.com/photo-1631544114551-e3f12e3e1f99?w=700&q=80";
 
 function base() {
@@ -140,7 +141,7 @@ export function normalizeProfile(p: any): Person {
     followers: p.followers_count ?? 0,
     looks: p.looks_count ?? 0,
     photo: p.avatar || PLACEHOLDER_PERSON,
-    specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Косплеер",
+    specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Участник",
     bio: p.bio || "",
     roles,
     role_details: (p.role_details && typeof p.role_details === "object") ? p.role_details : {},

@@ -1230,11 +1230,26 @@ export default function CabinetPage() {
             <div style={{ marginBottom: 24 }}>
               <label style={{ fontSize: 11, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", display: "block", marginBottom: 8 }}>Аватар</label>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{
-                  width: 80, height: 80, borderRadius: 16, flexShrink: 0,
-                  background: user.photo ? `url('${user.photo}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
-                  border: "2px solid var(--line)",
-                }} />
+                <div
+                  onClick={() => { if (photoUploading !== "avatar") (document.getElementById("avatar-input") as HTMLInputElement)?.click(); }}
+                  title="Нажми, чтобы сменить фото"
+                  role="button"
+                  aria-label="Сменить аватар"
+                  style={{
+                    position: "relative", width: 80, height: 80, borderRadius: 16, flexShrink: 0,
+                    background: user.photo ? `url('${user.photo}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
+                    border: "2px solid var(--line)",
+                    cursor: photoUploading === "avatar" ? "wait" : "pointer",
+                    display: "flex", alignItems: "flex-end", justifyContent: "center",
+                    overflow: "hidden",
+                  }}>
+                  <span style={{
+                    width: "100%", textAlign: "center", fontSize: 10, fontWeight: 600,
+                    color: "#fff", background: "rgba(0,0,0,.45)", padding: "3px 0",
+                  }}>
+                    {photoUploading === "avatar" ? "…" : "Изменить"}
+                  </span>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
                   <button className="btn btn-ghost btn-sm" disabled={photoUploading === "avatar"}
                     onClick={() => (document.getElementById("avatar-input") as HTMLInputElement)?.click()}>
