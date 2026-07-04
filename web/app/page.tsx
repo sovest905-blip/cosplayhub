@@ -1,5 +1,25 @@
-import { PEOPLE, WORKSHOPS, EVENTS } from "../lib/mock";
-import { getProfiles, getWorkshops, getEvents, fmtCount } from "../lib/api";
+import {
+  getProfiles, getWorkshops, getEvents, fmtCount,
+  getCurated, getCategories, type Category,
+} from "../lib/api";
+
+// Категории — декоративная лента тем. Если админ не задал свои — показываем базовый набор.
+const FALLBACK_CATEGORIES = ["3D-печать", "EVA", "Пошив", "Парики", "Линзы", "Фотосеты", "Барахолка", "Команды"];
+const CUR_CLASS: Record<string, string> = { look: "cur-look", workshop: "cur-ws", event: "cur-ev" };
+
+// Пустой раздел → приглашение «Будь первым» (ведёт к созданию нужной роли).
+function FirstCta({ glyph, title, sub, href, label }: {
+  glyph: string; title: string; sub: string; href: string; label: string;
+}) {
+  return (
+    <div className="empty-state" style={{ border: "1px solid var(--line)", borderRadius: 18 }}>
+      <div className="empty-glyph">{glyph}</div>
+      <p className="empty-title">{title}</p>
+      <p className="empty-sub">{sub}</p>
+      <a href={href} className="btn btn-primary" style={{ marginTop: 8 }}>{label}</a>
+    </div>
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -15,16 +35,23 @@ async function fetchStats(): Promise<Stats> {
 }
 
 export default async function HomePage() {
-  const [stats, apiPeople, apiWs, apiEvents] = await Promise.all([
+  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiCategories] = await Promise.all([
     fetchStats(),
     getProfiles("?role=cosplayer").catch(() => null),
     getWorkshops().catch(() => null),
     getEvents().catch(() => null),
+    getCurated().catch(() => null),
+    getCategories().catch(() => null),
   ]);
-  // Реальные данные из БД; фолбэк на мок, пока пусто.
-  const peopleList: any[] = apiPeople && apiPeople.length ? apiPeople : PEOPLE;
-  const wsList: any[] = apiWs && apiWs.length ? apiWs : WORKSHOPS;
-  const evList: any[] = apiEvents && apiEvents.length ? apiEvents : EVENTS;
+  // Только реальные данные из БД. Пусто — покажем «Будь первым», без фейка.
+  const peopleList: any[] = apiPeople || [];
+  const wsList: any[] = apiWs || [];
+  const evList: any[] = apiEvents || [];
+  // «Выбор редакции» — из админки; если ничего не заведено, блок не показываем.
+  const curated = apiCurated || [];
+  // Категории — из админки, иначе базовый набор тем (декоративная лента).
+  const categories: string[] = apiCategories && apiCategories.length
+    ? apiCategories.map((c: Category) => c.label) : FALLBACK_CATEGORIES;
   return (
     <>
       {/* HERO */}
@@ -59,68 +86,43 @@ export default async function HomePage() {
       {/* MARQUEE */}
       <div className="marquee">
         <div className="marquee-track">
-          <span>3D-печать</span>
-          <span>EVA</span>
-          <span>Пошив</span>
-          <span>Парики</span>
-          <span>Линзы</span>
-          <span>Фотосеты</span>
-          <span>Барахолка</span>
-          <span>Команды</span>
-          <span>3D-печать</span>
-          <span>EVA</span>
-          <span>Пошив</span>
-          <span>Парики</span>
-          <span>Линзы</span>
-          <span>Фотосеты</span>
-          <span>Барахолка</span>
-          <span>Команды</span>
+          {/* дублируем список дважды — для бесшовной прокрутки */}
+          {[...categories, ...categories].map((label, i) => (
+            <span key={i}>{label}</span>
+          ))}
         </div>
       </div>
 
       <div className="wrap">
-        {/* CURATED */}
+        {/* CURATED — показываем только если админ завёл карточки */}
+        {curated.length > 0 && (
         <section>
           <div className="section-head">
             <h2 className="title">Выбор редакции.</h2>
             <p>Лучшее за неделю.</p>
           </div>
           <div className="curated">
-            <a href="/people/1" className="cur-look">
-              <div className="cur-tag">★ Образ недели</div>
-              <div
-                className="cur-img"
-                style={{ backgroundImage: "url('https://images.unsplash.com/photo-1601412436009-d964bd02edbc?w=900&q=80')" }}
-              />
-              <div>
-                <div className="cur-title">Zeri от ZAKOS — League of Legends</div>
-                <div className="cur-meta">12 400 просмотров · 890 ♥</div>
-              </div>
-            </a>
-            <a href="/workshops/1" className="cur-ws">
-              <div className="cur-tag">◆ Мастерская месяца</div>
-              <div
-                className="cur-img"
-                style={{ backgroundImage: "url('https://images.unsplash.com/photo-1631544114551-e3f12e3e1f99?w=600&q=80')" }}
-              />
-              <div>
-                <div className="cur-title">7G PRINT LAB</div>
-                <div className="cur-meta">240+ заказов · ★ 4.9</div>
-              </div>
-            </a>
-            <a href="/events" className="cur-ev">
-              <div className="cur-tag">◈ Сходка дня</div>
-              <div
-                className="cur-img"
-                style={{ backgroundImage: "url('https://images.unsplash.com/photo-1493514789931-586cb221d7a7?w=600&q=80')" }}
-              />
-              <div>
-                <div className="cur-title">Edgerunners сет — Алматы</div>
-                <div className="cur-meta">12 апреля · 23 идут</div>
-              </div>
-            </a>
+            {curated.map((c) => {
+              const inner = (
+                <>
+                  {c.tag && <div className="cur-tag">{c.tag}</div>}
+                  {c.image && (
+                    <div className="cur-img" style={{ backgroundImage: `url('${c.image}')` }} />
+                  )}
+                  <div>
+                    <div className="cur-title">{c.title}</div>
+                    {c.meta && <div className="cur-meta">{c.meta}</div>}
+                  </div>
+                </>
+              );
+              const cls = CUR_CLASS[c.style] || "cur-look";
+              return c.link
+                ? <a key={c.id} href={c.link} className={cls}>{inner}</a>
+                : <div key={c.id} className={cls}>{inner}</div>;
+            })}
           </div>
         </section>
+        )}
 
         {/* PEOPLE */}
         <section>
@@ -128,6 +130,11 @@ export default async function HomePage() {
             <h2 className="title">Косплееры.</h2>
             <a href="/people" className="section-link">Все →</a>
           </div>
+          {peopleList.length === 0 ? (
+            <FirstCta glyph="◇" title="Стань первым косплеером"
+              sub="Анкет пока нет — заполни свою и попади в каталог платформы."
+              href="/cabinet?tab=roles" label="Заполнить анкету →" />
+          ) : (
           <div className="people-grid">
             {peopleList.slice(0, 4).map((p) => (
               <a key={p.id} href={`/people/${p.id}`} className="person">
@@ -159,6 +166,7 @@ export default async function HomePage() {
               </a>
             ))}
           </div>
+          )}
         </section>
 
         {/* WORKSHOPS */}
@@ -167,6 +175,11 @@ export default async function HomePage() {
             <h2 className="title">Мастерские.</h2>
             <a href="/workshops" className="section-link">Все →</a>
           </div>
+          {wsList.length === 0 ? (
+            <FirstCta glyph="◆" title="Открой первую мастерскую"
+              sub="Мастерских пока нет — добавь свою и принимай заказы от косплееров."
+              href="/cabinet?tab=roles&new=workshop" label="Создать мастерскую →" />
+          ) : (
           <div className="workshops-grid">
             {wsList.slice(0, 3).map((w) => (
               <a key={w.id} href={`/workshops/${w.id}`} className="ws-card">
@@ -186,6 +199,7 @@ export default async function HomePage() {
               </a>
             ))}
           </div>
+          )}
         </section>
 
         {/* EVENTS */}
@@ -194,24 +208,32 @@ export default async function HomePage() {
             <h2 className="title">Ближайшие события.</h2>
             <a href="/events" className="section-link">Все →</a>
           </div>
+          {evList.length === 0 ? (
+            <div className="empty-state" style={{ border: "1px solid var(--line)", borderRadius: 18 }}>
+              <div className="empty-glyph">◈</div>
+              <p className="empty-title">Событий пока нет</p>
+              <p className="empty-sub">Ближайшие сходки, фестивали и съёмки появятся здесь.</p>
+            </div>
+          ) : (
           <div className="ev-list">
             {evList.slice(0, 4).map((e) => (
-              <a key={e.id} href="/events" className="ev">
+              <a key={e.id} href={`/events/${e.id}`} className="ev">
                 <div className="ev-date">
                   <b>{e.day}</b>
                   <span>{e.month}</span>
                 </div>
                 <div className="ev-info">
                   <h4>{e.title}</h4>
-                  <p>{e.city}</p>
+                  <p>{e.place ? `${e.place} · ` : ""}{e.city}</p>
                 </div>
                 <div className="ev-going">
-                  <b>{e.going}</b>
+                  <b>{e.going_total ?? e.going}</b>
                   идут
                 </div>
               </a>
             ))}
           </div>
+          )}
         </section>
 
         {/* CTA */}

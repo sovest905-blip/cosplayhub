@@ -25,6 +25,10 @@ from common.admin_content import (
     AdminUserPhotosView, AdminUserPhotoDeleteView,
 )
 from common.admin_billing import AdminSubscriptionsView, AdminSubscriptionUpdateView
+from common.admin_homepage import (
+    AdminCuratedView, AdminCuratedUpdateView,
+    AdminCategoriesView, AdminCategoryUpdateView,
+)
 
 api_v1 = [
     path("stats/", StatsView.as_view(), name="stats"),
@@ -49,6 +53,7 @@ api_v1 = [
     path("", include("apps.shoots.urls")),
     path("", include("apps.rentals.urls")),
     path("", include("apps.battles.urls")),
+    path("", include("apps.homepage.urls")),
     # ── Веб админ-панель (только staff) ──
     path("admin-panel/users/", AdminUsersView.as_view(), name="ap-users"),
     path("admin-panel/users/<int:pk>/set-roles/", AdminUserRolesView.as_view(), name="ap-roles"),
@@ -83,6 +88,11 @@ api_v1 = [
     # ── Подписки и тарифы (Pro / мастерские) ──
     path("admin-panel/subscriptions/", AdminSubscriptionsView.as_view(), name="ap-subscriptions"),
     path("admin-panel/subscriptions/<int:pk>/", AdminSubscriptionUpdateView.as_view(), name="ap-subscription-update"),
+    # ── Контент главной: выбор редакции + категории ──
+    path("admin-panel/curated/", AdminCuratedView.as_view(), name="ap-curated"),
+    path("admin-panel/curated/<int:pk>/", AdminCuratedUpdateView.as_view(), name="ap-curated-update"),
+    path("admin-panel/categories/", AdminCategoriesView.as_view(), name="ap-categories"),
+    path("admin-panel/categories/<int:pk>/", AdminCategoryUpdateView.as_view(), name="ap-category-update"),
     # документация API — только для staff (раскрывает всю карту API)
     path("schema/", SpectacularAPIView.as_view(permission_classes=[IsAdminUser]), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema", permission_classes=[IsAdminUser]), name="docs"),

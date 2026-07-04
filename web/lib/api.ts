@@ -445,6 +445,27 @@ export async function getProfilesByRole(role: string): Promise<Person[] | null> 
   return list.map(normalizeProfile);
 }
 
+// ── Контент главной: выбор редакции + категории (управляется из админки) ────
+export type CuratedPick = {
+  id: number; style: "look" | "workshop" | "event"; tag: string; title: string;
+  meta: string; link: string; image: string | null; image_url: string;
+  order: number; is_active: boolean;
+};
+
+export async function getCurated(): Promise<CuratedPick[] | null> {
+  const data = await get(`/curated/`);
+  const list = data?.results ?? data;
+  return Array.isArray(list) ? list : null;
+}
+
+export type Category = { id: number; label: string; link: string; order: number; is_active: boolean };
+
+export async function getCategories(): Promise<Category[] | null> {
+  const data = await get(`/categories/`);
+  const list = data?.results ?? data;
+  return Array.isArray(list) ? list : null;
+}
+
 // ── Навигационная статистика (выпадающие меню в шапке) ──────────────────────
 export type NavStats = {
   cosplayer_profiles: number; photographers: number; looks: number; teams: number;

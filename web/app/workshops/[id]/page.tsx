@@ -1,28 +1,16 @@
-import { WORKSHOPS } from "../../../lib/mock";
 import { notFound } from "next/navigation";
-import GatedButton from "../../components/GatedButton";
 import OrderButton from "../../components/OrderButton";
 import SaveButton from "../../components/SaveButton";
 import { getWorkshop, getWorkshopReviews, type Shop, type WorkshopReview } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
 
-const FALLBACK_SERVICES = [
-  { id: 1, name: "Базовая деталь (до 20 см)", description: "", price_from: 3500 },
-  { id: 2, name: "Средняя деталь (20–40 см)", description: "", price_from: 7000 },
-  { id: 3, name: "Большая деталь (40+ см)", description: "", price_from: 14000 },
-  { id: 4, name: "Оружие полноразмер", description: "", price_from: 25000 },
-  { id: 5, name: "Полный комплект брони", description: "", price_from: 80000 },
-];
-
 export default async function WorkshopPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const apiWorkshop = await getWorkshop(id);
-  const mockWorkshop = WORKSHOPS.find((x) => x.id === Number(id));
-  const w = (apiWorkshop || (mockWorkshop as unknown as Shop)) as Shop;
+  const w = await getWorkshop(id);
   if (!w) notFound();
 
-  const reviews: WorkshopReview[] = apiWorkshop ? await getWorkshopReviews(id) : [];
+  const reviews: WorkshopReview[] = await getWorkshopReviews(id);
   const hasRating = (w.reviews_count ?? 0) > 0 && Number(w.rating) > 0;
 
   return (
@@ -62,10 +50,8 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <div className="profile-actions">
-          {apiWorkshop
-            ? <OrderButton workshopId={w.id} label="Заказать" className="btn btn-primary" />
-            : <GatedButton className="btn btn-primary">Заказать</GatedButton>}
-          <SaveButton kind="workshop" objectId={apiWorkshop ? w.id : null} className="btn btn-ghost" />
+          <OrderButton workshopId={w.id} label="Заказать" className="btn btn-primary" />
+          <SaveButton kind="workshop" objectId={w.id} className="btn btn-ghost" />
         </div>
       </div>
 
@@ -98,14 +84,20 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
 
           <div className="about">
             <h3>Прайс-лист</h3>
-            {(w.services && w.services.length > 0 ? w.services : FALLBACK_SERVICES).map((s) => (
-              <div key={s.id} className="info-row">
-                <span style={{ color: "var(--ink)", fontSize: 13 }}>{s.name}</span>
-                <b style={{ color: "var(--accent-3)", fontFamily: "var(--font-display),sans-serif", fontSize: 13 }}>
-                  от {s.price_from.toLocaleString()} ₸
-                </b>
-              </div>
-            ))}
+            {w.services && w.services.length > 0 ? (
+              w.services.map((s) => (
+                <div key={s.id} className="info-row">
+                  <span style={{ color: "var(--ink)", fontSize: 13 }}>{s.name}</span>
+                  <b style={{ color: "var(--accent-3)", fontFamily: "var(--font-display),sans-serif", fontSize: 13 }}>
+                    от {s.price_from.toLocaleString()} ₸
+                  </b>
+                </div>
+              ))
+            ) : (
+              <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>
+                Прайс пока не указан — уточните стоимость в сообщениях.
+              </p>
+            )}
           </div>
 
           <div className="about">
@@ -150,9 +142,7 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
             <p style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 12 }}>
               Опишите, что нужно сделать — мастерская ответит в сообщениях.
             </p>
-            {apiWorkshop
-              ? <OrderButton workshopId={w.id} label="Оставить заявку" className="btn btn-primary" fullWidth />
-              : <GatedButton className="btn btn-primary" fullWidth>Оставить заявку</GatedButton>}
+            <OrderButton workshopId={w.id} label="Оставить заявку" className="btn btn-primary" fullWidth />
           </div>
         </div>
       </div>

@@ -19,9 +19,11 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "news" | "events" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
+type TabId = "dashboard" | "curated" | "categories" | "news" | "events" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
+  ["curated", "★ Выбор редакции"],
+  ["categories", "✦ Категории"],
   ["news", "◆ Новости"],
   ["events", "◈ События"],
   ["guides", "❖ Гайды"],
@@ -101,6 +103,8 @@ export default function AdminPanelPage() {
         </div>
         <div>
           {tab === "dashboard" && <Dashboard onGo={setTab} />}
+          {tab === "curated" && <CuratedAdmin />}
+          {tab === "categories" && <CategoriesAdmin />}
           {tab === "news" && <NewsAdmin />}
           {tab === "events" && <EventsAdmin />}
           {tab === "guides" && <GuidesAdmin />}
@@ -220,6 +224,241 @@ function NewsAdmin() {
           <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
             <button className="btn btn-ghost btn-sm" onClick={() => startEdit(n)}>Изменить</button>
             <button className="btn btn-ghost btn-sm" onClick={() => remove(n.id)}>Удалить</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────── ВЫБОР РЕДАКЦИИ ───────────────────────────
+type CuratedItem = {
+  id: number; style: "look" | "workshop" | "event"; tag: string; title: string;
+  meta: string; link: string; image: string | null; image_url: string;
+  order: number; is_active: boolean;
+};
+const CURATED_STYLE_RU: Record<string, string> = {
+  look: "Образ (розовый, крупный)", workshop: "Мастерская (голубой)", event: "Событие (жёлтый)",
+};
+
+function CuratedAdmin() {
+  const [items, setItems] = useState<CuratedItem[]>([]);
+  const [show, setShow] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [f, setF] = useState({ style: "look", tag: "", title: "", meta: "", link: "", image_url: "", order: "0", is_active: true });
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  function load() {
+    api("/admin-panel/curated/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(load, []);
+
+  function resetForm() {
+    setEditId(null); setFile(null); setErr("");
+    setF({ style: "look", tag: "", title: "", meta: "", link: "", image_url: "", order: "0", is_active: true });
+  }
+  function startEdit(c: CuratedItem) {
+    setEditId(c.id); setFile(null); setErr(""); setShow(true);
+    setF({ style: c.style, tag: c.tag || "", title: c.title, meta: c.meta || "", link: c.link || "",
+      image_url: c.image_url || "", order: String(c.order), is_active: c.is_active });
+  }
+
+  async function save() {
+    if (!f.title.trim()) { setErr("Введите заголовок"); return; }
+    setSaving(true); setErr("");
+    try {
+      const fd = new FormData();
+      fd.append("style", f.style);
+      fd.append("tag", f.tag);
+      fd.append("title", f.title);
+      fd.append("meta", f.meta);
+      fd.append("link", f.link);
+      fd.append("image_url", f.image_url);
+      fd.append("order", String(parseInt(f.order, 10) || 0));
+      fd.append("is_active", f.is_active ? "true" : "false");
+      if (file) fd.append("image", file);
+      const res = editId
+        ? await api(`/admin-panel/curated/${editId}/`, { method: "PATCH", body: fd })
+        : await api("/admin-panel/curated/", { method: "POST", body: fd });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || e.title || "Не удалось"); }
+      resetForm(); setShow(false); load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
+    finally { setSaving(false); }
+  }
+
+  async function toggle(c: CuratedItem) {
+    const res = await api(`/admin-panel/curated/${c.id}/`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: !c.is_active }),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === d.id ? d : x))); }
+  }
+
+  async function remove(id: number) {
+    if (!confirm("Удалить карточку?")) return;
+    const res = await api(`/admin-panel/curated/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== id));
+  }
+
+  return (
+    <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Выбор редакции</h2>
+        <button className="btn btn-primary btn-sm" onClick={() => { if (show) { resetForm(); setShow(false); } else { resetForm(); setShow(true); } }}>
+          {show ? "Отмена" : "+ Добавить карточку"}
+        </button>
+      </div>
+      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>
+        Блок «Выбор редакции» на главной. Порядок задаёт «Порядок» (меньше — левее/выше). Первая карточка — крупная.
+        Если ничего не добавлено — на главной показывается стандартный набор.
+      </p>
+
+      {show && (
+        <div style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>{editId ? "Редактировать карточку" : "Новая карточка"}</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
+            <div className="field"><label>Стиль карточки</label>
+              <select value={f.style} onChange={(e) => setF({ ...f, style: e.target.value })}>
+                {Object.entries(CURATED_STYLE_RU).map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+              </select></div>
+            <div className="field"><label>Порядок</label>
+              <input type="number" value={f.order} onChange={(e) => setF({ ...f, order: e.target.value })} /></div>
+          </div>
+          <div className="field"><label>Метка</label>
+            <input value={f.tag} onChange={(e) => setF({ ...f, tag: e.target.value })} placeholder="★ Образ недели" /></div>
+          <div className="field"><label>Заголовок</label>
+            <input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Zeri от ZAKOS — League of Legends" /></div>
+          <div className="field"><label>Подпись</label>
+            <input value={f.meta} onChange={(e) => setF({ ...f, meta: e.target.value })} placeholder="12 400 просмотров · 890 ♥" /></div>
+          <div className="field"><label>Ссылка</label>
+            <input value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} placeholder="/people/1" /></div>
+          <div className="field"><label>Картинка (файл){editId ? " — выбери, чтобы заменить" : ""}</label>
+            <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
+          <div className="field"><label>…или ссылка на картинку</label>
+            <input value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })} placeholder="https://…" /></div>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-dim)", margin: "4px 0 14px" }}>
+            <input type="checkbox" checked={f.is_active} onChange={(e) => setF({ ...f, is_active: e.target.checked })} style={{ width: "auto" }} /> Показывать на главной
+          </label>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button className="btn btn-primary" onClick={save} disabled={saving}>
+              {saving ? "Сохраняем…" : editId ? "Сохранить" : "Добавить"}
+            </button>
+            {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
+          </div>
+        </div>
+      )}
+
+      {items.length === 0 ? (
+        <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Карточек пока нет — на главной показывается стандартный набор.</p>
+      ) : items.map((c) => (
+        <div key={c.id} style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+          background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 13, padding: "12px 16px", marginBottom: 10,
+          opacity: c.is_active ? 1 : 0.5,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <div style={{
+              width: 54, height: 40, borderRadius: 8, flexShrink: 0, border: "1px solid var(--line)",
+              background: c.image ? `center/cover url('${c.image}')` : "var(--bg-2)",
+            }} />
+            <div style={{ minWidth: 0 }}>
+              <b style={{ fontSize: 14 }}>{c.tag && <span style={{ color: "var(--ink-dim)" }}>{c.tag} · </span>}{c.title}</b>
+              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                {CURATED_STYLE_RU[c.style]} · порядок {c.order}{c.link ? ` · → ${c.link}` : ""}{!c.is_active ? " · скрыта" : ""}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)}>Изменить</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => toggle(c)}>{c.is_active ? "Скрыть" : "Показать"}</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => remove(c.id)}>Удалить</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────── КАТЕГОРИИ (лента) ───────────────────────────
+type CategoryItem = { id: number; label: string; link: string; order: number; is_active: boolean };
+
+function CategoriesAdmin() {
+  const [items, setItems] = useState<CategoryItem[]>([]);
+  const [label, setLabel] = useState("");
+  const [link, setLink] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  function load() {
+    api("/admin-panel/categories/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(load, []);
+
+  async function add() {
+    if (!label.trim()) { setErr("Введите название"); return; }
+    setSaving(true); setErr("");
+    try {
+      const res = await api("/admin-panel/categories/", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: label.trim(), link: link.trim(), order: items.length }),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || e.label || "Не удалось"); }
+      setLabel(""); setLink(""); load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
+    finally { setSaving(false); }
+  }
+
+  async function patch(c: CategoryItem, body: Partial<CategoryItem>) {
+    const res = await api(`/admin-panel/categories/${c.id}/`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === d.id ? d : x))); }
+  }
+
+  async function remove(id: number) {
+    if (!confirm("Удалить категорию?")) return;
+    const res = await api(`/admin-panel/categories/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== id));
+  }
+
+  return (
+    <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
+      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Категории</h2>
+      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>
+        Бегущая лента на главной. Ссылка необязательна. Если пусто — показывается стандартный набор.
+      </p>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "flex-end" }}>
+        <div className="field" style={{ flex: "1 1 160px", marginBottom: 0 }}><label>Название</label>
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="3D-печать"
+            onKeyDown={(e) => { if (e.key === "Enter") add(); }} /></div>
+        <div className="field" style={{ flex: "1 1 160px", marginBottom: 0 }}><label>Ссылка (опц.)</label>
+          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="/workshops" /></div>
+        <button className="btn btn-primary btn-sm" onClick={add} disabled={saving}>{saving ? "…" : "+ Добавить"}</button>
+      </div>
+      {err && <p style={{ color: "var(--red)", fontSize: 12, marginTop: -8, marginBottom: 12 }}>{err}</p>}
+
+      {items.length === 0 ? (
+        <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Категорий пока нет — на главной показывается стандартный набор.</p>
+      ) : items.map((c) => (
+        <div key={c.id} style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+          background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 11, padding: "10px 14px", marginBottom: 8,
+          opacity: c.is_active ? 1 : 0.5,
+        }}>
+          <div>
+            <b style={{ fontSize: 14 }}>{c.label}</b>
+            <span style={{ fontSize: 12, color: "var(--ink-dim)", marginLeft: 8 }}>
+              порядок {c.order}{c.link ? ` · → ${c.link}` : ""}{!c.is_active ? " · скрыта" : ""}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => patch(c, { order: Math.max(0, c.order - 1) })} title="Выше">↑</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => patch(c, { order: c.order + 1 })} title="Ниже">↓</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => patch(c, { is_active: !c.is_active })}>{c.is_active ? "Скрыть" : "Показать"}</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => remove(c.id)}>Удалить</button>
           </div>
         </div>
       ))}
