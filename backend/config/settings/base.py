@@ -122,11 +122,13 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
+    # Лимиты вынесены в env — тюнятся под ресурс сервера без правки кода.
+    # Дефолты = исходные значения (login/otp остаются защитой от брутфорса).
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "60/min",
-        "user": "240/min",
-        "login": "10/min",
-        "otp": "5/m",           # не более 5 OTP-запросов в минуту
+        "anon": os.getenv("THROTTLE_ANON", "60/min"),
+        "user": os.getenv("THROTTLE_USER", "240/min"),
+        "login": os.getenv("THROTTLE_LOGIN", "10/min"),
+        "otp": os.getenv("THROTTLE_OTP", "5/min"),   # не более 5 OTP-запросов в минуту
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }

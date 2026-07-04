@@ -13,4 +13,8 @@ COPY . .
 RUN mkdir -p /app/logs
 
 EXPOSE 8000
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+# Прод-параметры воркеров задаёт docker-compose (WEB_CONCURRENCY). Здесь дефолт
+# для автономного запуска образа: 4 воркера под текущий 4-ядерный сервер.
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", \
+     "--workers", "4", "--timeout", "60", \
+     "--max-requests", "1000", "--max-requests-jitter", "100"]
