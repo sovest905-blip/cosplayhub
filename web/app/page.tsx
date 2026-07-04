@@ -240,7 +240,7 @@ export default async function HomePage() {
         <div className="cta-strip">
           <h2>Вступай первым.</h2>
           <p>
-            Регистрация открыта. Первые 200 участников получают
+            Регистрация открыта. Первые 1000 участников получают
             Pro-статус бесплатно на 6 месяцев.
           </p>
           <a href="/auth/register" className="btn btn-primary btn-big">
