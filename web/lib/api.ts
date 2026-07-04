@@ -1,7 +1,8 @@
 // Серверные хелперы: тянут реальные данные из API, нормализуют под UI.
 // API публичный на чтение (profiles/workshops). Фолбэк на mock — у вызывающего.
 
-const PLACEHOLDER_PERSON = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&q=80";
+// Нейтральный силуэт (без реального человека) — дефолт, пока юзер не загрузил своё фото.
+const PLACEHOLDER_PERSON = "/avatar-placeholder.svg";
 const PLACEHOLDER_WS = "https://images.unsplash.com/photo-1631544114551-e3f12e3e1f99?w=700&q=80";
 
 function base() {
