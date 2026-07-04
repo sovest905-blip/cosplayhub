@@ -139,7 +139,7 @@ class Payment(models.Model):
     ]
     GATEWAY_CHOICES = [("nowpayments", "NOWPayments"), ("cryptomus", "Cryptomus")]
 
-    gateway = models.CharField("шлюз", max_length=20, choices=GATEWAY_CHOICES, default="cryptomus")
+    gateway = models.CharField("шлюз", max_length=20, choices=GATEWAY_CHOICES, default="nowpayments")
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="payments", help_text="Плательщик (может быть пусто для анонимного доната)",
