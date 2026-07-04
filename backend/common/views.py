@@ -24,19 +24,19 @@ class StatsView(APIView):
         cities.update(c for c in User.objects.exclude(city="").values_list("city", flat=True) if c)
         cities.update(c for c in Workshop.objects.exclude(city="").values_list("city", flat=True) if c)
 
-        # «Косплееров» = все зарегистрированные участники (без служебных аккаунтов).
-        # Роли (фотограф/магазин) считаем по профилям — появятся, когда юзеры их заполнят.
-        members = User.objects.filter(is_superuser=False, is_active=True).count()
+        # «Косплееров» = профили с ролью «Косплеер» (совпадает с каталогом /people).
+        # Все роли считаем по профилям — появляются, когда юзеры их заполняют.
+        cosplayers = Profile.objects.filter(roles__contains=["cosplayer"]).count()
 
         return Response({
             # — главная (hero) —
-            "cosplayers": members,
+            "cosplayers": cosplayers,
             "photographers": Profile.objects.filter(roles__contains=["photographer"]).count(),
             "shops": Profile.objects.filter(roles__contains=["shop"]).count(),
             "workshops": Workshop.objects.count(),
             "cities": len(cities),
             # — навигация (выпадающие меню), всё из реальной БД —
-            "cosplayer_profiles": Profile.objects.filter(roles__contains=["cosplayer"]).count(),
+            "cosplayer_profiles": cosplayers,
             "looks": Look.objects.filter(is_published=True).count(),
             "teams": Team.objects.filter(is_active=True).count(),
             "locations": Profile.objects.filter(roles__contains=["location"]).count(),

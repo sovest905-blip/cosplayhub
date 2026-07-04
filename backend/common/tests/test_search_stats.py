@@ -12,13 +12,20 @@ SEARCH = "/api/v1/search/"
 
 @pytest.mark.django_db
 def test_stats_is_public_and_counts(api, make_user):
-    make_user()  # один участник
+    # «Косплееров» считаем по профилям с ролью, а не по всем юзерам.
+    Profile.objects.create(user=make_user(), display_name="Cos", roles=["cosplayer"])
     resp = api.get(STATS)
     assert resp.status_code == 200
     assert resp.data["cosplayers"] >= 1
     # ключи навигации присутствуют
     for key in ("workshops", "looks", "teams", "guides", "events", "cities"):
         assert key in resp.data
+
+
+@pytest.mark.django_db
+def test_stats_cosplayers_counts_role_not_all_users(api, make_user):
+    make_user()  # юзер без анкеты косплеера — в счётчик не попадает
+    assert api.get(STATS).data["cosplayers"] == 0
 
 
 @pytest.mark.django_db
