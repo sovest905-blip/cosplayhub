@@ -120,6 +120,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <div className="menu-item has-drop">
                 <button className="menu-link">Сообщество</button>
                 <div className="drop">
+                  <a href="/news">
+                    <div className="drop-ic">◆</div>
+                    <div><b>Новости</b><small>анонсы платформы</small></div>
+                  </a>
                   <a href="/events">
                     <div className="drop-ic">◈</div>
                     <div><b>События</b><small>{pl(s?.events ?? 0, ["ближайшее", "ближайших", "ближайших"])}</small></div>
@@ -177,12 +181,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <h4>Услуги</h4>
                 <a href="/workshops">Мастерские</a>
                 <a href="/shops">Магазины</a>
-                <a href="/locations">Локации</a>
                 <a href="/jobs">Слоты</a>
+                <a href="/locations">Локации</a>
                 <a href="/rent">Прокат</a>
               </div>
               <div>
                 <h4>Сообщество</h4>
+                <a href="/news">Новости</a>
                 <a href="/events">События</a>
                 <a href="/guides">Гайды</a>
                 <a href="/market">Барахолка</a>

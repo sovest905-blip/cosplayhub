@@ -28,6 +28,7 @@ const SECTIONS = [
   {
     title: "Сообщество",
     links: [
+      { href: "/news", label: "Новости" },
       { href: "/events", label: "События" },
       { href: "/guides", label: "Гайды" },
       { href: "/market", label: "Барахолка" },
