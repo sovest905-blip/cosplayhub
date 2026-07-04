@@ -137,9 +137,11 @@ class Payment(models.Model):
         ("paid", "Оплачено"),
         ("failed", "Ошибка/отмена"),
     ]
-    GATEWAY_CHOICES = [("nowpayments", "NOWPayments"), ("cryptomus", "Cryptomus")]
+    GATEWAY_CHOICES = [
+        ("cryptopay", "Crypto Pay"), ("nowpayments", "NOWPayments"), ("cryptomus", "Cryptomus"),
+    ]
 
-    gateway = models.CharField("шлюз", max_length=20, choices=GATEWAY_CHOICES, default="nowpayments")
+    gateway = models.CharField("шлюз", max_length=20, choices=GATEWAY_CHOICES, default="cryptopay")
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="payments", help_text="Плательщик (может быть пусто для анонимного доната)",
