@@ -101,9 +101,19 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div className="profile-actions">
-          <MessageButton userId={(person as Person).user_id ?? null} className="btn btn-primary" />
-          <FollowButton userId={(person as Person).user_id ?? null} className="btn btn-ghost" />
-          <SaveButton kind="profile" objectId={person.id} className="btn btn-ghost" />
+          <OwnerOnly
+            ownerId={(person as Person).user_id ?? null}
+            fallback={
+              <>
+                <MessageButton userId={(person as Person).user_id ?? null} className="btn btn-primary" />
+                <FollowButton userId={(person as Person).user_id ?? null} className="btn btn-ghost" />
+                <SaveButton kind="profile" objectId={person.id} className="btn btn-ghost" />
+              </>
+            }
+          >
+            <a href="/cabinet?tab=profile" className="btn btn-primary">✎ Редактировать профиль</a>
+            <a href="/cabinet?tab=gallery" className="btn btn-ghost">▦ Фотогалерея</a>
+          </OwnerOnly>
         </div>
       </div>
 
@@ -202,7 +212,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
 
           {person.photos?.length > 0 && (
             <div className="about">
-              <h3>Фотогалерея</h3>
+              <h3 style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                Фотогалерея
+                <OwnerOnly ownerId={person.user_id ?? null}>
+                  <a href="/cabinet?tab=gallery" style={{ fontSize: 12, fontWeight: 500, color: "var(--accent-2)" }}>✎ Управлять</a>
+                </OwnerOnly>
+              </h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
                 {person.photos.map((ph) => (
                   <a key={ph.id} href={ph.url} target="_blank" rel="noopener noreferrer" style={{

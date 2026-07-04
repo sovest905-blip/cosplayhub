@@ -931,6 +931,8 @@ export default function CabinetPage() {
     { id: "subs",      icon: "♛", label: "Подписки и доход" },
     { id: "analytics", icon: "📊", label: "Аналитика" },
     { id: "socials",   icon: "⌘", label: "Соцсети" },
+    // Фотогалерея — только если роль даёт к ней доступ (косплеер/фотограф/локация).
+    ...(galleryLimit(roles, user.is_pro) > 0 ? [{ id: "gallery", icon: "▦", label: "Фотогалерея" }] : []),
     { id: "orders",    icon: "⚒", label: "Заказы",     num: ordersCount || undefined },
     { id: "responses", icon: "↗", label: "Отклики",    num: newIncoming || undefined },
     { id: "messages",  icon: "✉", label: "Сообщения",  num: unreadMsgs || undefined },
@@ -2078,6 +2080,29 @@ export default function CabinetPage() {
             </div>
           </div>
         );
+
+      case "gallery": {
+        const gLimit = galleryLimit(roles, user.is_pro);
+        return (
+          <div className="acc-card">
+            <h2 style={{ margin: "0 0 4px" }}>Фотогалерея</h2>
+            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
+              Общая галерея профиля — образы, портреты, работы. Видна на твоей странице.
+            </p>
+            {gLimit > 0 ? (
+              galleryBlock("Мои фото", "Загрузи лучшие кадры.")
+            ) : (
+              <div style={{ padding: "18px 16px", background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 12 }}>
+                <p style={{ fontSize: 14, margin: "0 0 12px" }}>
+                  Фотогалерея доступна для ролей <b>Косплеер</b>, <b>Фотограф</b> или <b>Локация</b>.
+                  Добавь роль — и сможешь загружать фото.
+                </p>
+                <button className="btn btn-primary btn-sm" onClick={() => setTab("roles")}>Перейти к ролям →</button>
+              </div>
+            )}
+          </div>
+        );
+      }
 
       case "shoots": {
         const renderShootRow = (sh: any) => (
