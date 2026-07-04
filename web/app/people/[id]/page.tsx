@@ -1,4 +1,3 @@
-import { PEOPLE } from "../../../lib/mock";
 import { notFound } from "next/navigation";
 import MessageButton from "../../components/MessageButton";
 import OwnerOnly from "../../components/OwnerOnly";
@@ -19,9 +18,7 @@ export const dynamic = "force-dynamic";
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const apiPerson = await getProfile(id);
-  const mockPerson = PEOPLE.find((p) => p.id === Number(id));
-  const person = (apiPerson || (mockPerson as unknown as Person)) as Person & { bio?: string };
+  const person = (await getProfile(id)) as (Person & { bio?: string }) | null;
   if (!person) notFound();
 
   // Реальные образы автора (модель Look) — для блока «Образы».
@@ -35,7 +32,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
     : [];
 
   // Профиль существует, но ещё не заполнен
-  const isEmpty = !!apiPerson && !person.bio && person.experience === "—" && !person.available_for_work;
+  const isEmpty = !person.bio && person.experience === "—" && !person.available_for_work;
 
   return (
     <div className="wrap">
@@ -106,7 +103,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
         <div className="profile-actions">
           <MessageButton userId={(person as Person).user_id ?? null} className="btn btn-primary" />
           <FollowButton userId={(person as Person).user_id ?? null} className="btn btn-ghost" />
-          <SaveButton kind="profile" objectId={apiPerson ? person.id : null} className="btn btn-ghost" />
+          <SaveButton kind="profile" objectId={person.id} className="btn btn-ghost" />
         </div>
       </div>
 
