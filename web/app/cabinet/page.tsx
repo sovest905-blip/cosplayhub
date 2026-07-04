@@ -931,7 +931,8 @@ export default function CabinetPage() {
     { id: "subs",      icon: "♛", label: "Подписки и доход" },
     { id: "analytics", icon: "📊", label: "Аналитика" },
     { id: "socials",   icon: "⌘", label: "Соцсети" },
-    { id: "gallery",   icon: "▦", label: "Фотогалерея" },
+    // Фотогалерея — только если роль даёт к ней доступ (косплеер/фотограф/локация).
+    ...(galleryLimit(roles, user.is_pro) > 0 ? [{ id: "gallery", icon: "▦", label: "Фотогалерея" }] : []),
     { id: "orders",    icon: "⚒", label: "Заказы",     num: ordersCount || undefined },
     { id: "responses", icon: "↗", label: "Отклики",    num: newIncoming || undefined },
     { id: "messages",  icon: "✉", label: "Сообщения",  num: unreadMsgs || undefined },
