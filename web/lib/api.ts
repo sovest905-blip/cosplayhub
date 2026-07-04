@@ -141,7 +141,7 @@ export function normalizeProfile(p: any): Person {
     followers: p.followers_count ?? 0,
     looks: p.looks_count ?? 0,
     photo: p.avatar || PLACEHOLDER_PERSON,
-    specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Косплеер",
+    specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Участник",
     bio: p.bio || "",
     roles,
     role_details: (p.role_details && typeof p.role_details === "object") ? p.role_details : {},
