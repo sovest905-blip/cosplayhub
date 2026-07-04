@@ -32,12 +32,20 @@ export default async function PeoplePage({
 
         {people.length === 0 && (
           <div className="empty-state" style={{ border: "1px solid var(--line)", borderRadius: 18, marginTop: 8 }}>
-            <div className="empty-glyph">◇</div>
-            <p className="empty-title">{sp.q ? "Ничего не найдено" : "Анкет пока нет"}</p>
-            <p className="empty-sub">
-              {sp.q ? "Попробуй изменить запрос." : "Первые участники уже регистрируются. Загляни позже или заполни свою анкету."}
+            <div className="empty-glyph">{sp.role === "photo" ? "◐" : "◇"}</div>
+            <p className="empty-title">
+              {sp.q
+                ? "Ничего не найдено"
+                : sp.role === "photo"
+                ? "Стань первым фотографом"
+                : "Стань первым косплеером"}
             </p>
-            {!sp.q && <a href="/cabinet?tab=roles" className="btn btn-ghost" style={{ marginTop: 8 }}>Заполнить анкету →</a>}
+            <p className="empty-sub">
+              {sp.q
+                ? "Попробуй изменить запрос."
+                : "Анкет пока нет — заполни свою и попади в каталог платформы."}
+            </p>
+            {!sp.q && <a href="/cabinet?tab=roles" className="btn btn-primary" style={{ marginTop: 8 }}>Заполнить анкету →</a>}
           </div>
         )}
 
