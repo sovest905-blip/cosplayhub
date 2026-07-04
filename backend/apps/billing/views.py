@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.users.backends import CsrfExemptSessionAuthentication
-from . import cryptomus, nowpayments
+from . import cryptomus, cryptopay, nowpayments
 from .models import Payment, Subscription, TRIAL_MONTHS, add_months
 from .serializers import SubscriptionSerializer
 
@@ -74,23 +74,22 @@ def _apply_pro(user, months: int):
 
 
 class CreatePaymentView(APIView):
-    """POST — создать крипто-инвойс NOWPayments (единый шлюз для Pro и донатов).
+    """POST — создать инвойс Crypto Pay (@CryptoBot) — единый шлюз для Pro и донатов.
 
-    NOWPayments некастодиальный: деньги идут сразу на выплатной кошелёк мерчанта,
-    без одобрения/модерации. Мелкие суммы (₸500) проходят в дешёвых сетях
-    (USDT-BEP20/Polygon/TON, TRX, LTC) — дорогие (USDT-TRC20, BTC) отключены в
-    кабинете NOWPayments. Cryptomus/старый роутинг оставлены в коде как резерв.
+    Crypto Pay: Telegram-нативный, без модерации, минимум ~$0.01, цена в фиате KZT.
+    Оплата открывается в Telegram (bot_invoice_url). NOWPayments/Cryptomus оставлены
+    в коде как резерв (не в платёжном пути).
 
     body: {purpose: "pro"|"donate_site", months?, amount?}
       pro         → сумма = PRO_PRICE * months (месяц 1..12), нужен вход.
-      donate_site → сумма из amount (валюта PAY_CURRENCY), можно анонимно.
-    Возвращает {url} — хостед-страница оплаты NOWPayments.
+      donate_site → сумма из amount (валюта PAY_CURRENCY=KZT), можно анонимно.
+    Возвращает {url} — ссылка оплаты в Telegram.
     """
     permission_classes = [AllowAny]
     authentication_classes = [CsrfExemptSessionAuthentication]
 
     def post(self, request):
-        if not nowpayments.is_configured():
+        if not cryptopay.is_configured():
             return Response({"detail": "Оплата временно недоступна"},
                             status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
@@ -122,28 +121,26 @@ class CreatePaymentView(APIView):
         order_id = uuid.uuid4().hex
         payment = Payment.objects.create(
             user=request.user if request.user.is_authenticated else None,
-            purpose=purpose, gateway="nowpayments", amount=amount, currency=settings.PAY_CURRENCY,
+            purpose=purpose, gateway="cryptopay", amount=amount, currency=settings.PAY_CURRENCY,
             months=months, order_id=order_id,
         )
 
         base = settings.SITE_URL
         return_url = f"{base}/cabinet?tab=subs" if purpose == "pro" else f"{base}/?donate=thanks"
         try:
-            result = nowpayments.create_invoice(
-                amount=amount, currency=settings.PAY_CURRENCY, order_id=order_id,
-                description=description,
-                ipn_callback_url=f"{base}/api/v1/billing/nowpayments/webhook/",
-                success_url=return_url, cancel_url=return_url,
+            result = cryptopay.create_invoice(
+                amount=amount, fiat=settings.PAY_CURRENCY.upper(),
+                description=description, payload=order_id, paid_btn_url=return_url,
             )
-        except nowpayments.GatewayError as e:
-            log.warning("NOWPayments create_invoice failed: %s", e)
+        except cryptopay.GatewayError as e:
+            log.warning("Crypto Pay createInvoice failed: %s", e)
             payment.status = "failed"
             payment.save(update_fields=["status", "updated_at"])
             return Response({"detail": "Платёжный шлюз недоступен, попробуйте позже"},
                             status=status.HTTP_502_BAD_GATEWAY)
 
-        payment.invoice_uuid = str(result.get("id", ""))
-        payment.pay_url = result.get("invoice_url", "")
+        payment.invoice_uuid = str(result.get("invoice_id", ""))
+        payment.pay_url = result.get("bot_invoice_url", "") or result.get("mini_app_invoice_url", "")
         payment.raw = result
         payment.save(update_fields=["invoice_uuid", "pay_url", "raw", "updated_at"])
 
@@ -229,6 +226,46 @@ class CryptomusWebhookView(APIView):
                 _apply_pro(payment.user, payment.months)
         elif gw_status in fail_statuses and payment.status == "pending":
             payment.status = "failed"
+
+        payment.save(update_fields=["status", "paid_at", "raw", "updated_at"])
+        return Response({"detail": "ok"}, status=status.HTTP_200_OK)
+
+
+class CryptoPayWebhookView(APIView):
+    """POST — вебхук Crypto Pay (@CryptoBot). Публичный, с проверкой HMAC-SHA256.
+
+    Тело: {update_type:"invoice_paid", payload:{invoice}}. В invoice.payload лежит
+    наш order_id, status="paid". Активирует Pro / фиксит донат (идемпотентно).
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        signature = request.headers.get("crypto-pay-api-signature", "")
+        if not cryptopay.verify_webhook(request.body, signature):
+            log.warning("Crypto Pay webhook: bad sign")
+            return Response({"detail": "bad sign"}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            data = json.loads(request.body.decode() or "{}")
+        except (ValueError, UnicodeDecodeError):
+            return Response({"detail": "bad body"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if data.get("update_type") != "invoice_paid":
+            return Response({"detail": "ignored"}, status=status.HTTP_200_OK)
+
+        invoice = data.get("payload", {})
+        order_id = invoice.get("payload", "")
+        payment = Payment.objects.filter(order_id=order_id).first()
+        if not payment:
+            return Response({"detail": "unknown order"}, status=status.HTTP_200_OK)
+
+        payment.raw = data
+        if (invoice.get("status") or "").lower() == "paid" and payment.status != "paid":
+            payment.status = "paid"
+            payment.paid_at = timezone.now()
+            if payment.purpose == "pro":
+                _apply_pro(payment.user, payment.months)
 
         payment.save(update_fields=["status", "paid_at", "raw", "updated_at"])
         return Response({"detail": "ok"}, status=status.HTTP_200_OK)

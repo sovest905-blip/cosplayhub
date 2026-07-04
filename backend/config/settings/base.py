@@ -161,7 +161,13 @@ INVITE_REQUIRED = os.getenv("INVITE_REQUIRED", "false").lower() == "true"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
 
-# ── NOWPayments (крипто-оплата Pro и донатов сайту) ───────────────────────────
+# ── Crypto Pay (@CryptoBot) — ОСНОВНОЙ шлюз (Pro + донаты) ─────────────────────
+# Telegram-нативный, без модерации мерчанта, минимум ~$0.01, цена в фиате KZT.
+# Проверено: ₸10..₸1990 проходят, 11 монет (USDT/TON/BTC/…). Оплата в Telegram.
+# Токен: @CryptoBot → Crypto Pay → app → API Token. Пусто = оплата отключена.
+CRYPTOPAY_TOKEN = os.getenv("CRYPTOPAY_TOKEN", "")
+
+# ── NOWPayments (РЕЗЕРВ; высокий минимум ~$12, не в платёжном пути) ────────────
 # NOWPayments — некастодиальный шлюз: деньги идут напрямую на выплатной кошелёк
 # мерчанта t50.team (задаётся в кабинете NOWPayments → Payout wallets). Донаты
 # АВТОРАМ через шлюз НЕ идут — у авторов прямой кошелёк (P2P). Ключи: кабинет
