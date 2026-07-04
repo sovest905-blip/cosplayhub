@@ -4,13 +4,16 @@ import { getProfiles, fmtCount, type Person } from "../../lib/api";
 export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ role?: string; q?: string }>;
+  searchParams: Promise<{ role?: string; q?: string; available_for_work?: string }>;
 }) {
   const sp = await searchParams;
+  // Каталог «Косплееры» показывает только косплееров; вкладка «Фотографы» — фотографов.
+  // Фанаты/мастерские/магазины/локации сюда НЕ попадают — у них свои разделы.
   const params = new URLSearchParams();
-  if (sp.role) params.set("role", sp.role);
+  params.set("role", sp.role === "photo" ? "photo" : "cosplayer");
+  if (sp.available_for_work) params.set("available_for_work", sp.available_for_work);
   if (sp.q) params.set("q", sp.q);
-  const qs = params.toString() ? `?${params.toString()}` : "";
+  const qs = `?${params.toString()}`;
 
   const people: Person[] = (await getProfiles(qs)) || [];
 
