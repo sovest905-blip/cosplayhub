@@ -1,6 +1,6 @@
 import {
   getProfiles, getWorkshops, getEvents, fmtCount,
-  getCurated, getCategories, type Category,
+  getCurated, getCategories, getNews, type Category, type NewsItem,
 } from "../lib/api";
 
 // Категории — декоративная лента тем. Если админ не задал свои — показываем базовый набор.
@@ -35,14 +35,17 @@ async function fetchStats(): Promise<Stats> {
 }
 
 export default async function HomePage() {
-  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiCategories] = await Promise.all([
+  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiCategories, apiNews] = await Promise.all([
     fetchStats(),
     getProfiles("?role=cosplayer").catch(() => null),
     getWorkshops().catch(() => null),
     getEvents().catch(() => null),
     getCurated().catch(() => null),
     getCategories().catch(() => null),
+    getNews().catch(() => null),
   ]);
+  // Новости — из админки; блок на главной показываем только если есть хотя бы одна.
+  const newsList: NewsItem[] = apiNews || [];
   // Только реальные данные из БД. Пусто — покажем «Будь первым», без фейка.
   const peopleList: any[] = apiPeople || [];
   const wsList: any[] = apiWs || [];
@@ -120,6 +123,55 @@ export default async function HomePage() {
                 ? <a key={c.id} href={c.link} className={cls}>{inner}</a>
                 : <div key={c.id} className={cls}>{inner}</div>;
             })}
+          </div>
+        </section>
+        )}
+
+        {/* NEWS — над косплеерами; только если админ завёл новости */}
+        {newsList.length > 0 && (
+        <section>
+          <div className="section-head">
+            <h2 className="title">Новости.</h2>
+            <a href="/news" className="section-link">Все →</a>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 18 }}>
+            {newsList.slice(0, 3).map((n) => (
+              <a key={n.id} href="/news" style={{
+                display: "block", background: "var(--bg-2)", border: "1px solid var(--line)",
+                borderRadius: 18, overflow: "hidden", color: "inherit",
+              }}>
+                {n.image && (
+                  <div style={{
+                    height: 150, backgroundImage: `url('${n.image}')`,
+                    backgroundSize: "cover", backgroundPosition: "center",
+                  }} />
+                )}
+                <div style={{ padding: "16px 18px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                    {n.is_pinned && (
+                      <span style={{
+                        fontSize: 11, color: "var(--accent-3)", border: "1px solid rgba(255,210,74,.3)",
+                        borderRadius: 20, padding: "2px 9px",
+                      }}>📌 Закреплено</span>
+                    )}
+                    <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                      {new Date(n.created_at).toLocaleDateString("ru-RU", { day: "2-digit", month: "long" })}
+                    </span>
+                  </div>
+                  <h3 style={{ fontFamily: "var(--font-display),sans-serif", fontSize: 17, margin: "0 0 6px", lineHeight: 1.25 }}>
+                    {n.title}
+                  </h3>
+                  {n.body && (
+                    <p style={{
+                      color: "var(--ink-dim)", fontSize: 13, lineHeight: 1.6, margin: 0,
+                      display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+                    }}>
+                      {n.body}
+                    </p>
+                  )}
+                </div>
+              </a>
+            ))}
           </div>
         </section>
         )}
