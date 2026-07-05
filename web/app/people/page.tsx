@@ -16,6 +16,7 @@ export default async function PeoplePage({
   const qs = `?${params.toString()}`;
 
   const people: Person[] = (await getProfiles(qs)) || [];
+  const listRole = sp.role === "photo" ? "photographer" : "cosplayer";
 
   return (
     <div className="wrap">
@@ -54,8 +55,8 @@ export default async function PeoplePage({
 
         <div className="people-grid">
           {people.map((p) => (
-            <a key={p.id} href={`/people/${p.id}`} className="person" style={{ color: "inherit" }}>
-              <div className="person-img" style={{ backgroundImage: `url('${p.photo}')` }}>
+            <a key={p.id} href={`/people/${p.id}?role=${listRole}`} className="person" style={{ color: "inherit" }}>
+              <div className="person-img" style={{ backgroundImage: `url('${p.role_media?.[listRole]?.cover || p.photo}')` }}>
                 {p.available_for_work
                   ? <div className="person-avail">Открыт к сотрудничеству</div>
                   : p.is_pro

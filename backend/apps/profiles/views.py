@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
 from common.permissions import IsOwnerOrReadOnly
-from .models import Profile, Follow, Favorite, ProfilePhoto, ProfileView, gallery_limit
+from .models import Profile, Follow, Favorite, ProfilePhoto, ProfileView, RoleMedia, gallery_limit
 from .serializers import ProfileSerializer, ProfilePhotoSerializer
 
 MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 МБ
@@ -23,7 +23,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
 
     def get_queryset(self):
-        qs = Profile.objects.all().select_related("user").prefetch_related("socials", "photos")
+        qs = Profile.objects.all().select_related("user").prefetch_related("socials", "photos", "role_media")
         role = self.request.query_params.get("role")
         if role:
             mapped = ROLE_ALIAS.get(role, role)
@@ -246,6 +246,47 @@ class MyPhotoDeleteView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class MyRoleMediaView(APIView):
+    """POST — загрузить логотип/обложку роли (multipart 'file'). DELETE — снять.
+    role ∈ {cosplayer,photographer,shop,location,fan}, kind ∈ {logo,cover}."""
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [CsrfExemptSessionAuthentication]
+    VALID_ROLES = {"cosplayer", "photographer", "shop", "location", "fan"}
+    VALID_KINDS = {"logo", "cover"}
+
+    def _ok(self, role, kind):
+        return role in self.VALID_ROLES and kind in self.VALID_KINDS
+
+    def post(self, request, role, kind):
+        if not self._ok(role, kind):
+            return Response({"detail": "Неверная роль или тип"}, status=status.HTTP_400_BAD_REQUEST)
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)
+        from common.uploads import validate_image, safe_image_name
+        from rest_framework.exceptions import ValidationError as DRFValidationError
+        try:
+            ext = validate_image(file, max_size=MAX_PHOTO_SIZE)
+        except DRFValidationError as e:
+            return Response({"detail": e.detail[0] if isinstance(e.detail, list) else str(e.detail)},
+                            status=status.HTTP_400_BAD_REQUEST)
+        prof = _my_profile(request)
+        rm, _ = RoleMedia.objects.get_or_create(profile=prof, role=role)
+        old = getattr(rm, kind)
+        if old:
+            old.delete(save=False)
+        getattr(rm, kind).save(safe_image_name(f"{role}_{kind}", ext), file, save=True)
+        return Response({"url": getattr(rm, kind).url})
+
+    def delete(self, request, role, kind):
+        if self._ok(role, kind):
+            prof = getattr(request.user, "profile", None)
+            rm = RoleMedia.objects.filter(profile=prof, role=role).first() if prof else None
+            if rm and getattr(rm, kind):
+                getattr(rm, kind).delete(save=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # ─────────── Подписки (фолловеры) ───────────
 
 def _user_or_none(pk):
@@ -254,7 +295,7 @@ def _user_or_none(pk):
 
 
 def _profiles_qs():
-    return Profile.objects.all().select_related("user").prefetch_related("socials", "photos")
+    return Profile.objects.all().select_related("user").prefetch_related("socials", "photos", "role_media")
 
 
 class FollowDetailView(APIView):

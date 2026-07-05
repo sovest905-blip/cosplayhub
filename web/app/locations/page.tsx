@@ -34,8 +34,8 @@ export default async function LocationsPage() {
               const d = p.role_details?.location || {};
               const price = fmtDetailValue(d.price_hour, " ₸/час");
               return (
-                <a key={p.id} href={`/people/${p.id}`} className="ws-card">
-                  <div className="ws-cover" style={{ backgroundImage: `url('${p.photos?.[0]?.url || p.photo}')` }}>
+                <a key={p.id} href={`/people/${p.id}?role=location`} className="ws-card">
+                  <div className="ws-cover" style={{ backgroundImage: `url('${p.role_media?.location?.cover || p.photos?.[0]?.url || p.photo}')` }}>
                     {price && <div className="ws-pro" style={{ background: "rgba(255,210,74,.9)", color: "#001" }}>{price}</div>}
                     <div className="ws-type">⌖ {fmtDetailValue(d.loc_type) || "Локация"}</div>
                   </div>

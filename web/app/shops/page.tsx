@@ -34,8 +34,8 @@ export default async function ShopsPage() {
               const d = p.role_details?.shop || {};
               const name = fmtDetailValue(d.shop_name) || p.display_name;
               return (
-                <a key={p.id} href={`/people/${p.id}`} className="ws-card">
-                  <div className="ws-cover" style={{ backgroundImage: `url('${p.photo}')` }}>
+                <a key={p.id} href={`/people/${p.id}?role=shop`} className="ws-card">
+                  <div className="ws-cover" style={{ backgroundImage: `url('${p.role_media?.shop?.cover || p.photo}')` }}>
                     {fmtDetailValue(d.delivery_cis) && <div className="ws-pro" style={{ background: "rgba(124,249,255,.9)", color: "#001" }}>Доставка СНГ</div>}
                     <div className="ws-type">⌂ Магазин</div>
                   </div>

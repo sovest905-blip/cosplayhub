@@ -66,6 +66,14 @@ class ProfileSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data["avatar"] = instance.avatar.url if instance.avatar else None
         data["cover"] = instance.cover.url if instance.cover else None
+        # Роль-специфичные лого/обложки: {role: {logo, cover}}. Фолбэк на avatar/cover — на фронте.
+        data["role_media"] = {
+            m.role: {
+                "logo": m.logo.url if m.logo else None,
+                "cover": m.cover.url if m.cover else None,
+            }
+            for m in instance.role_media.all()
+        }
         return data
 
     def get_is_verified(self, obj):
