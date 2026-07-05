@@ -15,11 +15,21 @@ const ROLE_RU: Record<string, string> = {
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProfilePage({ params, searchParams }: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ role?: string }>;
+}) {
   const { id } = await params;
+  const { role: roleParam } = await searchParams;
 
   const person = (await getProfile(id)) as (Person & { bio?: string }) | null;
   if (!person) notFound();
+
+  // Контекст роли (из каталога: /people/[id]?role=shop) — показываем лого/обложку этой роли.
+  const activeRole = roleParam && (person.roles || []).includes(roleParam) ? roleParam : null;
+  const roleMedia = activeRole ? person.role_media?.[activeRole] : undefined;
+  const heroCover = roleMedia?.cover || person.cover;   // фолбэк — общая обложка профиля
+  const heroLogo = roleMedia?.logo || person.photo;     // фолбэк — общий аватар
 
   // Реальные образы автора (модель Look) — для блока «Образы».
   const looks: LookItem[] = person.user_id ? await getLooksByAuthor(person.user_id).catch(() => []) : [];
@@ -75,7 +85,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       )}
 
       <div className="profile-hero" style={{
-        backgroundImage: person.cover ? `url('${person.cover}')` : undefined,
+        backgroundImage: heroCover ? `url('${heroCover}')` : undefined,
         backgroundSize: "cover", backgroundPosition: "center top",
       }}>
         {person.available_for_work && (
@@ -84,7 +94,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="profile-head">
-        <div className="avatar" style={{ backgroundImage: `url('${person.photo}')` }} />
+        <div className="avatar" style={{ backgroundImage: `url('${heroLogo}')` }} />
         <div className="profile-meta">
           <h1>
             {person.display_name}

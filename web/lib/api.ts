@@ -24,6 +24,7 @@ export type Person = {
   is_verified: boolean; available_for_work: boolean; is_pro: boolean;
   followers: number; looks: number; photo: string; cover: string | null; specialization: string; bio: string;
   roles: string[]; role_details: Record<string, Record<string, any>>; socials: Social[];
+  role_media: Record<string, { logo: string | null; cover: string | null }>;
   photos: { id: number; url: string }[];
   accent_color?: string;
   pinned_looks?: { id: number; title: string; character: string; image: string | null }[];
@@ -146,6 +147,7 @@ export function normalizeProfile(p: any): Person {
     bio: p.bio || "",
     roles,
     role_details: (p.role_details && typeof p.role_details === "object") ? p.role_details : {},
+    role_media: (p.role_media && typeof p.role_media === "object") ? p.role_media : {},
     socials: Array.isArray(p.socials)
       ? p.socials.filter((s: any) => s && s.platform && s.handle).map((s: any) => ({ platform: s.platform, handle: s.handle }))
       : [],

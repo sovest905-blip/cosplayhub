@@ -33,6 +33,25 @@ class Profile(models.Model):
     def __str__(self):
         return self.display_name
 
+class RoleMedia(models.Model):
+    """Отдельные логотип и обложка под конкретную роль профиля.
+
+    Показываются на /people/<id>?role=<role> и в каталоге этой роли.
+    Если не заданы — фолбэк на общий avatar/cover профиля."""
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="role_media")
+    role = models.CharField("роль", max_length=20)
+    logo = models.ImageField("логотип роли", upload_to="role_media/logos/", blank=True, null=True)
+    cover = models.ImageField("обложка роли", upload_to="role_media/covers/", blank=True, null=True)
+
+    class Meta:
+        unique_together = ("profile", "role")
+        verbose_name = "медиа роли"
+        verbose_name_plural = "медиа ролей"
+
+    def __str__(self):
+        return f"{self.profile_id}:{self.role}"
+
+
 class SocialLink(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name="socials")
     platform = models.CharField(max_length=20)   # instagram, tiktok, vk...

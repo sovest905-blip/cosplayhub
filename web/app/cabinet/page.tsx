@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { SOCIAL_META, DONATION_KINDS, DONATION_KIND_META } from "../../lib/api";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
@@ -201,6 +201,9 @@ export default function CabinetPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState<"avatar" | "cover" | null>(null);
+  // Роль-специфичные лого/обложки: {role: {logo, cover}} + индикатор загрузки `${role}:${kind}`.
+  const [roleMedia, setRoleMedia] = useState<Record<string, { logo: string | null; cover: string | null }>>({});
+  const [roleMediaUploading, setRoleMediaUploading] = useState<string | null>(null);
   const [following, setFollowing] = useState<any[]>([]);
   const [followersCount, setFollowersCount] = useState(0);
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -262,6 +265,7 @@ export default function CabinetPage() {
         setAcceptMessages(data.accept_messages !== false);
         setAvatarUrl(data.avatar || null);
         setCoverUrl(data.cover || null);
+        setRoleMedia((data.role_media && typeof data.role_media === "object") ? data.role_media : {});
         setCustSlug(data.slug || "");
         setCustAccent(data.accent_color || "#ff2d6f");
         setCustHide(!!data.hide_from_catalog);
@@ -962,6 +966,68 @@ export default function CabinetPage() {
     { id: "settings",  icon: "⚙", label: "Настройки" },
   ];
 
+  // Логотип и обложка КОНКРЕТНОЙ роли (отдельно от общего аватара профиля).
+  async function uploadRoleMedia(role: string, kind: "logo" | "cover", file: File) {
+    setRoleMediaUploading(`${role}:${kind}`);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/v1/profiles/me/role-media/${role}/${kind}/`, { method: "POST", credentials: "include", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setRoleMedia((prev) => ({ ...prev, [role]: { ...(prev[role] || { logo: null, cover: null }), [kind]: data.url } }));
+      } else alert(data.detail || "Не удалось загрузить изображение");
+    } finally {
+      setRoleMediaUploading(null);
+    }
+  }
+  async function deleteRoleMedia(role: string, kind: "logo" | "cover") {
+    const res = await fetch(`/api/v1/profiles/me/role-media/${role}/${kind}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok || res.status === 204) {
+      setRoleMedia((prev) => ({ ...prev, [role]: { ...(prev[role] || { logo: null, cover: null }), [kind]: null } }));
+    }
+  }
+  function roleMediaBlock(role: string) {
+    const rm = roleMedia[role] || { logo: null, cover: null };
+    const rmLink: CSSProperties = {
+      fontSize: 11, color: "var(--accent)", background: "none", border: "none",
+      cursor: "pointer", padding: "4px 0 0", display: "block",
+    };
+    return (
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 6 }}>Логотип роли</div>
+          <label style={{
+            width: 64, height: 64, borderRadius: 10, cursor: "pointer",
+            border: "1px dashed var(--line)", backgroundSize: "cover", backgroundPosition: "center",
+            backgroundImage: rm.logo ? `url('${rm.logo}')` : undefined,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--ink-dim)", fontSize: 11, textAlign: "center",
+          }}>
+            {roleMediaUploading === `${role}:logo` ? "…" : (rm.logo ? "" : "+ лого")}
+            <input type="file" accept="image/*" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadRoleMedia(role, "logo", f); e.target.value = ""; }} />
+          </label>
+          {rm.logo && <button style={rmLink} onClick={() => deleteRoleMedia(role, "logo")}>убрать</button>}
+        </div>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <div style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 6 }}>Обложка роли</div>
+          <label style={{
+            display: "flex", height: 64, borderRadius: 10, cursor: "pointer",
+            border: "1px dashed var(--line)", backgroundSize: "cover", backgroundPosition: "center",
+            backgroundImage: rm.cover ? `url('${rm.cover}')` : undefined,
+            alignItems: "center", justifyContent: "center", color: "var(--ink-dim)", fontSize: 11,
+          }}>
+            {roleMediaUploading === `${role}:cover` ? "…" : (rm.cover ? "" : "+ обложка")}
+            <input type="file" accept="image/*" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadRoleMedia(role, "cover", f); e.target.value = ""; }} />
+          </label>
+          {rm.cover && <button style={rmLink} onClick={() => deleteRoleMedia(role, "cover")}>убрать</button>}
+        </div>
+      </div>
+    );
+  }
+
   function renderRoleForm(role: string) {
     const cfg = ROLE_FORMS[role];
     if (!cfg) return null;
@@ -978,6 +1044,8 @@ export default function CabinetPage() {
           </span>
         </div>
         <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 14px" }}>{cfg.hint}</p>
+
+        {roleMediaBlock(role)}
 
         <RoleFields role={role} values={vals} onChange={(k, v) => setRoleField(role, k, v)} />
 

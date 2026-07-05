@@ -2,7 +2,8 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (ProfileViewSet, FollowDetailView, FollowingListView, FollowersListView,
                     FavoriteDetailView, FavoriteListView, MyPhotosView, MyPhotoDeleteView,
-                    FanMatchesView, MyViewersView, ProfileBySlugView, MyMediaKitView)
+                    FanMatchesView, MyViewersView, ProfileBySlugView, MyMediaKitView,
+                    MyRoleMediaView)
 
 router = DefaultRouter()
 router.register("profiles", ProfileViewSet, basename="profile")
@@ -12,6 +13,7 @@ urlpatterns = [
     path("profiles/me/viewers/", MyViewersView.as_view(), name="my-viewers"),
     path("profiles/me/media-kit/", MyMediaKitView.as_view(), name="my-media-kit"),
     path("profiles/by-slug/<slug:slug>/", ProfileBySlugView.as_view(), name="profile-by-slug"),
+    path("profiles/me/role-media/<str:role>/<str:kind>/", MyRoleMediaView.as_view(), name="my-role-media"),
     path("profiles/me/photos/", MyPhotosView.as_view(), name="my-photos"),
     path("profiles/me/photos/<int:photo_id>/", MyPhotoDeleteView.as_view(), name="my-photo-delete"),
     path("follow/following/", FollowingListView.as_view(), name="follow-following"),
