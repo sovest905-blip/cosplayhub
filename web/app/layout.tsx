@@ -4,6 +4,7 @@ import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import AuthNav from "./components/AuthNav";
 import SiteDonate from "./components/SiteDonate";
 import CsrfFetch from "./components/CsrfFetch";
+import VisitTracker from "./components/VisitTracker";
 import MobileMenu from "./components/MobileMenu";
 import SearchBox from "./components/SearchBox";
 import { getNavStats, pl } from "../lib/api";
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="ru" className={`${unbounded.variable} ${jetbrainsMono.variable} ${manrope.variable}`}>
       <body>
         <CsrfFetch />
+        <VisitTracker />
         <nav className="top">
           <div className="nav-inner">
             <a href="/" className="logo">

@@ -19,13 +19,12 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "curated" | "categories" | "news" | "events" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
+type TabId = "dashboard" | "curated" | "categories" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["curated", "★ Выбор редакции"],
   ["categories", "✦ Категории"],
-  ["news", "◆ Новости"],
-  ["events", "◈ События"],
+  ["news", "◆ Новости и события"],
   ["guides", "❖ Гайды"],
   ["looks", "✧ Образы"],
   ["teams", "♛ Команды"],
@@ -105,8 +104,7 @@ export default function AdminPanelPage() {
           {tab === "dashboard" && <Dashboard onGo={setTab} />}
           {tab === "curated" && <CuratedAdmin />}
           {tab === "categories" && <CategoriesAdmin />}
-          {tab === "news" && <NewsAdmin />}
-          {tab === "events" && <EventsAdmin />}
+          {tab === "news" && <><NewsAdmin /><div style={{ height: 22 }} /><EventsAdmin /></>}
           {tab === "guides" && <GuidesAdmin />}
           {tab === "looks" && <LooksAdmin />}
           {tab === "teams" && <TeamsAdmin />}
@@ -1257,6 +1255,9 @@ function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
   useEffect(() => { api("/admin-panel/stats/").then((r) => (r.ok ? r.json() : null)).then(setS); }, []);
 
   const cards: { label: string; value: number; tab?: TabId; accent?: string }[] = s ? [
+    { label: "Посещений сегодня", value: s.visits_today, accent: "var(--accent-2)" },
+    { label: "Посещений за 7 дней", value: s.visits_7d, accent: "var(--accent-2)" },
+    { label: "Посещений всего", value: s.visits_total, accent: "var(--accent-2)" },
     { label: "Пользователей", value: s.users_total, tab: "users" },
     { label: "Активных", value: s.users_active, accent: "var(--green)" },
     { label: "Заблокировано", value: s.users_blocked, accent: "var(--red)" },
@@ -1266,7 +1267,7 @@ function Dashboard({ onGo }: { onGo: (t: TabId) => void }) {
     { label: "Объявлений (актив.)", value: s.listings_active, tab: "listings" },
     { label: "Заказов (открытых)", value: s.orders_open, tab: "orders", accent: "var(--accent-3)" },
     { label: "Новостей", value: s.news, tab: "news" },
-    { label: "Событий", value: s.events, tab: "events" },
+    { label: "Событий", value: s.events, tab: "news" },
     { label: "Гайдов", value: s.guides, tab: "guides" },
     { label: "Образов", value: s.looks, tab: "looks" },
     { label: "Команд", value: s.teams, tab: "teams" },
