@@ -16,6 +16,11 @@ class Workshop(models.Model):
     logo = models.ImageField("логотип", upload_to="workshops/logos/", blank=True, null=True)
     cover = models.ImageField("обложка", upload_to="workshops/", blank=True, null=True)
     eta = models.CharField("срок", max_length=40, blank=True)   # "7-14д"
+    # Контакты для связи (помимо кнопки «Написать» и заказа).
+    phone = models.CharField("телефон / WhatsApp", max_length=40, blank=True)
+    telegram = models.CharField("Telegram", max_length=80, blank=True)
+    instagram = models.CharField("Instagram", max_length=120, blank=True)
+    site = models.CharField("сайт", max_length=200, blank=True)
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0)
     orders_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

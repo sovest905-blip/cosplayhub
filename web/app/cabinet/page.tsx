@@ -76,6 +76,7 @@ type Workshop = {
   id: number; name: string; type: string; city: string; about: string;
   eta: string; rating: number; orders_count: number; is_pro: boolean;
   logo: string | null; cover: string | null;
+  phone: string; telegram: string; instagram: string; site: string;
   services: { id: number; name: string; description: string; price_from: number }[];
   photos: { id: number; url: string }[];
 };
@@ -213,8 +214,9 @@ export default function CabinetPage() {
   const [wsSaving, setWsSaving] = useState(false);
   const [wsErr, setWsErr] = useState("");
   const [wsForm, setWsForm] = useState<{
-    name: string; type: string; city: string; eta: string; about: string; services: WsService[];
-  }>({ name: "", type: "print3d", city: "", eta: "", about: "", services: [{ name: "", price_from: "" }] });
+    name: string; type: string; city: string; eta: string; about: string;
+    phone: string; telegram: string; instagram: string; site: string; services: WsService[];
+  }>({ name: "", type: "print3d", city: "", eta: "", about: "", phone: "", telegram: "", instagram: "", site: "", services: [{ name: "", price_from: "" }] });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -772,6 +774,8 @@ export default function CabinetPage() {
         body: JSON.stringify({
           name: wsForm.name.trim(), type: wsForm.type, city: wsForm.city.trim(),
           eta: wsForm.eta.trim(), about: wsForm.about.trim(), services,
+          phone: wsForm.phone.trim(), telegram: wsForm.telegram.trim(),
+          instagram: wsForm.instagram.trim(), site: wsForm.site.trim(),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -783,7 +787,7 @@ export default function CabinetPage() {
         setRoles(next);
         patchProfile({ roles: next });
       }
-      setWsForm({ name: "", type: "print3d", city: "", eta: "", about: "", services: [{ name: "", price_from: "" }] });
+      setWsForm({ name: "", type: "print3d", city: "", eta: "", about: "", phone: "", telegram: "", instagram: "", site: "", services: [{ name: "", price_from: "" }] });
       setShowWsForm(false);
     } catch (e: unknown) {
       setWsErr(e instanceof Error ? e.message : "Ошибка");
@@ -827,6 +831,26 @@ export default function CabinetPage() {
       } else alert(data.detail || "Не удалось загрузить изображение");
     } finally {
       setWsImgUploading(null);
+    }
+  }
+
+  // Контакты мастерской: локально правим поле, затем PATCH на сохранение.
+  const [wsContactsSaving, setWsContactsSaving] = useState<number | null>(null);
+  function setWsField(wsId: number, field: "phone" | "telegram" | "instagram" | "site", value: string) {
+    setWorkshops((prev) => prev.map((w) => w.id === wsId ? { ...w, [field]: value } : w));
+  }
+  async function saveWsContacts(w: Workshop) {
+    setWsContactsSaving(w.id);
+    try {
+      const res = await fetch(`/api/v1/workshops/${w.id}/`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ phone: w.phone || "", telegram: w.telegram || "", instagram: w.instagram || "", site: w.site || "" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) setWorkshops((prev) => prev.map((x) => x.id === w.id ? data : x));
+      else alert(data.detail || "Не удалось сохранить контакты");
+    } finally {
+      setWsContactsSaving(null);
     }
   }
 
@@ -1466,6 +1490,22 @@ export default function CabinetPage() {
                       onChange={(e) => setWsForm({ ...wsForm, about: e.target.value })} />
                   </div>
 
+                  <label style={{ fontSize: 11, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", display: "block", marginBottom: 8 }}>Контакты для связи (необязательно)</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div className="field"><label>Телефон / WhatsApp</label>
+                      <input value={wsForm.phone} placeholder="+7 700 000 00 00"
+                        onChange={(e) => setWsForm({ ...wsForm, phone: e.target.value })} /></div>
+                    <div className="field"><label>Telegram</label>
+                      <input value={wsForm.telegram} placeholder="@workshop или ссылка"
+                        onChange={(e) => setWsForm({ ...wsForm, telegram: e.target.value })} /></div>
+                    <div className="field"><label>Instagram</label>
+                      <input value={wsForm.instagram} placeholder="@workshop или ссылка"
+                        onChange={(e) => setWsForm({ ...wsForm, instagram: e.target.value })} /></div>
+                    <div className="field"><label>Сайт</label>
+                      <input value={wsForm.site} placeholder="https://..."
+                        onChange={(e) => setWsForm({ ...wsForm, site: e.target.value })} /></div>
+                  </div>
+
                   <label style={{ fontSize: 11, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", display: "block", marginBottom: 8 }}>Услуги и цены</label>
                   {wsForm.services.map((svc, i) => (
                     <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -1559,6 +1599,24 @@ export default function CabinetPage() {
                                   onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadWsImage(w.id, "cover", f); e.target.value = ""; }} />
                               </label>
                             </div>
+                          </div>
+
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 6 }}>Контакты для связи</div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                              <input value={w.phone || ""} placeholder="Телефон / WhatsApp"
+                                onChange={(e) => setWsField(w.id, "phone", e.target.value)} />
+                              <input value={w.telegram || ""} placeholder="Telegram (@ или ссылка)"
+                                onChange={(e) => setWsField(w.id, "telegram", e.target.value)} />
+                              <input value={w.instagram || ""} placeholder="Instagram (@ или ссылка)"
+                                onChange={(e) => setWsField(w.id, "instagram", e.target.value)} />
+                              <input value={w.site || ""} placeholder="Сайт (https://...)"
+                                onChange={(e) => setWsField(w.id, "site", e.target.value)} />
+                            </div>
+                            <button className="btn btn-ghost btn-sm" style={{ marginTop: 8 }}
+                              disabled={wsContactsSaving === w.id} onClick={() => saveWsContacts(w)}>
+                              {wsContactsSaving === w.id ? "Сохраняем…" : "Сохранить контакты"}
+                            </button>
                           </div>
 
                           <div style={{ marginTop: 10 }}>

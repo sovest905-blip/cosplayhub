@@ -9,14 +9,16 @@ class ServiceSerializer(serializers.ModelSerializer):
 class WorkshopSerializer(serializers.ModelSerializer):
     services = ServiceSerializer(many=True, required=False)
     is_owner = serializers.SerializerMethodField()
+    owner_id = serializers.IntegerField(read_only=True)  # user id владельца — для кнопки «Написать»
     is_pro = serializers.BooleanField(read_only=True)  # вычисляемое свойство модели
     reviews_count = serializers.IntegerField(source="reviews.count", read_only=True)
     photos = serializers.SerializerMethodField()
     class Meta:
         model = Workshop
         fields = ["id", "name", "type", "city", "about", "logo", "cover", "eta",
+                  "phone", "telegram", "instagram", "site",
                   "rating", "orders_count", "reviews_count", "is_pro", "services",
-                  "photos", "is_owner", "created_at"]
+                  "photos", "is_owner", "owner_id", "created_at"]
         read_only_fields = ["rating", "orders_count", "created_at"]
 
     def to_representation(self, instance):

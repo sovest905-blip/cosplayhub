@@ -1,9 +1,17 @@
 import { notFound } from "next/navigation";
 import OrderButton from "../../components/OrderButton";
 import SaveButton from "../../components/SaveButton";
+import MessageButton from "../../components/MessageButton";
+import OwnerOnly from "../../components/OwnerOnly";
 import { getWorkshop, getWorkshopReviews, type Shop, type WorkshopReview } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
+
+// Нормализация контактов мастерской в кликабельные ссылки.
+const telHref = (v: string) => `tel:${v.replace(/[^\d+]/g, "")}`;
+const tgHref = (v: string) => `https://t.me/${v.trim().replace(/^@/, "").replace(/^https?:\/\/(t\.me\/)?/, "")}`;
+const igHref = (v: string) => { const t = v.trim(); return /^https?:\/\//.test(t) ? t : `https://instagram.com/${t.replace(/^@/, "")}`; };
+const siteHref = (v: string) => { const t = v.trim(); return /^https?:\/\//.test(t) ? t : `https://${t}`; };
 
 export default async function WorkshopPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,6 +59,12 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
         </div>
         <div className="profile-actions">
           <OrderButton workshopId={w.id} label="Заказать" className="btn btn-primary" />
+          {w.owner_id && (
+            <OwnerOnly ownerId={w.owner_id}
+              fallback={<MessageButton userId={w.owner_id} className="btn btn-ghost" />}>
+              <a href="/cabinet?tab=roles" className="btn btn-ghost">✎ Управлять</a>
+            </OwnerOnly>
+          )}
           <SaveButton kind="workshop" objectId={w.id} className="btn btn-ghost" />
         </div>
       </div>
@@ -136,6 +150,28 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
               <span style={{ color: "var(--green)" }}>Принимает заказы</span>
             </div>
           </div>
+
+          {(w.phone || w.telegram || w.instagram || w.site) && (
+            <div className="about">
+              <h3>Контакты</h3>
+              {w.phone && (
+                <div className="info-row"><span>📞 Телефон / WhatsApp</span>
+                  <a href={telHref(w.phone)} style={{ color: "var(--accent-2)" }}>{w.phone}</a></div>
+              )}
+              {w.telegram && (
+                <div className="info-row"><span>Telegram</span>
+                  <a href={tgHref(w.telegram)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-2)" }}>Открыть ↗</a></div>
+              )}
+              {w.instagram && (
+                <div className="info-row"><span>Instagram</span>
+                  <a href={igHref(w.instagram)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-2)" }}>Открыть ↗</a></div>
+              )}
+              {w.site && (
+                <div className="info-row"><span>Сайт</span>
+                  <a href={siteHref(w.site)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent-2)" }}>Открыть ↗</a></div>
+              )}
+            </div>
+          )}
 
           <div className="about" style={{ background: "linear-gradient(135deg,rgba(124,249,255,.08),rgba(255,45,111,.05))", border: "1px solid rgba(124,249,255,.2)" }}>
             <h3 style={{ color: "var(--accent-2)" }}>Заказать у мастерской</h3>

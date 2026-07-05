@@ -119,6 +119,8 @@ export function fmtDetailValue(v: any, suffix = ""): string {
 export type Shop = {
   id: number; name: string; type: string; city: string; is_pro: boolean;
   rating: number; orders: number; eta: string; cover: string; logo: string | null; description: string;
+  owner_id: number | null;
+  phone: string; telegram: string; instagram: string; site: string;
   services: { id: number; name: string; description: string; price_from: number }[];
   reviews_count: number;
   photos: { id: number; url: string }[];
@@ -173,6 +175,11 @@ export function normalizeWorkshop(w: any): Shop {
     cover: w.cover || PLACEHOLDER_WS,
     logo: w.logo || null,
     description: w.about || "",
+    owner_id: w.owner_id ?? null,
+    phone: w.phone || "",
+    telegram: w.telegram || "",
+    instagram: w.instagram || "",
+    site: w.site || "",
     services: Array.isArray(w.services) ? w.services : [],
     reviews_count: w.reviews_count ?? 0,
     photos: Array.isArray(w.photos) ? w.photos : [],
