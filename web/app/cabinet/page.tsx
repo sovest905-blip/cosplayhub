@@ -75,6 +75,7 @@ type WsService = { name: string; price_from: string };
 type Workshop = {
   id: number; name: string; type: string; city: string; about: string;
   eta: string; rating: number; orders_count: number; is_pro: boolean;
+  logo: string | null; cover: string | null;
   services: { id: number; name: string; description: string; price_from: number }[];
   photos: { id: number; url: string }[];
 };
@@ -808,6 +809,23 @@ export default function CabinetPage() {
     }
   }
 
+  // Логотип и обложка мастерской — отдельные картинки, шлём PATCH multipart на саму мастерскую.
+  const [wsImgUploading, setWsImgUploading] = useState<string | null>(null); // `${wsId}:${kind}`
+  async function uploadWsImage(wsId: number, kind: "logo" | "cover", file: File) {
+    setWsImgUploading(`${wsId}:${kind}`);
+    try {
+      const fd = new FormData();
+      fd.append(kind, file);
+      const res = await fetch(`/api/v1/workshops/${wsId}/`, { method: "PATCH", credentials: "include", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setWorkshops((prev) => prev.map((w) => w.id === wsId ? { ...w, [kind]: data[kind] } : w));
+      } else alert(data.detail || "Не удалось загрузить изображение");
+    } finally {
+      setWsImgUploading(null);
+    }
+  }
+
   async function unfollow(userId: number) {
     const res = await fetch(`/api/v1/follow/${userId}/`, { method: "DELETE", credentials: "include" });
     if (res.ok) setFollowing((prev) => prev.filter((p) => p.user_id !== userId));
@@ -1445,6 +1463,36 @@ export default function CabinetPage() {
                               ))}
                             </div>
                           )}
+                          <div style={{ marginTop: 10, display: "flex", gap: 12, flexWrap: "wrap" }}>
+                            <div>
+                              <div style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 6 }}>Логотип</div>
+                              <label style={{
+                                width: 64, height: 64, borderRadius: 10, cursor: "pointer",
+                                border: "1px dashed var(--line)", backgroundSize: "cover", backgroundPosition: "center",
+                                backgroundImage: w.logo ? `url('${w.logo}')` : undefined,
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                                color: "var(--ink-dim)", fontSize: 11, textAlign: "center",
+                              }}>
+                                {wsImgUploading === `${w.id}:logo` ? "…" : (w.logo ? "" : "+ лого")}
+                                <input type="file" accept="image/*" style={{ display: "none" }}
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadWsImage(w.id, "logo", f); e.target.value = ""; }} />
+                              </label>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 160 }}>
+                              <div style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 6 }}>Обложка</div>
+                              <label style={{
+                                display: "flex", height: 64, borderRadius: 10, cursor: "pointer",
+                                border: "1px dashed var(--line)", backgroundSize: "cover", backgroundPosition: "center",
+                                backgroundImage: w.cover ? `url('${w.cover}')` : undefined,
+                                alignItems: "center", justifyContent: "center", color: "var(--ink-dim)", fontSize: 11,
+                              }}>
+                                {wsImgUploading === `${w.id}:cover` ? "…" : (w.cover ? "" : "+ обложка")}
+                                <input type="file" accept="image/*" style={{ display: "none" }}
+                                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadWsImage(w.id, "cover", f); e.target.value = ""; }} />
+                              </label>
+                            </div>
+                          </div>
+
                           <div style={{ marginTop: 10 }}>
                             <div style={{ fontSize: 11, color: "var(--ink-dim)", marginBottom: 6 }}>
                               Фото работ · {(w.photos || []).length} / 5
