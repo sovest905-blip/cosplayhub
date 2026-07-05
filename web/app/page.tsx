@@ -127,13 +127,15 @@ export default async function HomePage() {
         </section>
         )}
 
-        {/* NEWS — над косплеерами; только если админ завёл новости */}
-        {newsList.length > 0 && (
+        {/* NEWS + EVENTS — объединённый блок над косплеерами; показываем, если есть новости или события */}
+        {(newsList.length > 0 || evList.length > 0) && (
         <section>
           <div className="section-head">
-            <h2 className="title">Новости.</h2>
-            <a href="/news" className="section-link">Все →</a>
+            <h2 className="title">Новости и события.</h2>
+            <a href={newsList.length > 0 ? "/news" : "/events"} className="section-link">Все →</a>
           </div>
+
+          {newsList.length > 0 && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 18 }}>
             {newsList.slice(0, 3).map((n) => (
               <a key={n.id} href="/news" style={{
@@ -173,6 +175,34 @@ export default async function HomePage() {
               </a>
             ))}
           </div>
+          )}
+
+          {evList.length > 0 && (
+          <>
+            <div className="section-head" style={{ marginTop: newsList.length > 0 ? 26 : 0 }}>
+              <h3 className="title" style={{ fontSize: 20 }}>Ближайшие события</h3>
+              <a href="/events" className="section-link">Все события →</a>
+            </div>
+            <div className="ev-list">
+              {evList.slice(0, 4).map((e) => (
+                <a key={e.id} href={`/events/${e.id}`} className="ev">
+                  <div className="ev-date">
+                    <b>{e.day}</b>
+                    <span>{e.month}</span>
+                  </div>
+                  <div className="ev-info">
+                    <h4>{e.title}</h4>
+                    <p>{e.place ? `${e.place} · ` : ""}{e.city}</p>
+                  </div>
+                  <div className="ev-going">
+                    <b>{e.going_total ?? e.going}</b>
+                    идут
+                  </div>
+                </a>
+              ))}
+            </div>
+          </>
+          )}
         </section>
         )}
 
@@ -247,40 +277,6 @@ export default async function HomePage() {
                     <div><b>{Number(w.rating) > 0 ? `★ ${w.rating}` : "—"}</b><span>{Number(w.rating) > 0 ? "Рейтинг" : "Нет отзывов"}</span></div>
                     <div><b>{w.orders}+</b><span>Заказов</span></div>
                   </div>
-                </div>
-              </a>
-            ))}
-          </div>
-          )}
-        </section>
-
-        {/* EVENTS */}
-        <section>
-          <div className="section-head">
-            <h2 className="title">Ближайшие события.</h2>
-            <a href="/events" className="section-link">Все →</a>
-          </div>
-          {evList.length === 0 ? (
-            <div className="empty-state" style={{ border: "1px solid var(--line)", borderRadius: 18 }}>
-              <div className="empty-glyph">◈</div>
-              <p className="empty-title">Событий пока нет</p>
-              <p className="empty-sub">Ближайшие сходки, фестивали и съёмки появятся здесь.</p>
-            </div>
-          ) : (
-          <div className="ev-list">
-            {evList.slice(0, 4).map((e) => (
-              <a key={e.id} href={`/events/${e.id}`} className="ev">
-                <div className="ev-date">
-                  <b>{e.day}</b>
-                  <span>{e.month}</span>
-                </div>
-                <div className="ev-info">
-                  <h4>{e.title}</h4>
-                  <p>{e.place ? `${e.place} · ` : ""}{e.city}</p>
-                </div>
-                <div className="ev-going">
-                  <b>{e.going_total ?? e.going}</b>
-                  идут
                 </div>
               </a>
             ))}

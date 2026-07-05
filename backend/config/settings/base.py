@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.rentals",
     "apps.battles",
     "apps.homepage",
+    "apps.analytics",
 ]
 
 MIDDLEWARE = [

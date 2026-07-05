@@ -2,7 +2,7 @@
 объявления, заказы. Управление юзерами/локациями — в common/admin_panel.py."""
 from datetime import timedelta
 
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework.response import Response
 
@@ -23,6 +23,7 @@ from apps.products.models import Product
 from apps.products.serializers import ProductSerializer
 from apps.bookings.models import Slot
 from apps.bookings.serializers import SlotSerializer
+from apps.analytics.models import DailyVisit
 
 OPEN_ORDER_STATUSES = ["request", "accepted", "in_work"]
 
@@ -32,7 +33,13 @@ class AdminStatsView(_StaffView):
 
     def get(self, request):
         week_ago = timezone.now() - timedelta(days=7)
+        today = timezone.localdate()
+        week_start = today - timedelta(days=6)  # сегодня + 6 предыдущих = 7 дней
+        visits = DailyVisit.objects
         return Response({
+            "visits_today": visits.filter(date=today).aggregate(s=Sum("count"))["s"] or 0,
+            "visits_7d": visits.filter(date__gte=week_start).aggregate(s=Sum("count"))["s"] or 0,
+            "visits_total": visits.aggregate(s=Sum("count"))["s"] or 0,
             "users_total": User.objects.filter(is_superuser=False).count(),
             "users_active": User.objects.filter(is_superuser=False, is_active=True).count(),
             "users_blocked": User.objects.filter(is_superuser=False, is_active=False).count(),
