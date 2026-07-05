@@ -1,6 +1,7 @@
 import {
   getProfiles, getWorkshops, getEvents, fmtCount,
-  getCurated, getCategories, getNews, type Category, type NewsItem,
+  getCurated, getCategories, getNews, getProfilesByRole,
+  ROLE_DETAIL_FIELDS, fmtDetailValue, type Category, type NewsItem,
 } from "../lib/api";
 
 // Категории — декоративная лента тем. Если админ не задал свои — показываем базовый набор.
@@ -35,7 +36,7 @@ async function fetchStats(): Promise<Stats> {
 }
 
 export default async function HomePage() {
-  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiCategories, apiNews] = await Promise.all([
+  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiCategories, apiNews, apiShops] = await Promise.all([
     fetchStats(),
     getProfiles("?role=cosplayer").catch(() => null),
     getWorkshops().catch(() => null),
@@ -43,6 +44,7 @@ export default async function HomePage() {
     getCurated().catch(() => null),
     getCategories().catch(() => null),
     getNews().catch(() => null),
+    getProfilesByRole("shop").catch(() => null),
   ]);
   // Новости — из админки; блок на главной показываем только если есть хотя бы одна.
   const newsList: NewsItem[] = apiNews || [];
@@ -50,6 +52,7 @@ export default async function HomePage() {
   const peopleList: any[] = apiPeople || [];
   const wsList: any[] = apiWs || [];
   const evList: any[] = apiEvents || [];
+  const shopList: any[] = apiShops || [];
   // «Выбор редакции» — из админки; если ничего не заведено, блок не показываем.
   const curated = apiCurated || [];
   // Категории — из админки, иначе базовый набор тем (декоративная лента).
@@ -280,6 +283,53 @@ export default async function HomePage() {
                 </div>
               </a>
             ))}
+          </div>
+          )}
+        </section>
+
+        {/* SHOPS */}
+        <section>
+          <div className="section-head">
+            <h2 className="title">Магазины.</h2>
+            <a href="/shops" className="section-link">Все →</a>
+          </div>
+          {shopList.length === 0 ? (
+            <FirstCta glyph="⌂" title="Открой первый магазин"
+              sub="Магазинов пока нет — продаёшь ткани, линзы, парики или готовые костюмы? Добавь роль «Магазин»."
+              href="/cabinet?tab=roles" label="Стать магазином →" />
+          ) : (
+          <div className="workshops-grid">
+            {shopList.slice(0, 3).map((p) => {
+              const d = p.role_details?.shop || {};
+              const name = fmtDetailValue(d.shop_name) || p.display_name;
+              return (
+                <a key={p.id} href={`/people/${p.id}`} className="ws-card">
+                  <div className="ws-cover" style={{ backgroundImage: `url('${p.photo}')` }}>
+                    {fmtDetailValue(d.delivery_cis) && (
+                      <div className="ws-pro" style={{ background: "rgba(124,249,255,.9)", color: "#001" }}>Доставка СНГ</div>
+                    )}
+                    <div className="ws-type">⌂ Магазин</div>
+                  </div>
+                  <div className="ws-body">
+                    <div className="ws-name">{name}</div>
+                    <div className="ws-loc">📍 {p.city || "—"}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+                      {ROLE_DETAIL_FIELDS.shop.fields
+                        .filter((f) => f.key !== "shop_name")
+                        .map((f) => {
+                          const val = fmtDetailValue(d[f.key], f.suffix);
+                          if (!val) return null;
+                          return (
+                            <div key={f.key} style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                              <span style={{ color: "var(--ink)" }}>{f.label}:</span> {val}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
           </div>
           )}
         </section>
