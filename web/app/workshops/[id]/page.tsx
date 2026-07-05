@@ -36,7 +36,7 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
 
       <div className="profile-head">
         <div className="avatar" style={{
-          backgroundImage: `url('${w.cover}')`,
+          backgroundImage: w.logo ? `url('${w.logo}')` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
           borderRadius: 16,
         }} />
         <div className="profile-meta">

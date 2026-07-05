@@ -75,7 +75,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ id: st
       )}
 
       <div className="profile-hero" style={{
-        backgroundImage: person.photo ? `url('${person.photo}')` : undefined,
+        backgroundImage: person.cover ? `url('${person.cover}')` : undefined,
         backgroundSize: "cover", backgroundPosition: "center top",
       }}>
         {person.available_for_work && (

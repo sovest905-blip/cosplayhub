@@ -22,7 +22,7 @@ export type Social = { platform: string; handle: string };
 export type Person = {
   id: number; user_id: number | null; display_name: string; city: string; experience: string;
   is_verified: boolean; available_for_work: boolean; is_pro: boolean;
-  followers: number; looks: number; photo: string; specialization: string; bio: string;
+  followers: number; looks: number; photo: string; cover: string | null; specialization: string; bio: string;
   roles: string[]; role_details: Record<string, Record<string, any>>; socials: Social[];
   photos: { id: number; url: string }[];
   accent_color?: string;
@@ -117,7 +117,7 @@ export function fmtDetailValue(v: any, suffix = ""): string {
 
 export type Shop = {
   id: number; name: string; type: string; city: string; is_pro: boolean;
-  rating: number; orders: number; eta: string; cover: string; description: string;
+  rating: number; orders: number; eta: string; cover: string; logo: string | null; description: string;
   services: { id: number; name: string; description: string; price_from: number }[];
   reviews_count: number;
   photos: { id: number; url: string }[];
@@ -141,6 +141,7 @@ export function normalizeProfile(p: any): Person {
     followers: p.followers_count ?? 0,
     looks: p.looks_count ?? 0,
     photo: p.avatar || PLACEHOLDER_PERSON,
+    cover: p.cover || null,
     specialization: roles.map((r) => ROLE_RU[r] || r).join(" · ") || "Участник",
     bio: p.bio || "",
     roles,
@@ -168,6 +169,7 @@ export function normalizeWorkshop(w: any): Shop {
     orders: w.orders_count ?? 0,
     eta: w.eta || "—",
     cover: w.cover || PLACEHOLDER_WS,
+    logo: w.logo || null,
     description: w.about || "",
     services: Array.isArray(w.services) ? w.services : [],
     reviews_count: w.reviews_count ?? 0,

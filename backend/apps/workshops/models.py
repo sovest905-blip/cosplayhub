@@ -13,7 +13,8 @@ class Workshop(models.Model):
     type = models.CharField("тип", max_length=20, choices=TYPE_CHOICES)
     city = models.CharField("город", max_length=80)
     about = models.TextField("описание", blank=True)
-    cover = models.ImageField(upload_to="workshops/", blank=True, null=True)
+    logo = models.ImageField("логотип", upload_to="workshops/logos/", blank=True, null=True)
+    cover = models.ImageField("обложка", upload_to="workshops/", blank=True, null=True)
     eta = models.CharField("срок", max_length=40, blank=True)   # "7-14д"
     rating = models.DecimalField(max_digits=2, decimal_places=1, default=0)
     orders_count = models.PositiveIntegerField(default=0)

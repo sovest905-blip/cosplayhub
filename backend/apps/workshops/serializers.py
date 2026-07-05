@@ -14,7 +14,7 @@ class WorkshopSerializer(serializers.ModelSerializer):
     photos = serializers.SerializerMethodField()
     class Meta:
         model = Workshop
-        fields = ["id", "name", "type", "city", "about", "cover", "eta",
+        fields = ["id", "name", "type", "city", "about", "logo", "cover", "eta",
                   "rating", "orders_count", "reviews_count", "is_pro", "services",
                   "photos", "is_owner", "created_at"]
         read_only_fields = ["rating", "orders_count", "created_at"]
@@ -22,6 +22,7 @@ class WorkshopSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         # Относительный URL обложки (/media/...): корректен и в браузере, и при SSR.
         data = super().to_representation(instance)
+        data["logo"] = instance.logo.url if instance.logo else None
         data["cover"] = instance.cover.url if instance.cover else None
         return data
 
