@@ -103,6 +103,20 @@ def test_media_kit_pdf_for_pro(api, make_user):
 
 
 @pytest.mark.django_db
+def test_media_kit_escapes_special_chars(api, make_user):
+    """reportlab трактует Paragraph как XML — символы < > & в нике/био не должны ломать
+    сборку PDF (иначе 500) и не должны инъектить теги. Регресс на экранирование."""
+    user = make_user(); prof = _profile(user); _pro(user)
+    prof.display_name = "R&B <script>"
+    prof.bio = 'мне < 18 & я люблю Fate/stay > all <img src="http://evil"/>'
+    prof.save()
+    api.force_authenticate(user=user)
+    resp = api.get("/api/v1/profiles/me/media-kit/")
+    assert resp.status_code == 200
+    assert resp.content[:4] == b"%PDF"
+
+
+@pytest.mark.django_db
 def test_donation_methods_require_pro(api, make_user):
     user = make_user(); _profile(user)
     api.force_authenticate(user=user)
