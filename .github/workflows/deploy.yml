@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck --workspace web
 
+      - name: Test (vitest)
+        run: npm run test --workspace web
+
       - name: Build
         run: npm run build --workspace web
 
