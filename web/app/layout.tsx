@@ -41,6 +41,9 @@ export const metadata: Metadata = {
     metadataBase: new URL("https://www.cosplayhub.kz"),
     verification: {
           google: "_uKv60IAGWiHG24Ti_u40_qrhq-DmRqjc58qA70Mjo4",
+        other: {
+              "yandex-verification": "36b092a0b2dfa4a3",
+        },
     },
   title: "КОСПЛЕЙ.ХАБ — экосистема косплея СНГ",
   description: "Косплееры, мастерские, магазины, фотографы, события — в одном месте. Казахстан и СНГ.",
