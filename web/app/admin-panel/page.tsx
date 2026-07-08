@@ -37,7 +37,7 @@ const TABS: [TabId, string][] = [
   ["shops", "⌂ Магазины"],
   ["products", "▦ Товары"],
   ["listings", "⌂ Объявления"],
-  ["rentals", "⛺ Прокат"],
+  ["rentals", "⇄ Прокат"],
   ["orders", "↗ Заказы"],
   ["subscriptions", "♛ Подписки Pro"],
 ];
