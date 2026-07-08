@@ -1,69 +1,114 @@
 # Карта проекта — где что лежит
 
-## Бэкенд (Django REST API)
+> Актуализировано 2026-07-08. Монорепо (npm workspaces): `web` + `shared`, бэкенд отдельно в `backend`.
+> Стек: Django 5 + DRF + PostgreSQL 17 + Redis (бэк), Next.js 16 + React 19 + TS (веб). Мобилка (Expo) — позже.
+
+## Корень репо
+```
+cosplayhub/
+├── backend/            ← Django REST API (+ docker-compose со всеми сервисами)
+├── web/                ← Next.js (сайт)
+├── shared/             ← общие TS-типы/клиент (легаси-минимум, см. ниже)
+├── legal/              ← юр-документы (6 .md: Соглашение/Конфиденциальность/Оферта/Правила/Cookie/Согласие ПДн)
+├── README.md · GETTING_STARTED.md · STRUCTURE.md
+└── package.json        ← npm workspaces (web + shared)
+```
+
+## Бэкенд (backend/)
 ```
 backend/
 ├── config/
-│   ├── settings/base.py     ← общие настройки + ИБ (Argon2, DRF, throttling)
-│   ├── settings/dev.py      ← разработка (CORS на localhost)
-│   ├── settings/prod.py     ← прод (HTTPS, HSTS, Secure cookie)
-│   └── urls.py              ← роутер: всё под /api/v1/
-├── apps/
-│   ├── users/               ← User (логин по email), регистрация, login/logout/me
-│   ├── profiles/            ← Profile + SocialLink, каталог косплееров
-│   ├── workshops/           ← Workshop + Service, каталог мастерских
-│   └── orders/              ← Order (заявка через эскроу-статус, БЕЗ денег)
-├── common/                  ← пагинация, права (IsOwnerOrReadOnly)
-├── nginx/default.conf       ← reverse-proxy + заголовки безопасности
-├── docker-compose.yml       ← db + redis + web + nginx (одна команда)
-└── .env.example             ← шаблон секретов (.env в git НЕ идёт)
+│   ├── settings/base.py   ← общие настройки + ИБ (Argon2, DRF, throttling, EMAIL, платёжные токены)
+│   ├── settings/dev.py    ← разработка (CORS на localhost, Secure-куки off)
+│   ├── settings/prod.py   ← прод (fail-fast SECRET_KEY/ALLOWED_HOSTS, HSTS, Secure-куки по env, CSRF/CORS origins)
+│   └── urls.py            ← роутер: всё под /api/v1/ (подключает urls каждого приложения + admin-panel)
+├── apps/                  ← 20 Django-приложений (см. таблицу ниже)
+├── common/               ← сквозное: stats, search, feed, analytics/me + вся admin-panel
+│                            (admin_panel.py — юзеры/локации, admin_content.py — контент, admin_billing.py — Pro)
+├── nginx/default.conf    ← внутренний reverse-proxy + заголовки безопасности (HSTS/CSP), rate-limit /admin
+├── docker-compose.yml    ← db(pg17) + redis + web(Django) + frontend(Next) + nginx + mailhog + tgbot
+└── .env.example          ← шаблон секретов (.env в git НЕ идёт)
 ```
 
-## Эндпоинты API v1 (готовые)
+### Приложения (apps/) — 20 шт.
+| Приложение | Модели | Отвечает за |
+|-----------|--------|-------------|
+| `users` | User, Invite | Аутентификация (email/телефон/telegram), регистрация, login/logout/me, смена пароля/email, инвайты |
+| `profiles` | Profile, SocialLink, Follow, Favorite, ProfilePhoto, ProfileView, RoleMedia | Профиль + роли (косплеер/фотограф/магазин/локация/фанат), каталоги, подписки, избранное, галерея, «кто смотрел», fan-matches |
+| `workshops` | Workshop, Service, WorkshopPhoto, Review | Мастерские (3D-печать/EVA/пошив/парики), услуги, фото работ, отзывы |
+| `billing` | Subscription | Единый Pro (активация, срок, приоритет в каталогах, гейт фишек) |
+| `orders` | Order, Review | Заказы в мастерские (входящие/исходящие, статусы), отзыв по завершённому |
+| `listings` | Listing | Барахолка (`/market`) и слоты/коллабы (`/jobs`) — одна модель, фильтр по типу |
+| `messaging` | Conversation, Message | Личные сообщения (двухпанельный мессенджер, пуллинг) |
+| `notifications` | Notification | Уведомления (сообщение/заказ/подписка/статус) |
+| `news` | News | Лента новостей/анонсов (`/news`) |
+| `events` | Event, EventAttendee | События (`/events`), кнопка «Пойду» |
+| `guides` | Guide, GuidePhoto | Гайды (`/guides`), фото-маркеры `[фото:N]` в тексте |
+| `looks` | Look, LookLike, LookUpdate | Образы (`/looks`), лайки, WIP-прогресс («Хочу скосплеить») |
+| `teams` | Team, TeamMember, TeamLike | Команды (`/teams`), состав/заявки, портфолио из образов |
+| `products` | Product | Витрина товаров магазина (`/products`), как Etsy |
+| `bookings` | Slot, Booking | Слоты аренды локаций (`/people/[id]` секция), бронь-заявка |
+| `shoots` | Shoot, ShootParticipant | «Собери команду на съёмку» (`/shoots`) — киллер-фича |
+| `rentals` | Costume, RentalRequest | Прокат костюмов (`/rent`) |
+| `battles` | Battle, BattleEntry, BattleVote | Косплей-баттлы/голосование (`/battles`) |
+| `homepage` | — | Кураторская главная: «Выбор редакции» (curated) + категории (admin-panel/curated, /categories) |
+| `analytics` | DailyVisit, VisitorDay | Счётчик посещений сайта (только staff), дедуп по IP/день |
+
+> Деньги: все платёжные пути — крипто-шлюз Crypto Pay (@CryptoBot), токены в `.env`. Реальные фиат-платежи и Pro-группа B — после ТОО.
+
+## Эндпоинты API v1 (обзор; полная схема — Swagger `/api/v1/docs/`, только staff)
 ```
-POST   /api/v1/auth/register/      регистрация
-POST   /api/v1/auth/login/         вход (cookie-сессия, rate-limit 10/мин)
-POST   /api/v1/auth/logout/        выход
-GET    /api/v1/auth/me/            текущий пользователь
-PATCH  /api/v1/auth/me/            обновить себя
-
-GET    /api/v1/profiles/           каталог косплееров (фильтр available_for_work)
-GET    /api/v1/profiles/{id}/      профиль
-POST   /api/v1/profiles/           создать (только свой)
-
-GET    /api/v1/workshops/          каталог мастерских (фильтр type, city, is_pro)
-GET    /api/v1/workshops/{id}/     мастерская + услуги
-POST   /api/v1/workshops/          создать
-
-GET    /api/v1/orders/             МОИ заказы (чужие не видны — ИБ)
-POST   /api/v1/orders/             создать заявку
-
-GET    /api/v1/docs/               Swagger-документация
-GET    /admin/                     админка Django
+auth/       register login logout me send-otp verify-otp forgot/reset-password
+            send-telegram-otp verify-telegram-otp avatar cover change-password/email delete-account
+profiles/   каталоги, {id}, follow, favorites, me/photos, me/viewers, fan-matches, by-slug, me/role-media, me/media-kit
+workshops/  каталог, {id}, mine, photos, reviews
+billing/    activate, me                          orders/     мои, incoming, {id} статус, review
+listings/   свои CRUD + public/                   products/   каталог, {id}, mine, owner
+looks/      каталог, {id}, like, updates          teams/      каталог, {id}, join/leave/like, members
+events/     каталог, {id}, attend, mine           guides/     каталог, {id}, photos
+news/       лента                                 conversations/ + messages/ + notifications/
+slots/ bookings/ (bookings)   shoots/ + shoots/mine/   costumes/ rentals/   battles/ + entry/vote
+stats/  search/?q=  feed/  analytics/me/           admin-panel/... (весь staff-контроль, IsAdminUser)
+docs/ (Swagger, staff)   /admin/ (Django-админка)
 ```
 
-## Веб (Next.js)
+## Веб (web/)
 ```
 web/app/
-├── layout.tsx               ← каркас (nav)
-├── page.tsx                 ← / главная
-├── people/page.tsx          ← /people каталог (тянет API на сервере)
-├── people/[id]/page.tsx     ← /people/3 профиль
-├── workshops/page.tsx       ← /workshops каталог
-└── workshops/[id]/page.tsx  ← /workshops/1 детальная
+├── layout.tsx          ← каркас: шапка (AuthNav), меню-дропы, футер
+├── page.tsx            ← / главная (hero-статы, косплееры/мастерские/магазины, новости+события)
+├── auth/               ← login · register · verify-email · forgot-password
+├── cabinet/            ← личный кабинет (SPA-табы ?tab=): профиль/роли/анкеты/объявления/отклики/
+│                          подписки/избранное/соцсети/аналитика/съёмки/прокат/настройки  ⚠ god-компонент (~2800 строк)
+├── admin-panel/        ← кастомная админка (is_staff): дашборд + все разделы  ⚠ god-компонент (~1970 строк)
+├── people/ · people/[id]/   ← каталог косплееров/фотографов + профиль (роль-контекст ?role=)
+├── workshops/ shops/ locations/ photographers/  ← каталоги ролей
+├── looks/ teams/ shoots/ rent/ battles/         ← комьюнити-разделы (+ /new формы)
+├── events/ news/ guides/ market/ jobs/ products/ ← контент/витрины
+├── pro/ · u/[slug]/    ← лендинг Pro · кастомный URL профиля
+├── feed/ search/ messages/ notifications/       ← лента · поиск · мессенджер · уведомления
+├── legal/              ← живые страницы юр-документов
+├── components/         ← ~26 клиентских компонентов (кнопки-гейты, панели, трекеры — см. ниже)
+└── lib/
+    ├── api.ts          ← ЕДИНЫЙ API-клиент + все актуальные TS-типы (основной источник типов, не shared/)
+    ├── roleForms.tsx   ← ROLE_FORMS + RoleFields (общие для кабинета и админки — не дублировать)
+    └── mock.ts         ← мок-фолбэк только для кураторских секций главной
 ```
+Ключевые компоненты (`web/app/components/`): AuthNav, MobileMenu, GatedButton/OwnerOnly (гейты действий),
+CsrfFetch (обёртка fetch с X-CSRFToken), Follow/Save/Like/Going/Order/Message-кнопки, MessagesPanel,
+CryptoPayButton/DonateButton/SiteDonate (крипто-оплата), VisitTracker/ProfileViewTracker, EmptyState/ComingSoon.
 
-## Общий код (web ↔ mobile)
+## Общий код (shared/) — легаси-минимум
 ```
 shared/
-├── types/                   ← TypeScript-типы (User, Profile, Workshop, Order)
-└── api/client.ts            ← единый API-клиент (cookie + CSRF)
+├── types/   ← только user/profile/workshop/order (устарело, покрывает мало)
+└── api/client.ts
 ```
+⚠ Актуальные типы и API-клиент фронта живут в `web/lib/api.ts`, а НЕ в `shared/`. `shared/` задумывался под
+переиспользование с будущей мобилкой (Expo) — пока почти пустой.
 
-## Что дальше (по очереди)
-1. Запустить, создать суперюзера, проверить админку и Swagger
-2. Заполнить тестовые данные через админку
-3. Добавить регистрацию/логин на вебе (форма → /auth/login/)
-4. Перенести остальные сущности: looks, listings, teams, events, locations
-5. Когда веб работает — mobile/ на React Native (Expo), импортит shared/
-6. Платежи — только после регистрации ТОО
+## Инфраструктура / деплой
+- Прод: VPS + Plesk(443) → Apache → docker `127.0.0.1:8080` (nginx) → Django(web:8000) / Next(frontend:3000).
+- CI/CD: push в `main` → GitHub Actions (typecheck+build / django check+миграции / pytest на Postgres) → деплой.
+- Тесты: бэк — ~30 тест-файлов почти на все приложения (`apps/*/tests/`); фронт — тестов пока нет (тех-долг).
+- Детали окружения, доступы и грабли деплоя — вне репо (в приватных заметках), не в этом файле.

@@ -132,6 +132,7 @@ class MyMediaKitView(APIView):
         from reportlab.lib.units import mm
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from xml.sax.saxutils import escape as _xml_escape
 
         from apps.looks.models import Look, LookLike
 
@@ -157,19 +158,23 @@ class MyMediaKitView(APIView):
         buf = BytesIO()
         doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=22 * mm, bottomMargin=18 * mm,
                                 leftMargin=20 * mm, rightMargin=20 * mm, title="Медиа-кит")
-        story = [Paragraph((prof.display_name if prof else None) or user.username, h1)]
+        # Пользовательский ввод (имя/город/био/соцсети) экранируем: reportlab трактует Paragraph
+        # как мини-XML — символы < > & иначе ломают сборку PDF (500) либо инъектят теги (<img> → SSRF).
+        def esc(s):
+            return _xml_escape(str(s if s is not None else ""))
+        story = [Paragraph(esc((prof.display_name if prof else None) or user.username), h1)]
         line = " · ".join(x for x in [roles, (user.city or "")] if x)
         if line:
-            story.append(Paragraph(line, sub))
+            story.append(Paragraph(esc(line), sub))
         if prof and prof.bio:
-            story += [Spacer(1, 8), Paragraph(prof.bio, body)]
+            story += [Spacer(1, 8), Paragraph(esc(prof.bio), body)]
         story += [Spacer(1, 6), Paragraph("Статистика", hd)]
         for k, v in stats.items():
             story.append(Paragraph(f"{k}: <b>{v}</b>", body))
         if socials:
             story += [Paragraph("Соцсети", hd)]
             for s in socials:
-                story.append(Paragraph(f"{s.platform}: {s.handle}", body))
+                story.append(Paragraph(esc(f"{s.platform}: {s.handle}"), body))
         story += [Spacer(1, 16), Paragraph("Сгенерировано на КосплейХаб · cosplayhub.kz", sub)]
         doc.build(story)
 
