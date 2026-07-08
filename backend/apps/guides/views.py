@@ -10,11 +10,32 @@ from .serializers import GuideSerializer
 
 MAX_PHOTOS = 5
 
+# Гайды пишут только эти роли (плюс всегда staff). Модерация — гейт после.
+GUIDE_AUTHOR_ROLES = {"cosplayer", "workshop"}
+
 
 def _photo_limit(user) -> int:
     """Базовый лимит фото гайда; Pro поднимает его в PRO_LIMIT_MULTIPLIER раз."""
     from apps.billing.models import PRO_LIMIT_MULTIPLIER
     return MAX_PHOTOS * PRO_LIMIT_MULTIPLIER if (user and user.is_pro) else MAX_PHOTOS
+
+
+def _can_write_guides(user) -> bool:
+    if not (user and user.is_authenticated):
+        return False
+    if user.is_staff:
+        return True
+    prof = getattr(user, "profile", None)
+    roles = set(getattr(prof, "roles", None) or [])
+    return bool(roles & GUIDE_AUTHOR_ROLES)
+
+
+class CanWriteGuide(BasePermission):
+    """Создавать гайд может косплеер, мастерская или админ."""
+    message = "Гайды могут публиковать косплееры и мастерские."
+
+    def has_permission(self, request, view):
+        return _can_write_guides(request.user)
 
 
 class IsAuthorOrStaffOrReadOnly(BasePermission):
@@ -47,11 +68,25 @@ class GuideViewSet(viewsets.ModelViewSet):
         if self.action in ("list", "retrieve"):
             return [AllowAny()]
         if self.action == "create":
-            return [IsAuthenticated()]
+            return [CanWriteGuide()]
         return [IsAuthorOrStaffOrReadOnly()]
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        # Админ публикует сразу; остальные — на модерацию (не видно публично).
+        user = self.request.user
+        if user.is_staff:
+            serializer.save(author=user, status="published", is_published=True)
+        else:
+            serializer.save(author=user, status="pending", is_published=False, moderation_note="")
+
+    def perform_update(self, serializer):
+        # Правка автором-неадмином уже опубликованного гайда → снова на модерацию.
+        user = self.request.user
+        guide = serializer.instance
+        if not user.is_staff and guide.status == "published":
+            serializer.save(status="pending", is_published=False, moderation_note="")
+        else:
+            serializer.save()
 
     def _can_edit(self, request, guide):
         return bool(request.user and (request.user.is_staff or guide.author_id == request.user.id))

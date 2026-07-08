@@ -3,7 +3,15 @@ from django.db import models
 
 
 class Guide(models.Model):
-    """Гайд/туториал по крафту. Пишут залогиненные юзеры и админы."""
+    """Гайд/туториал по крафту. Пишут косплееры и мастерские (и админы).
+    Материалы от не-админов проходят модерацию: pending → админ одобряет/отклоняет.
+    is_published держим в синхроне со status (published) — по нему строится
+    публичная выдача и счётчики."""
+    STATUS_CHOICES = [
+        ("pending", "На модерации"),
+        ("published", "Опубликован"),
+        ("rejected", "Отклонён"),
+    ]
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                null=True, blank=True, related_name="guides")
     title = models.CharField("заголовок", max_length=200)
@@ -11,6 +19,8 @@ class Guide(models.Model):
     body = models.TextField("текст", blank=True)
     category = models.CharField("категория", max_length=40, blank=True)  # EVA, Парики, Грим, 3D-печать, Общее
     cover = models.ImageField("обложка", upload_to="guides/", blank=True, null=True)
+    status = models.CharField("статус модерации", max_length=12, choices=STATUS_CHOICES, default="published")
+    moderation_note = models.CharField("причина отклонения", max_length=300, blank=True)
     is_published = models.BooleanField("опубликовано", default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -1555,18 +1555,35 @@ function EventsAdmin() {
 }
 
 // ─────────────────────────── ГАЙДЫ ───────────────────────────
-type GuideRow = { id: number; title: string; summary: string; body: string; category: string; author_name: string; created_at: string };
+type GuideRow = {
+  id: number; title: string; summary: string; body: string; category: string;
+  cover: string | null; photos: { id: number; url: string }[];
+  status: string; status_display: string; moderation_note: string;
+  author: string; author_id: number | null; created_at: string;
+};
+const GUIDE_STATUS_RU: Record<string, string> = { pending: "На модерации", published: "Опубликован", rejected: "Отклонён" };
+const GUIDE_STATUS_COLOR: Record<string, string> = { pending: "var(--accent-3)", published: "var(--green)", rejected: "var(--red)" };
+
 function GuidesAdmin() {
   const [items, setItems] = useState<GuideRow[]>([]);
+  const [q, setQ] = useState("");
+  const [statusF, setStatusF] = useState("pending");  // по умолчанию — очередь на модерации
   const [show, setShow] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);   // раскрытый предпросмотр
   const [f, setF] = useState({ title: "", summary: "", body: "", category: "" });
   const [cover, setCover] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
-  function load() { api("/guides/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(d.results ?? d ?? [])); }
-  useEffect(load, []);
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (statusF) p.set("status", statusF);
+    api(`/admin-panel/guides/${p.toString() ? `?${p}` : ""}`).then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, statusF]);
+
   function reset() { setEditId(null); setF({ title: "", summary: "", body: "", category: "" }); setCover(null); setErr(""); }
   function startEdit(g: GuideRow) {
     setEditId(g.id); setF({ title: g.title, summary: g.summary || "", body: g.body || "", category: g.category || "" });
@@ -1591,11 +1608,33 @@ function GuidesAdmin() {
     const res = await api(`/guides/${id}/`, { method: "DELETE" });
     if (res.ok || res.status === 204) setItems((p) => p.filter((g) => g.id !== id));
   }
+  async function moderate(g: GuideRow, action: "approve" | "reject") {
+    let note = "";
+    if (action === "reject") {
+      note = prompt("Причина отклонения (её увидит автор):", g.moderation_note || "") ?? "";
+    }
+    const res = await api(`/admin-panel/guides/${g.id}/moderate/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, note }),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === g.id ? d : x))); }
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
   return (
-    <Card title="Гайды" sub="Туториалы по крафту. Видны всем на /guides.">
+    <Card title="Гайды — модерация" sub="Туториалы от косплееров и мастерских уходят на проверку. Одобряй, отклоняй с причиной (автору придёт уведомление) или добавляй свои — они публикуются сразу.">
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 заголовок / категория / автор" style={{ flex: "1 1 200px" }} />
+        <select value={statusF} onChange={(e) => setStatusF(e.target.value)} style={{ maxWidth: 190 }}>
+          <option value="pending">На модерации</option>
+          <option value="published">Опубликованные</option>
+          <option value="rejected">Отклонённые</option>
+          <option value="">Все</option>
+        </select>
+      </div>
+
       <button className="btn btn-primary btn-sm" style={{ marginBottom: 14 }}
         onClick={() => { if (show) { reset(); setShow(false); } else { reset(); setShow(true); } }}>
-        {show ? "Отмена" : "+ Добавить гайд"}
+        {show ? "Отмена" : "+ Добавить гайд от редакции"}
       </button>
       {show && (
         <div style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: 18, marginBottom: 18 }}>
@@ -1614,19 +1653,55 @@ function GuidesAdmin() {
           </div>
         </div>
       )}
-      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Гайдов пока нет.</p>
+
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>
+          {statusF === "pending" ? "На модерации пусто — всё разобрано 👌" : "Ничего не найдено."}
+        </p>
         : items.map((g) => (
-          <div key={g.id} style={rowStyle}>
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <b style={{ fontSize: 14 }}>{g.category ? `[${g.category}] ` : ""}{g.title}</b>
-              <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
-                {g.author_name ? `@${g.author_name}` : "—"}{g.summary ? ` · ${g.summary}` : ""}
+          <div key={g.id} style={{ ...rowStyle, flexDirection: "column", alignItems: "stretch" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div style={{
+                width: 46, height: 46, borderRadius: 8, flexShrink: 0, border: "1px solid var(--line)",
+                background: g.cover ? `center/cover url('${g.cover}')` : "var(--bg-2)",
+              }} />
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <b style={{ fontSize: 14 }}>{g.category ? `[${g.category}] ` : ""}{g.title}
+                  <span style={{ fontSize: 11, marginLeft: 8, padding: "1px 8px", borderRadius: 20,
+                    color: GUIDE_STATUS_COLOR[g.status] || "var(--ink)",
+                    border: `1px solid ${GUIDE_STATUS_COLOR[g.status] || "var(--line)"}55` }}>
+                    {GUIDE_STATUS_RU[g.status] || g.status}
+                  </span>
+                </b>
+                <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                  {g.author ? `@${g.author}` : "—"}{g.summary ? ` · ${g.summary}` : ""} · {fmtDate(g.created_at)}
+                </div>
+                {g.status === "rejected" && g.moderation_note && (
+                  <div style={{ fontSize: 12, color: "var(--red)", marginTop: 2 }}>Причина: {g.moderation_note}</div>
+                )}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setOpenId((v) => (v === g.id ? null : g.id))}>{openId === g.id ? "Свернуть" : "Читать"}</button>
+                {g.status !== "published" && <button className="btn btn-primary btn-sm" onClick={() => moderate(g, "approve")}>Одобрить</button>}
+                {g.status !== "rejected" && <button className="btn btn-ghost btn-sm" style={{ color: "var(--accent-3)" }} onClick={() => moderate(g, "reject")}>Отклонить</button>}
+                <button className="btn btn-ghost btn-sm" onClick={() => startEdit(g)}>Изменить</button>
+                <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(g.id)}>Удалить</button>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-ghost btn-sm" onClick={() => startEdit(g)}>Изменить</button>
-              <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(g.id)}>Удалить</button>
-            </div>
+            {openId === g.id && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+                {g.cover && <img src={g.cover} alt="" style={{ width: "100%", maxHeight: 240, objectFit: "cover", borderRadius: 10, marginBottom: 10 }} />}
+                <div style={{ fontSize: 13, color: "var(--ink)", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{g.body || "— без текста —"}</div>
+                {g.photos && g.photos.length > 0 && (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 8, marginTop: 10 }}>
+                    {g.photos.map((ph) => (
+                      <a key={ph.id} href={ph.url} target="_blank" rel="noopener noreferrer" style={{
+                        aspectRatio: "4/3", borderRadius: 8, backgroundImage: `url('${ph.url}')`, backgroundSize: "cover", backgroundPosition: "center",
+                      }} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ))}
     </Card>

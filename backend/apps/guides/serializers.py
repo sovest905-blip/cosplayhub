@@ -7,12 +7,17 @@ class GuideSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     author_id = serializers.SerializerMethodField()
     photos = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = Guide
         fields = ["id", "title", "summary", "body", "category", "cover", "is_published",
+                  "status", "status_display", "moderation_note",
                   "author_name", "author_id", "photos", "created_at"]
-        read_only_fields = ["author_name", "author_id", "photos", "created_at"]
+        # status/is_published/moderation_note проставляет только вьюха/модерация —
+        # автор не может сам себя опубликовать через PATCH.
+        read_only_fields = ["author_name", "author_id", "photos", "created_at",
+                            "status", "status_display", "moderation_note", "is_published"]
 
     def get_photos(self, obj):
         return [{"id": p.id, "url": p.image.url} for p in obj.photos.all()]

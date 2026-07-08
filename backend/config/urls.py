@@ -27,6 +27,7 @@ from common.admin_content import (
 from common.admin_rentals import (
     AdminCostumesView, AdminCostumeActiveView, AdminCostumeUpdateView, AdminCostumeDeleteView,
 )
+from common.admin_guides import AdminGuidesView, AdminGuideModerateView
 from common.admin_billing import AdminSubscriptionsView, AdminSubscriptionUpdateView
 from common.admin_homepage import (
     AdminCuratedView, AdminCuratedUpdateView,
@@ -94,6 +95,9 @@ api_v1 = [
     path("admin-panel/costumes/<int:pk>/set-active/", AdminCostumeActiveView.as_view(), name="ap-costume-active"),
     path("admin-panel/costumes/<int:pk>/update/", AdminCostumeUpdateView.as_view(), name="ap-costume-update"),
     path("admin-panel/costumes/<int:pk>/delete/", AdminCostumeDeleteView.as_view(), name="ap-costume-del"),
+
+    path("admin-panel/guides/", AdminGuidesView.as_view(), name="ap-guides"),
+    path("admin-panel/guides/<int:pk>/moderate/", AdminGuideModerateView.as_view(), name="ap-guide-moderate"),
     # ── Подписки и тарифы (Pro / мастерские) ──
     path("admin-panel/subscriptions/", AdminSubscriptionsView.as_view(), name="ap-subscriptions"),
     path("admin-panel/subscriptions/<int:pk>/", AdminSubscriptionUpdateView.as_view(), name="ap-subscription-update"),
