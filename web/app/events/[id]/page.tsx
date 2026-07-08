@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getEvent } from "../../../lib/api";
 import GoingButton from "../../components/GoingButton";
+import { linkify } from "../../../lib/linkify";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           <div className="about">
             <h3>О событии</h3>
             {e.description
-              ? <p style={{ whiteSpace: "pre-wrap" }}>{e.description}</p>
+              ? <p style={{ whiteSpace: "pre-wrap" }}>{linkify(e.description)}</p>
               : <p style={{ color: "var(--ink-dim)", fontStyle: "italic" }}>Описание появится позже.</p>}
           </div>
         </div>

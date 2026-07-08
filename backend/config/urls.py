@@ -24,6 +24,9 @@ from common.admin_content import (
     AdminOrdersView, AdminOrderStatusView,
     AdminUserPhotosView, AdminUserPhotoDeleteView,
 )
+from common.admin_rentals import (
+    AdminCostumesView, AdminCostumeActiveView, AdminCostumeUpdateView, AdminCostumeDeleteView,
+)
 from common.admin_billing import AdminSubscriptionsView, AdminSubscriptionUpdateView
 from common.admin_homepage import (
     AdminCuratedView, AdminCuratedUpdateView,
@@ -86,6 +89,11 @@ api_v1 = [
     path("admin-panel/slots/<int:pk>/", AdminSlotUpdateView.as_view(), name="ap-slot-update"),
     path("admin-panel/orders/", AdminOrdersView.as_view(), name="ap-orders"),
     path("admin-panel/orders/<int:pk>/set-status/", AdminOrderStatusView.as_view(), name="ap-order-status"),
+
+    path("admin-panel/costumes/", AdminCostumesView.as_view(), name="ap-costumes"),
+    path("admin-panel/costumes/<int:pk>/set-active/", AdminCostumeActiveView.as_view(), name="ap-costume-active"),
+    path("admin-panel/costumes/<int:pk>/update/", AdminCostumeUpdateView.as_view(), name="ap-costume-update"),
+    path("admin-panel/costumes/<int:pk>/delete/", AdminCostumeDeleteView.as_view(), name="ap-costume-del"),
     # ── Подписки и тарифы (Pro / мастерские) ──
     path("admin-panel/subscriptions/", AdminSubscriptionsView.as_view(), name="ap-subscriptions"),
     path("admin-panel/subscriptions/<int:pk>/", AdminSubscriptionUpdateView.as_view(), name="ap-subscription-update"),

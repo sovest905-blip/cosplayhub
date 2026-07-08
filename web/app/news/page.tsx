@@ -1,4 +1,5 @@
 import { getNews, type NewsItem } from "../../lib/api";
+import { linkify } from "../../lib/linkify";
 
 export const dynamic = "force-dynamic";
 
@@ -59,7 +60,7 @@ export default async function NewsPage() {
                 </h2>
                 {n.body && (
                   <p style={{ color: "var(--ink-dim)", fontSize: 14, lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap" }}>
-                    {n.body}
+                    {linkify(n.body)}
                   </p>
                 )}
               </div>

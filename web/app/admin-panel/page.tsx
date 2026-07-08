@@ -2,6 +2,7 @@
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
+import { getLooks, getWorkshops, getEvents, getProfiles } from "../../lib/api";
 
 const ROLE_LIST: { slug: string; name: string }[] = [
   { slug: "cosplayer", name: "Косплеер" }, { slug: "photographer", name: "Фотограф" },
@@ -16,10 +17,10 @@ type AdminUser = {
   roles: string[]; role_details: Record<string, any>;
   profile_id: number | null; followers: number; following: number; avatar: string | null;
 };
-type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; created_at: string };
+type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; is_published: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "curated" | "categories" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "orders" | "subscriptions";
+type TabId = "dashboard" | "curated" | "categories" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "rentals" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["curated", "★ Выбор редакции"],
@@ -36,6 +37,7 @@ const TABS: [TabId, string][] = [
   ["shops", "⌂ Магазины"],
   ["products", "▦ Товары"],
   ["listings", "⌂ Объявления"],
+  ["rentals", "⛺ Прокат"],
   ["orders", "↗ Заказы"],
   ["subscriptions", "♛ Подписки Pro"],
 ];
@@ -49,6 +51,8 @@ const LISTING_TYPE_RU: Record<string, string> = { job: "Ищу спеца", coll
 const ORDER_STATUS_RU: Record<string, string> = {
   request: "Заявка", accepted: "Принят", in_work: "В работе", shipped: "Отправлен", done: "Получен", cancelled: "Отменён",
 };
+const COSTUME_STATUS_RU: Record<string, string> = { available: "Свободен", rented: "В аренде", unavailable: "Недоступен" };
+const RENTAL_REQ_STATUS_RU: Record<string, string> = { pending: "Заявка", approved: "Подтверждена", declined: "Отклонена", cancelled: "Отменена гостем" };
 
 async function api(path: string, opts: RequestInit = {}) {
   return fetch(`/api/v1${path}`, { credentials: "include", ...opts });
@@ -116,6 +120,7 @@ export default function AdminPanelPage() {
           {tab === "shops" && <UsersAdmin roleFilter="shop" />}
           {tab === "products" && <ProductsAdmin />}
           {tab === "listings" && <ListingsAdmin />}
+          {tab === "rentals" && <RentalsAdmin />}
           {tab === "orders" && <OrdersAdmin />}
           {tab === "subscriptions" && <SubscriptionsAdmin />}
         </div>
@@ -132,6 +137,7 @@ function NewsAdmin() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
+  const [published, setPublished] = useState(true);
   const [image, setImage] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -142,10 +148,10 @@ function NewsAdmin() {
   useEffect(load, []);
 
   function resetForm() {
-    setEditId(null); setTitle(""); setBody(""); setPinned(false); setImage(null); setErr("");
+    setEditId(null); setTitle(""); setBody(""); setPinned(false); setPublished(true); setImage(null); setErr("");
   }
   function startEdit(n: NewsItem) {
-    setEditId(n.id); setTitle(n.title); setBody(n.body || ""); setPinned(n.is_pinned);
+    setEditId(n.id); setTitle(n.title); setBody(n.body || ""); setPinned(n.is_pinned); setPublished(n.is_published);
     setImage(null); setErr(""); setShow(true);
   }
 
@@ -157,6 +163,7 @@ function NewsAdmin() {
       fd.append("title", title);
       fd.append("body", body);
       fd.append("is_pinned", pinned ? "true" : "false");
+      fd.append("is_published", published ? "true" : "false");
       if (image) fd.append("image", image);  // при редактировании без нового файла — старая картинка остаётся
       const res = editId
         ? await api(`/news/${editId}/`, { method: "PATCH", body: fd })
@@ -190,12 +197,18 @@ function NewsAdmin() {
           <div className="field"><label>Заголовок</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Открыта закрытая бета!" /></div>
           <div className="field"><label>Текст</label>
-            <textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Что нового…" /></div>
+            <textarea rows={4} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Что нового…" />
+            <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>Ссылки: вставь адрес целиком (https://…) или в виде <code>[текст](https://…)</code> — на сайте станут кликабельными.</span></div>
           <div className="field"><label>Картинка{editId ? " (выбери файл, чтобы заменить)" : " (необязательно)"}</label>
             <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} /></div>
-          <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-dim)", margin: "4px 0 14px" }}>
-            <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} style={{ width: "auto" }} /> Закрепить вверху
-          </label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 18, margin: "4px 0 14px" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--ink-dim)" }}>
+              <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} style={{ width: "auto" }} /> Закрепить вверху
+            </label>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, color: published ? "var(--ink-dim)" : "var(--accent-3)" }}>
+              <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} style={{ width: "auto" }} /> Опубликовано {published ? "" : "(черновик — не видно на сайте)"}
+            </label>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button className="btn btn-primary" onClick={publish} disabled={saving}>
               {saving ? "Сохраняем…" : editId ? "Сохранить изменения" : "Опубликовать"}
@@ -214,9 +227,11 @@ function NewsAdmin() {
           background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 13, padding: "13px 16px", marginBottom: 10,
         }}>
           <div>
-            <b style={{ fontSize: 14 }}>{n.is_pinned && <span style={{ color: "var(--accent-3)" }}>📌 </span>}{n.title}</b>
+            <b style={{ fontSize: 14 }}>{n.is_pinned && <span style={{ color: "var(--accent-3)" }}>📌 </span>}{n.title}
+              {!n.is_published && <span style={{ fontSize: 11, color: "var(--accent-3)", border: "1px solid rgba(255,210,74,.4)", borderRadius: 20, padding: "1px 8px", marginLeft: 8 }}>черновик</span>}
+            </b>
             <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
-              {new Date(n.created_at).toLocaleDateString("ru-RU")}{n.is_pinned ? " · закреплено" : ""}
+              {new Date(n.created_at).toLocaleDateString("ru-RU")}{n.is_pinned ? " · закреплено" : ""}{!n.is_published ? " · не опубликовано" : ""}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -238,6 +253,121 @@ type CuratedItem = {
 const CURATED_STYLE_RU: Record<string, string> = {
   look: "Образ (розовый, крупный)", workshop: "Мастерская (голубой)", event: "Событие (жёлтый)",
 };
+
+// Пикер «выбрать с сайта»: тип → поиск по существующим записям → автозаполнение карточки.
+type PickVals = { style: string; tag: string; title: string; meta: string; link: string; image_url: string };
+const abs = (u: string | null | undefined) => {
+  if (!u) return "";
+  if (/^https?:\/\//i.test(u)) return u;
+  return (typeof window !== "undefined" ? window.location.origin : "") + (u.startsWith("/") ? u : `/${u}`);
+};
+const PICK_SOURCES: {
+  key: string; label: string;
+  fetch: () => Promise<any[]>;
+  name: (x: any) => string; sub: (x: any) => string;
+  img: (x: any) => string; map: (x: any) => PickVals;
+}[] = [
+  {
+    key: "look", label: "Образ",
+    fetch: async () => (await getLooks("")) || [],
+    name: (x) => x.title + (x.character ? ` — ${x.character}` : ""),
+    sub: (x) => x.author_name || "",
+    img: (x) => abs(x.image),
+    map: (x) => ({ style: "look", tag: "★ Образ недели",
+      title: x.title + (x.character ? ` — ${x.character}` : ""),
+      meta: `${x.author_name || ""}${x.likes_count ? ` · ${x.likes_count} ♥` : ""}`.trim(),
+      link: `/looks/${x.id}`, image_url: abs(x.image) }),
+  },
+  {
+    key: "workshop", label: "Мастерская",
+    fetch: async () => (await getWorkshops("")) || [],
+    name: (x) => x.name,
+    sub: (x) => [x.city, x.type].filter(Boolean).join(" · "),
+    img: (x) => abs(x.cover || x.logo),
+    map: (x) => ({ style: "workshop", tag: "⚒ Мастерская",
+      title: x.name,
+      meta: `${x.city && x.city !== "—" ? x.city : ""}${x.rating ? ` · ★ ${x.rating}` : ""}`.trim().replace(/^· /, ""),
+      link: `/workshops/${x.id}`, image_url: abs(x.cover || x.logo) }),
+  },
+  {
+    key: "event", label: "Событие",
+    fetch: async () => (await getEvents()) || [],
+    name: (x) => x.title,
+    sub: (x) => [x.city, x.date].filter(Boolean).join(" · "),
+    img: (x) => abs(x.cover),
+    map: (x) => ({ style: "event", tag: "◆ Событие",
+      title: x.title,
+      meta: `${x.city || ""}${x.date ? ` · ${fmtDate(x.date)}` : ""}`.trim().replace(/^· /, ""),
+      link: `/events/${x.id}`, image_url: abs(x.cover) }),
+  },
+  {
+    key: "person", label: "Косплеер / Фотограф",
+    fetch: async () => (await getProfiles("")) || [],
+    name: (x) => x.display_name,
+    sub: (x) => [x.city !== "—" ? x.city : "", x.specialization].filter(Boolean).join(" · "),
+    img: (x) => abs(x.photo || x.cover),
+    map: (x) => ({ style: "look", tag: "★ Косплеер",
+      title: x.display_name,
+      meta: `${x.city && x.city !== "—" ? x.city : ""}${x.followers ? ` · ${x.followers} подп.` : ""}`.trim().replace(/^· /, ""),
+      link: `/people/${x.id}`, image_url: abs(x.photo || x.cover) }),
+  },
+];
+
+function CuratedPicker({ onPick }: { onPick: (v: PickVals) => void }) {
+  const [type, setType] = useState("");
+  const [list, setList] = useState<any[]>([]);
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const src = PICK_SOURCES.find((s) => s.key === type);
+
+  useEffect(() => {
+    if (!src) { setList([]); return; }
+    setLoading(true);
+    src.fetch().then((d) => setList(Array.isArray(d) ? d : [])).finally(() => setLoading(false));
+  }, [type]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = !src ? [] : list.filter((x) => {
+    const t = q.trim().toLowerCase();
+    if (!t) return true;
+    return (src.name(x) + " " + src.sub(x)).toLowerCase().includes(t);
+  }).slice(0, 40);
+
+  return (
+    <div style={{ background: "var(--bg-2)", border: "1px dashed var(--line)", borderRadius: 12, padding: 14, marginBottom: 14 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Выбрать с сайта <span style={{ color: "var(--ink-dim)", fontWeight: 400 }}>(автозаполнит поля ниже)</span></div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: filtered.length || loading ? 10 : 0 }}>
+        <select value={type} onChange={(e) => { setType(e.target.value); setQ(""); }} style={{ maxWidth: 200 }}>
+          <option value="">— тип контента —</option>
+          {PICK_SOURCES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+        </select>
+        {src && <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 поиск по названию" style={{ flex: "1 1 180px" }} />}
+      </div>
+      {loading && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>Загрузка…</p>}
+      {src && !loading && (
+        <div style={{ maxHeight: 240, overflowY: "auto", display: "grid", gap: 6 }}>
+          {filtered.length === 0 && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>Ничего не найдено.</p>}
+          {filtered.map((x) => (
+            <button key={x.id} type="button" onClick={() => onPick(src.map(x))}
+              style={{
+                display: "flex", alignItems: "center", gap: 10, textAlign: "left", cursor: "pointer",
+                background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 10, padding: "8px 10px", color: "inherit",
+              }}>
+              <span style={{
+                width: 40, height: 30, borderRadius: 6, flexShrink: 0, border: "1px solid var(--line)",
+                background: src.img(x) ? `center/cover url('${src.img(x)}')` : "var(--bg-2)",
+              }} />
+              <span style={{ minWidth: 0 }}>
+                <b style={{ fontSize: 13, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{src.name(x)}</b>
+                <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>{src.sub(x)}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CuratedAdmin() {
   const [items, setItems] = useState<CuratedItem[]>([]);
@@ -316,6 +446,7 @@ function CuratedAdmin() {
       {show && (
         <div style={{ background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 14, padding: 18, marginBottom: 18 }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>{editId ? "Редактировать карточку" : "Новая карточка"}</h3>
+          <CuratedPicker onPick={(v) => setF((prev) => ({ ...prev, ...v }))} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 14px" }}>
             <div className="field"><label>Стиль карточки</label>
               <select value={f.style} onChange={(e) => setF({ ...f, style: e.target.value })}>
@@ -1394,7 +1525,8 @@ function EventsAdmin() {
             <div className="field"><label>Место (опц.)</label><input value={f.place} onChange={(e) => setF({ ...f, place: e.target.value })} placeholder="ТРЦ Mega, 3 этаж" /></div>
             <div className="field"><label>Идут (число)</label><input type="number" value={f.going} onChange={(e) => setF({ ...f, going: e.target.value })} placeholder="23" /></div>
           </div>
-          <div className="field"><label>Описание</label><textarea rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Что за событие…" /></div>
+          <div className="field"><label>Описание</label><textarea rows={3} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Что за событие…" />
+            <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>Ссылки: вставь адрес целиком (https://…) или в виде <code>[текст](https://…)</code> — на странице события станут кликабельными.</span></div>
           <div className="field"><label>Обложка (опц.)</label><input type="file" accept="image/*" onChange={(e) => setCover(e.target.files?.[0] || null)} /></div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? "Сохраняем…" : editId ? "Сохранить" : "Опубликовать"}</button>
@@ -1720,6 +1852,167 @@ function ListingsAdmin() {
               <button className="btn btn-ghost btn-sm" onClick={() => toggle(l)}>{l.is_active ? "Скрыть" : "Показать"}</button>
               <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(l)}>Удалить</button>
             </div>
+          </div>
+          )
+        ))}
+    </Card>
+  );
+}
+
+// ─────────────────────────── ПРОКАТ ───────────────────────────
+type RentalReq = {
+  id: number; user_id: number; username: string; profile_id: number | null;
+  date_from: string | null; date_to: string | null; comment: string; status: string; status_display: string;
+};
+type CostumeRow = {
+  id: number; title: string; character: string; description: string; size: string;
+  price_day: number | null; deposit: number | null; city: string; image: string | null;
+  status: string; status_display: string; is_active: boolean; owner: string; owner_id: number;
+  created_at: string; requests_pending: number; requests: RentalReq[];
+};
+
+function RentalsAdmin() {
+  const [items, setItems] = useState<CostumeRow[]>([]);
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [openReq, setOpenReq] = useState<number | null>(null);
+  const [form, setForm] = useState({ title: "", character: "", city: "", price_day: "", deposit: "", size: "", description: "", status: "available" });
+  const [saving, setSaving] = useState(false);
+
+  function load() {
+    const p = new URLSearchParams();
+    if (q.trim()) p.set("q", q.trim());
+    if (status) p.set("status", status);
+    api(`/admin-panel/costumes/${p.toString() ? `?${p}` : ""}`).then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(() => { const t = setTimeout(load, 300); return () => clearTimeout(t); }, [q, status]);
+
+  function startEdit(c: CostumeRow) {
+    setEditId(c.id);
+    setForm({
+      title: c.title || "", character: c.character || "", city: c.city || "",
+      price_day: c.price_day != null ? String(c.price_day) : "", deposit: c.deposit != null ? String(c.deposit) : "",
+      size: c.size || "", description: c.description || "", status: c.status || "available",
+    });
+  }
+  async function saveEdit() {
+    if (editId === null) return;
+    setSaving(true);
+    try {
+      const res = await api(`/admin-panel/costumes/${editId}/update/`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title, character: form.character, city: form.city, size: form.size,
+          description: form.description, status: form.status,
+          price_day: form.price_day ? form.price_day : null, deposit: form.deposit ? form.deposit : null,
+        }),
+      });
+      if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === editId ? d : x))); setEditId(null); }
+    } finally { setSaving(false); }
+  }
+  async function toggle(c: CostumeRow) {
+    const res = await api(`/admin-panel/costumes/${c.id}/set-active/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ is_active: !c.is_active }),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === c.id ? { ...x, is_active: d.is_active } : x))); }
+  }
+  async function remove(c: CostumeRow) {
+    if (!confirm(`Удалить костюм «${c.title}» из проката? Заявки на него тоже удалятся.`)) return;
+    const res = await api(`/admin-panel/costumes/${c.id}/delete/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== c.id));
+  }
+  async function decide(reqId: number, decision: "approved" | "declined") {
+    // общий эндпоинт владельца/staff: rentals/<id>/ {status}
+    const res = await api(`/rentals/${reqId}/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: decision }),
+    });
+    if (res.ok) load();
+    else { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось"); }
+  }
+
+  return (
+    <Card title="Прокат костюмов" sub="Все костюмы напрокат от косплееров. Модерируй (скрыть/удалить/править) и решай заявки на аренду — «Подтвердить» пишет арендатору уведомление.">
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="🔍 название / персонаж / город / владелец" style={{ flex: "1 1 200px" }} />
+        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 170 }}>
+          <option value="">Любой статус</option>
+          <option value="active">Показанные</option>
+          <option value="hidden">Скрытые</option>
+          {Object.entries(COSTUME_STATUS_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+      {items.length === 0 ? <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Костюмов в прокате нет.</p>
+        : items.map((c) => (
+          editId === c.id ? (
+            <div key={c.id} style={{ ...rowStyle, flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Название" style={{ flex: "1 1 160px" }} />
+                <input value={form.character} onChange={(e) => setForm({ ...form, character: e.target.value })} placeholder="Персонаж / фандом" style={{ flex: "1 1 160px" }} />
+              </div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Город" style={{ flex: "1 1 110px" }} />
+                <input value={form.size} onChange={(e) => setForm({ ...form, size: e.target.value })} placeholder="Размер" style={{ maxWidth: 110 }} />
+                <input type="number" value={form.price_day} onChange={(e) => setForm({ ...form, price_day: e.target.value })} placeholder="₸/сутки" style={{ maxWidth: 110 }} />
+                <input type="number" value={form.deposit} onChange={(e) => setForm({ ...form, deposit: e.target.value })} placeholder="Залог ₸" style={{ maxWidth: 110 }} />
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} style={{ maxWidth: 150 }}>
+                  {Object.entries(COSTUME_STATUS_RU).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Описание" />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-primary btn-sm" onClick={saveEdit} disabled={saving || !form.title.trim()}>{saving ? "Сохраняем…" : "Сохранить"}</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditId(null)}>Отмена</button>
+              </div>
+            </div>
+          ) : (
+          <div key={c.id} style={{ ...rowStyle, flexDirection: "column", alignItems: "stretch", opacity: c.is_active ? 1 : 0.55 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <div style={{
+                width: 46, height: 46, borderRadius: 8, flexShrink: 0, border: "1px solid var(--line)",
+                background: c.image ? `center/cover url('${c.image}')` : "var(--bg-2)",
+              }} />
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <b style={{ fontSize: 14 }}>{c.title}
+                  {c.character && <span style={{ color: "var(--ink-dim)", fontWeight: 400 }}> · {c.character}</span>}
+                  {!c.is_active && <span style={{ color: "var(--red)", fontSize: 11, marginLeft: 6 }}>скрыт</span>}
+                </b>
+                <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
+                  {COSTUME_STATUS_RU[c.status] || c.status} · @{c.owner} · {c.city || "—"}
+                  {c.price_day ? ` · ${c.price_day}₸/сут` : " · цена договорная"}{c.deposit ? ` · залог ${c.deposit}₸` : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setOpenReq((v) => (v === c.id ? null : c.id))}>
+                  Заявки{c.requests_pending ? ` (${c.requests_pending})` : ""}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => startEdit(c)}>Изменить</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => toggle(c)}>{c.is_active ? "Скрыть" : "Показать"}</button>
+                <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => remove(c)}>Удалить</button>
+              </div>
+            </div>
+            {openReq === c.id && (
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--line)" }}>
+                {c.requests.length === 0 ? <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>Заявок на аренду нет.</p>
+                  : c.requests.map((r) => (
+                    <div key={r.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "6px 0" }}>
+                      <div style={{ fontSize: 13, minWidth: 180 }}>
+                        <b>@{r.username}</b> <span style={{ color: "var(--ink-dim)" }}>· {RENTAL_REQ_STATUS_RU[r.status] || r.status}</span>
+                        <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
+                          {r.date_from ? `${fmtDate(r.date_from)}${r.date_to ? ` — ${fmtDate(r.date_to)}` : ""}` : "без дат"}
+                          {r.comment ? ` · ${r.comment}` : ""}
+                        </div>
+                      </div>
+                      {r.status === "pending" && (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button className="btn btn-primary btn-sm" onClick={() => decide(r.id, "approved")}>Подтвердить</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => decide(r.id, "declined")}>Отклонить</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
           )
         ))}
