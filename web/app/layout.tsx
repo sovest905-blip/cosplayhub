@@ -40,7 +40,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
     metadataBase: new URL("https://www.cosplayhub.kz"),
     verification: {
-          google: "c5393ec03af8362e",
+          google: "_uKv60IAGWiHG24Ti_u40_qrhq-DmRqjc58qA70Mjo4",
     },
   title: "КОСПЛЕЙ.ХАБ — экосистема косплея СНГ",
   description: "Косплееры, мастерские, магазины, фотографы, события — в одном месте. Казахстан и СНГ.",
