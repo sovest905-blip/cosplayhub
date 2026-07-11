@@ -1,12 +1,15 @@
 import {
   getProfiles, getWorkshops, getEvents, fmtCount,
-  getCurated, getCategories, getNews, getProfilesByRole,
+  getCurated, getWeeklyPicks, getCategories, getNews, getProfilesByRole,
   ROLE_DETAIL_FIELDS, fmtDetailValue, type Category, type NewsItem,
 } from "../lib/api";
 
 // Категории — декоративная лента тем. Если админ не задал свои — показываем базовый набор.
-const FALLBACK_CATEGORIES = ["3D-печать", "EVA", "Пошив", "Парики", "Линзы", "Фотосеты", "Барахолка", "Команды"];
-const CUR_CLASS: Record<string, string> = { look: "cur-look", workshop: "cur-ws", event: "cur-ev" };
+const FALLBACK_CATEGORIES = ["3D-печать", "EVA-пена", "Пошив", "Парики", "Линзы", "Фотосеты", "Барахолка", "Команды"];
+const CUR_CLASS: Record<string, string> = {
+  look: "cur-look", workshop: "cur-ws", event: "cur-ev",
+  battle: "cur-battle", team: "cur-team", shoot: "cur-shoot",
+};
 
 // Пустой раздел → приглашение «Будь первым» (ведёт к созданию нужной роли).
 function FirstCta({ glyph, title, sub, href, label }: {
@@ -36,12 +39,13 @@ async function fetchStats(): Promise<Stats> {
 }
 
 export default async function HomePage() {
-  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiCategories, apiNews, apiShops] = await Promise.all([
+  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiWeekly, apiCategories, apiNews, apiShops] = await Promise.all([
     fetchStats(),
     getProfiles("?role=cosplayer").catch(() => null),
     getWorkshops().catch(() => null),
     getEvents().catch(() => null),
     getCurated().catch(() => null),
+    getWeeklyPicks().catch(() => []),
     getCategories().catch(() => null),
     getNews().catch(() => null),
     getProfilesByRole("shop").catch(() => null),
@@ -53,8 +57,12 @@ export default async function HomePage() {
   const wsList: any[] = apiWs || [];
   const evList: any[] = apiEvents || [];
   const shopList: any[] = apiShops || [];
-  // «Выбор редакции» — из админки; если ничего не заведено, блок не показываем.
-  const curated = apiCurated || [];
+  // «Выбор недели» — авто-топ за 7 дней по разделам. Ручной оверрайд: если админ завёл
+  // активные карточки CuratedPick — показываем их вместо авто. Иначе — автоподбор.
+  const manual = apiCurated || [];
+  const picks = (manual.length > 0
+    ? manual.map((c) => ({ key: `m${c.id}`, style: c.style, tag: c.tag, title: c.title, meta: c.meta, image: c.image, link: c.link }))
+    : (apiWeekly || []).map((p, i) => ({ key: `w${i}`, style: p.style, tag: p.tag, title: p.title, meta: p.meta, image: p.image, link: p.link })));
   // Категории — из админки, иначе базовый набор тем (декоративная лента).
   const categories: string[] = apiCategories && apiCategories.length
     ? apiCategories.map((c: Category) => c.label) : FALLBACK_CATEGORIES;
@@ -100,15 +108,15 @@ export default async function HomePage() {
       </div>
 
       <div className="wrap">
-        {/* CURATED — показываем только если админ завёл карточки */}
-        {curated.length > 0 && (
+        {/* ВЫБОР НЕДЕЛИ — автоподбор топа за 7 дней по разделам (или ручной оверрайд) */}
+        {picks.length > 0 && (
         <section>
           <div className="section-head">
-            <h2 className="title">Выбор редакции.</h2>
-            <p>Лучшее за неделю.</p>
+            <h2 className="title">Выбор недели.</h2>
+            <p>Топ за 7 дней по разделам.</p>
           </div>
           <div className="curated">
-            {curated.map((c) => {
+            {picks.map((c) => {
               const inner = (
                 <>
                   {c.tag && <div className="cur-tag">{c.tag}</div>}
@@ -123,8 +131,8 @@ export default async function HomePage() {
               );
               const cls = CUR_CLASS[c.style] || "cur-look";
               return c.link
-                ? <a key={c.id} href={c.link} className={cls}>{inner}</a>
-                : <div key={c.id} className={cls}>{inner}</div>;
+                ? <a key={c.key} href={c.link} className={cls}>{inner}</a>
+                : <div key={c.key} className={cls}>{inner}</div>;
             })}
           </div>
         </section>

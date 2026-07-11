@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import MessageButton from "../../components/MessageButton";
+import ProductGallery from "../../components/ProductGallery";
 import { getProduct, PRODUCT_STATUS_META, fmtPrice } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,13 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
   if (!p) notFound();
 
   const st = PRODUCT_STATUS_META[p.status] || { label: p.status_display, color: "var(--ink-dim)" };
-  const img = p.image || p.image_url || PH;
+  // Галерея: обложка (image) + доп. фото; если пусто — плейсхолдер.
+  const cover = p.image || p.image_url;
+  const gallery = [
+    ...(cover ? [{ id: "cover", url: cover }] : []),
+    ...(p.photos || []).map((ph) => ({ id: ph.id, url: ph.url })),
+  ];
+  if (gallery.length === 0) gallery.push({ id: "ph", url: PH });
 
   return (
     <div className="wrap" style={{ paddingTop: 28, paddingBottom: 56 }}>
@@ -25,10 +32,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 28, alignItems: "start", marginTop: 8 }}
            className="product-grid">
-        <div style={{
-          aspectRatio: "1", borderRadius: 18, border: "1px solid var(--line)", overflow: "hidden",
-          backgroundColor: "var(--bg-2)", backgroundImage: `url('${img}')`, backgroundSize: "cover", backgroundPosition: "center",
-        }} />
+        <ProductGallery images={gallery} title={p.title} />
 
         <div>
           {p.category && <div className="eyebrow" style={{ marginBottom: 8 }}>{p.category}</div>}

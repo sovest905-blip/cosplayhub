@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type { LookItem } from "../../lib/api";
 import LikeButton from "./LikeButton";
+import PromoCard from "./PromoCard";
 
 const PLACEHOLDER = "https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=600&q=80";
 
-export default function LooksGrid({ looks }: { looks: LookItem[] }) {
+export default function LooksGrid({ looks, promoSection = "looks", promoAt = 3 }: { looks: LookItem[]; promoSection?: string; promoAt?: number }) {
   // Индекс открытого образа в лайтбоксе (null — закрыт).
   const [open, setOpen] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -46,7 +47,8 @@ export default function LooksGrid({ looks }: { looks: LookItem[] }) {
   return (
     <>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 16 }}>
-        {looks.map((l, i) => (
+        {(() => {
+        const cards = looks.map((l, i) => (
           <article key={l.id} style={{ position: "relative", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column" }}>
             {l.stage && l.stage !== "done" && (
               <span style={{ position: "absolute", top: 8, left: 8, zIndex: 1, fontSize: 11,
@@ -74,7 +76,12 @@ export default function LooksGrid({ looks }: { looks: LookItem[] }) {
               </div>
             </div>
           </article>
-        ))}
+        ));
+        if (promoSection && cards.length >= 2) {
+          cards.splice(Math.min(promoAt, cards.length), 0, <PromoCard key="__promo" section={promoSection} />);
+        }
+        return cards;
+        })()}
       </div>
 
       {mounted && cur && createPortal(

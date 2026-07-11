@@ -1,8 +1,11 @@
-from rest_framework import viewsets
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated, SAFE_METHODS
+from rest_framework.response import Response
 
 from apps.users.backends import CsrfExemptSessionAuthentication
-from .models import Product
+from .models import Product, ProductPhoto, product_photo_limit
 from .serializers import ProductSerializer
 
 
@@ -47,3 +50,29 @@ class ProductViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # is_active нельзя доверять из multipart (BooleanField для HTML-инпута даёт False при отсутствии).
         serializer.save(owner=self.request.user, is_active=True)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated],
+            parser_classes=[MultiPartParser, FormParser, JSONParser])
+    def photos(self, request, pk=None):
+        """Загрузка фото товара (только владелец; лимит 3, у Pro 10)."""
+        product = self.get_object()
+        if not (request.user.is_staff or product.owner_id == request.user.id):
+            return Response({"detail": "Не ваш товар"}, status=status.HTTP_403_FORBIDDEN)
+        limit = product_photo_limit(product.owner)
+        if product.photos.count() >= limit:
+            return Response({"detail": f"Максимум {limit} фото"}, status=status.HTTP_400_BAD_REQUEST)
+        image = request.FILES.get("image")
+        if not image:
+            return Response({"detail": "Файл не передан"}, status=status.HTTP_400_BAD_REQUEST)
+        photo = ProductPhoto.objects.create(product=product, image=image)
+        return Response({"id": photo.id, "url": photo.image.url}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["delete"], url_path=r"photos/(?P<photo_id>\d+)",
+            permission_classes=[IsAuthenticated])
+    def delete_photo(self, request, pk=None, photo_id=None):
+        """Удаление фото товара (только владелец или staff)."""
+        product = self.get_object()
+        if not (request.user.is_staff or product.owner_id == request.user.id):
+            return Response({"detail": "Не ваш товар"}, status=status.HTTP_403_FORBIDDEN)
+        ProductPhoto.objects.filter(product=product, id=photo_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

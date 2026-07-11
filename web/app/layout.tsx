@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Unbounded, JetBrains_Mono, Manrope } from "next/font/google";
 import AuthNav from "./components/AuthNav";
 import SiteDonate from "./components/SiteDonate";
+import PartnerStrip from "./components/PartnerStrip";
 import CsrfFetch from "./components/CsrfFetch";
 import VisitTracker from "./components/VisitTracker";
 import MobileMenu from "./components/MobileMenu";
@@ -176,6 +177,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <p style={{ margin: 0, lineHeight: 1.6, maxWidth: 280 }}>
                   Экосистема для косплей-сообщества Казахстана и СНГ. Бета-версия.
                 </p>
+                <a href="mailto:support@cosplayhub.kz" style={{ display: "inline-block", marginTop: 14 }}>
+                  support@cosplayhub.kz
+                </a>
               </div>
               <div>
                 <h4>Люди</h4>
@@ -212,6 +216,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <SiteDonate />
               </div>
             </div>
+            <PartnerStrip />
             <div className="foot-bottom">
               <span>© 2026 КосплейХаб СНГ · Бета</span>
               <span>Казахстан · СНГ</span>

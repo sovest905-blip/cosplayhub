@@ -20,7 +20,7 @@ export default async function WorkshopsPage() {
         <div className="filter-bar">
           <button className="chip on">Все</button>
           <button className="chip">3D-печать</button>
-          <button className="chip">EVA-броня</button>
+          <button className="chip">EVA-пена</button>
           <button className="chip">Пошив</button>
           <button className="chip">Парики</button>
           <button className="chip">Фотосъёмка</button>

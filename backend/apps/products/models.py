@@ -32,3 +32,26 @@ class Product(models.Model):
 
     def __str__(self):
         return self.title
+
+
+# Лимит фото на товар: базовый и для Pro-владельца (жёсткие числа, не через множитель).
+PRODUCT_PHOTO_FREE = 3
+PRODUCT_PHOTO_PRO = 10
+
+
+def product_photo_limit(user) -> int:
+    return PRODUCT_PHOTO_PRO if (user and getattr(user, "is_pro", False)) else PRODUCT_PHOTO_FREE
+
+
+class ProductPhoto(models.Model):
+    """Дополнительные фото товара (галерея). До 3 у обычного магазина, до 10 у Pro."""
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="photos")
+    image = models.ImageField("фото", upload_to="products/")
+    order = models.PositiveIntegerField("порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"Фото товара #{self.product_id}"

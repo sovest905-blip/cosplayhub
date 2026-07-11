@@ -6,6 +6,7 @@ import FollowButton from "../../components/FollowButton";
 import SaveButton from "../../components/SaveButton";
 import ProfileViewTracker from "../../components/ProfileViewTracker";
 import DonateButton from "../../components/DonateButton";
+import PhotoGallery from "../../components/PhotoGallery";
 import { getProfile, getLooksByAuthor, getProductsByOwner, type Person, type LookItem, type Product, ROLE_DETAIL_FIELDS, fmtDetailValue, fmtPrice, PRODUCT_STATUS_META, SOCIAL_META, socialUrl } from "../../../lib/api";
 
 const ROLE_RU: Record<string, string> = {
@@ -94,7 +95,13 @@ export default async function ProfilePage({ params, searchParams }: {
       </div>
 
       <div className="profile-head">
-        <div className="avatar" style={{ backgroundImage: `url('${heroLogo}')` }} />
+        <div className="avatar" style={{ position: "relative", backgroundImage: `url('${heroLogo}')` }}>
+          {person.mascot && (
+            <img src={`/mascots/${person.mascot}.png`} alt="" aria-hidden="true" title="Pro-маскот"
+              style={{ position: "absolute", bottom: -6, right: -6, width: 40, height: 40, borderRadius: "50%",
+                background: "#fff", padding: 3, objectFit: "contain", boxShadow: "0 4px 14px rgba(0,0,0,.4)" }} />
+          )}
+        </div>
         <div className="profile-meta">
           <h1>
             {person.display_name}
@@ -228,14 +235,8 @@ export default async function ProfilePage({ params, searchParams }: {
                   <a href="/cabinet?tab=gallery" style={{ fontSize: 12, fontWeight: 500, color: "var(--accent-2)" }}>✎ Управлять</a>
                 </OwnerOnly>
               </h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
-                {person.photos.map((ph) => (
-                  <a key={ph.id} href={ph.url} target="_blank" rel="noopener noreferrer" style={{
-                    aspectRatio: "1", borderRadius: 10, display: "block",
-                    backgroundImage: `url('${ph.url}')`, backgroundSize: "cover", backgroundPosition: "center",
-                  }} />
-                ))}
-              </div>
+              <PhotoGallery photos={person.photos.map((ph) => ({ id: ph.id, url: ph.url }))} />
+
             </div>
           )}
 

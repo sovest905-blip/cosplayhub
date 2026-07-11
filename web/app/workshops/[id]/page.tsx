@@ -3,6 +3,7 @@ import OrderButton from "../../components/OrderButton";
 import SaveButton from "../../components/SaveButton";
 import MessageButton from "../../components/MessageButton";
 import OwnerOnly from "../../components/OwnerOnly";
+import PhotoGallery from "../../components/PhotoGallery";
 import { getWorkshop, getWorkshopReviews, type Shop, type WorkshopReview } from "../../../lib/api";
 
 export const dynamic = "force-dynamic";
@@ -85,14 +86,8 @@ export default async function WorkshopPage({ params }: { params: Promise<{ id: s
           {(w.photos?.length ?? 0) > 0 && (
             <div className="about">
               <h3>Примеры работ</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 6 }}>
-                {w.photos.map((ph) => (
-                  <a key={ph.id} href={ph.url} target="_blank" rel="noopener noreferrer" style={{
-                    aspectRatio: "1", borderRadius: 10, display: "block",
-                    backgroundImage: `url('${ph.url}')`, backgroundSize: "cover", backgroundPosition: "center",
-                  }} />
-                ))}
-              </div>
+              <PhotoGallery photos={w.photos.map((ph) => ({ id: ph.id, url: ph.url }))} minThumb={140} />
+
             </div>
           )}
 

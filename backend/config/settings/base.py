@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.battles",
     "apps.homepage",
     "apps.analytics",
+    "apps.partners",
 ]
 
 MIDDLEWARE = [

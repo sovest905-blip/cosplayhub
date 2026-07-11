@@ -14,17 +14,18 @@ const ROLE_RU: Record<string, string> = Object.fromEntries(ROLE_LIST.map((r) => 
 type AdminUser = {
   id: number; username: string; email: string; phone: string; city: string;
   is_staff: boolean; is_active: boolean; is_verified: boolean; is_pro?: boolean; pro_active_until?: string | null;
-  roles: string[]; role_details: Record<string, any>;
+  roles: string[]; role_details: Record<string, any>; mascot?: string;
   profile_id: number | null; followers: number; following: number; avatar: string | null;
 };
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; is_published: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "curated" | "categories" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "rentals" | "orders" | "subscriptions";
+type TabId = "dashboard" | "curated" | "categories" | "partners" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "rentals" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["curated", "★ Выбор редакции"],
   ["categories", "✦ Категории"],
+  ["partners", "🤝 Партнёры"],
   ["news", "◆ Новости и события"],
   ["guides", "❖ Гайды"],
   ["looks", "✧ Образы"],
@@ -108,6 +109,7 @@ export default function AdminPanelPage() {
           {tab === "dashboard" && <Dashboard onGo={setTab} />}
           {tab === "curated" && <CuratedAdmin />}
           {tab === "categories" && <CategoriesAdmin />}
+          {tab === "partners" && <PartnersAdmin />}
           {tab === "news" && <><NewsAdmin /><div style={{ height: 22 }} /><EventsAdmin /></>}
           {tab === "guides" && <GuidesAdmin />}
           {tab === "looks" && <LooksAdmin />}
@@ -595,6 +597,119 @@ function CategoriesAdmin() {
   );
 }
 
+// ─────────────────────────── ПАРТНЁРЫ ───────────────────────────
+type PartnerItem = {
+  id: number; name: string; url: string; logo: string | null; logo_url: string;
+  tier: "general" | "partner"; card_text: string;
+  show_strip: boolean; show_feed: boolean; is_active: boolean; order: number;
+};
+const emptyPartner = { name: "", url: "", logo_url: "", tier: "partner", card_text: "", show_strip: true, show_feed: false };
+
+function PartnersAdmin() {
+  const [items, setItems] = useState<PartnerItem[]>([]);
+  const [f, setF] = useState<any>({ ...emptyPartner });
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  function load() {
+    api("/admin-panel/partners/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(load, []);
+
+  function fd(v: any, f: File | null) {
+    const b = new FormData();
+    b.append("name", v.name.trim());
+    b.append("url", v.url.trim());
+    if (v.logo_url?.trim()) b.append("logo_url", v.logo_url.trim());
+    b.append("tier", v.tier);
+    b.append("card_text", v.card_text?.trim() || "");
+    b.append("show_strip", String(!!v.show_strip));
+    b.append("show_feed", String(!!v.show_feed));
+    if (f) b.append("logo", f);
+    return b;
+  }
+
+  async function add() {
+    if (!f.name.trim() || !f.url.trim()) { setErr("Название и ссылка обязательны"); return; }
+    setSaving(true); setErr("");
+    try {
+      const res = await api("/admin-panel/partners/", { method: "POST", body: fd({ ...f, order: items.length }, file) });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || e.url || e.name || "Не удалось"); }
+      setF({ ...emptyPartner }); setFile(null); load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
+    finally { setSaving(false); }
+  }
+
+  async function patch(id: number, body: Partial<PartnerItem>) {
+    const res = await api(`/admin-panel/partners/${id}/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === d.id ? d : x))); }
+  }
+  async function remove(id: number) {
+    if (!confirm("Удалить партнёра?")) return;
+    const res = await api(`/admin-panel/partners/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== id));
+  }
+
+  return (
+    <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
+      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Партнёры</h2>
+      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>
+        Лого-полоса над футером и/или карточка в ленте барахолки. Генеральный партнёр в полосе цветной, остальные приглушены.
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 12px", marginBottom: 8 }}>
+        <div className="field"><label>Название</label><input value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="ART.KZ" /></div>
+        <div className="field"><label>Ссылка</label><input value={f.url} onChange={(e) => setF({ ...f, url: e.target.value })} placeholder="https://art.kz/cosplay" /></div>
+        <div className="field"><label>Логотип (файл)</label><input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
+        <div className="field"><label>Уровень</label>
+          <select value={f.tier} onChange={(e) => setF({ ...f, tier: e.target.value })}>
+            <option value="general">Генеральный</option>
+            <option value="partner">Партнёр</option>
+          </select></div>
+      </div>
+      <div className="field"><label>Текст карточки (для ленты)</label><input value={f.card_text} onChange={(e) => setF({ ...f, card_text: e.target.value })} placeholder="Продавай косплей на ART.KZ" /></div>
+      <div style={{ display: "flex", gap: 16, fontSize: 13, color: "var(--ink-dim)", marginBottom: 12 }}>
+        <label><input type="checkbox" checked={f.show_strip} onChange={(e) => setF({ ...f, show_strip: e.target.checked })} /> Лого-полоса</label>
+        <label><input type="checkbox" checked={f.show_feed} onChange={(e) => setF({ ...f, show_feed: e.target.checked })} /> Карточка в ленте</label>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <button className="btn btn-primary btn-sm" onClick={add} disabled={saving}>{saving ? "…" : "+ Добавить партнёра"}</button>
+        {err && <span style={{ color: "var(--red)", fontSize: 12 }}>{err}</span>}
+      </div>
+
+      {items.length === 0 ? (
+        <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Партнёров пока нет.</p>
+      ) : items.map((p) => (
+        <div key={p.id} style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+          background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 11, padding: "10px 14px", marginBottom: 8,
+          opacity: p.is_active ? 1 : 0.5,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            {p.logo && <img src={p.logo} alt={p.name} style={{ height: 24, maxWidth: 90, objectFit: "contain" }} />}
+            <div style={{ minWidth: 0 }}>
+              <b style={{ fontSize: 14 }}>{p.name}</b>
+              <span style={{ fontSize: 12, color: "var(--ink-dim)", marginLeft: 8 }}>
+                {p.tier === "general" ? "генеральный" : "партнёр"}
+                {p.show_strip ? " · полоса" : ""}{p.show_feed ? " · лента" : ""}{!p.is_active ? " · скрыт" : ""}
+              </span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => patch(p.id, { order: Math.max(0, p.order - 1) })} title="Выше">↑</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => patch(p.id, { order: p.order + 1 })} title="Ниже">↓</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => patch(p.id, { is_active: !p.is_active })}>{p.is_active ? "Скрыть" : "Показать"}</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => remove(p.id)}>Удалить</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─────────────────────────── ИНВАЙТЫ ───────────────────────────
 type InviteItem = {
   id: number; code: string; note: string; max_uses: number; used_count: number;
@@ -882,6 +997,7 @@ function CreateUser({ onDone }: { onDone: () => void }) {
 function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUser) => void }) {
   const [roles, setRoles] = useState<string[]>(user.roles);
   const [details, setDetails] = useState<Record<string, any>>(user.role_details || {});
+  const [mascot, setMascot] = useState(user.mascot || "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   function toggle(slug: string) { setRoles((p) => (p.includes(slug) ? p.filter((r) => r !== slug) : [...p, slug])); }
@@ -892,7 +1008,7 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
     setSaving(true); setSaved(false);
     const res = await api(`/admin-panel/users/${user.id}/set-roles/`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roles, role_details: details }),
+      body: JSON.stringify({ roles, role_details: details, mascot }),
     });
     if (res.ok) { const u = await res.json(); onSaved(u); setSaved(true); setTimeout(() => setSaved(false), 1800); }
     setSaving(false);
@@ -927,6 +1043,29 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
           </div>
         );
       })}
+
+      <div style={{ marginBottom: 12, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
+        <h4 style={{ margin: "0 0 2px", fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: "var(--accent-2)" }}>🤝</span> Маскот-компаньон (Pro-льгота)
+        </h4>
+        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 10px" }}>
+          Уголок-стикер на аватаре профиля. Публично виден только у Pro-пользователей{user.is_pro ? "" : " — сейчас этот юзер НЕ Pro, маскот не покажется до активации Pro"}.
+        </p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {["", "chameleon", "kitsune", "robot", "octopus", "owl", "slime"].map((m) => {
+            const on = mascot === m;
+            return (
+              <button key={m || "none"} type="button" onClick={() => setMascot(m)} title={m || "Без маскота"}
+                style={{ width: 48, height: 48, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                  border: `2px solid ${on ? "var(--accent)" : "var(--line)"}`, background: on ? "rgba(255,45,111,.1)" : "var(--bg-3)" }}>
+                {m
+                  ? <img src={`/mascots/${m}.png`} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+                  : <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>нет</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <button className="btn btn-primary btn-sm" onClick={save} disabled={saving}>{saving ? "Сохраняем…" : "Сохранить роли и анкеты"}</button>
       {saved && <span style={{ color: "var(--green)", fontSize: 12, marginLeft: 10 }}>✓ Сохранено</span>}
@@ -1211,7 +1350,7 @@ function WsForm({ v, onChange, onSubmit, submitLabel, onDelete }: {
 }
 
 // ── Товары магазина внутри редактора роли (полный CRUD за магазин) ──
-type ProdFull = { id: number; title: string; price: number | null; status: string; category: string; description: string; image: string | null };
+type ProdFull = { id: number; title: string; price: number | null; status: string; category: string; description: string; image: string | null; photos?: { id: number; url: string }[] };
 const PROD_ST: [string, string][] = [["in_stock", "В наличии"], ["on_order", "На заказ"], ["sold", "Продано"]];
 type ProdDraft = { title: string; price: string; status: string; category: string; description: string; file: File | null };
 const emptyProd: ProdDraft = { title: "", price: "", status: "in_stock", category: "", description: "", file: null };
@@ -1263,6 +1402,19 @@ function ShopProductsEditor({ userId }: { userId: number }) {
   }
   function setD(id: number, patch: Partial<ProdDraft>) { setDraft((p) => ({ ...p, [id]: { ...p[id], ...patch } })); }
 
+  async function addPhoto(pid: number, file: File) {
+    const fd = new FormData();
+    fd.append("image", file);
+    const res = await api(`/products/${pid}/photos/`, { method: "POST", body: fd });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) setItems((prev) => prev.map((p) => p.id === pid ? { ...p, photos: [...(p.photos || []), { id: d.id, url: d.url }] } : p));
+    else alert(d.detail || "Не удалось загрузить фото");
+  }
+  async function delPhoto(pid: number, photoId: number) {
+    const res = await api(`/products/${pid}/photos/${photoId}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((prev) => prev.map((p) => p.id === pid ? { ...p, photos: (p.photos || []).filter((ph) => ph.id !== photoId) } : p));
+  }
+
   return (
     <div style={{ marginTop: 16, padding: 14, background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -1282,6 +1434,20 @@ function ShopProductsEditor({ userId }: { userId: number }) {
             {p.image && <div style={{ width: 56, height: 56, borderRadius: 8, flexShrink: 0, backgroundSize: "cover", backgroundPosition: "center", backgroundImage: `url('${p.image}')` }} />}
             <div style={{ flex: 1, minWidth: 0 }}>
               <ProdForm v={draft[p.id]} onChange={(patch) => setD(p.id, patch)} onSubmit={() => save(p.id)} submitLabel="Сохранить" onDelete={() => remove(p.id)} />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginTop: 8 }}>
+                <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>Доп. фото:</span>
+                {(p.photos || []).map((ph) => (
+                  <div key={ph.id} style={{ position: "relative", width: 40, height: 40, borderRadius: 6, backgroundSize: "cover", backgroundPosition: "center", backgroundImage: `url('${ph.url}')` }}>
+                    <button onClick={() => delPhoto(p.id, ph.id)} title="Удалить фото"
+                      style={{ position: "absolute", top: -6, right: -6, width: 16, height: 16, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.75)", color: "#fff", cursor: "pointer", fontSize: 10, lineHeight: 1 }}>×</button>
+                  </div>
+                ))}
+                <label style={{ width: 40, height: 40, borderRadius: 6, border: "1px dashed var(--line)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 16, color: "var(--ink-dim)" }}>
+                  +
+                  <input type="file" accept="image/*" style={{ display: "none" }}
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) addPhoto(p.id, f); e.currentTarget.value = ""; }} />
+                </label>
+              </div>
             </div>
           </div>
         </div>

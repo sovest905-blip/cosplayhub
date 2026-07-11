@@ -30,6 +30,7 @@ def _user_dict(u: User) -> dict:
         "pro_active_until": pro_sub.active_until if (pro_sub and pro_sub.is_active) else None,
         "roles": (prof.roles if prof else []) or [],
         "role_details": (prof.role_details if prof else {}) or {},
+        "mascot": (prof.mascot if prof else "") or "",
         "profile_id": prof.id if prof else None,
         "followers": u.follower_set.count(),
         "following": u.following_set.count(),
@@ -129,6 +130,11 @@ class AdminUserRolesView(_StaffView):
         if isinstance(role_details, dict):
             prof.role_details = role_details
             fields.append("role_details")
+        if "mascot" in request.data:
+            valid_mascots = {"", "chameleon", "kitsune", "robot", "octopus", "owl", "slime"}
+            m = str(request.data.get("mascot") or "").strip()
+            prof.mascot = m if m in valid_mascots else ""
+            fields.append("mascot")
         prof.save(update_fields=fields)
         return Response(_user_dict(user))
 

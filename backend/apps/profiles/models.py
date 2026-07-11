@@ -28,6 +28,7 @@ class Profile(models.Model):
     # Крипто-донаты P2P (Pro): список {kind, address}. Платформа НЕ хранит средства —
     # перевод напрямую косплееру (см. donations в ProfileSerializer, гейт за Pro).
     donation_methods = models.JSONField("приём донатов", default=list, blank=True)
+    mascot = models.CharField("маскот-компаньон (Pro)", max_length=20, blank=True, default="")  # уголок-стикер на карточке
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
