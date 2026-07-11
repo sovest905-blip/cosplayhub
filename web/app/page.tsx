@@ -3,12 +3,14 @@ import {
   getCurated, getWeeklyPicks, getCategories, getNews, getProfilesByRole,
   ROLE_DETAIL_FIELDS, fmtDetailValue, type Category, type NewsItem,
 } from "../lib/api";
+import PartnerStrip from "./components/PartnerStrip";
 
 // Категории — декоративная лента тем. Если админ не задал свои — показываем базовый набор.
 const FALLBACK_CATEGORIES = ["3D-печать", "EVA-пена", "Пошив", "Парики", "Линзы", "Фотосеты", "Барахолка", "Команды"];
 const CUR_CLASS: Record<string, string> = {
   look: "cur-look", workshop: "cur-ws", event: "cur-ev",
   battle: "cur-battle", team: "cur-team", shoot: "cur-shoot",
+  guide: "cur-guide", rent: "cur-rent", shop: "cur-shop",
 };
 
 // Пустой раздел → приглашение «Будь первым» (ведёт к созданию нужной роли).
@@ -108,6 +110,9 @@ export default async function HomePage() {
       </div>
 
       <div className="wrap">
+        {/* ПАРТНЁРЫ — лого-полоса над «Выбор недели» */}
+        <PartnerStrip variant="top" />
+
         {/* ВЫБОР НЕДЕЛИ — автоподбор топа за 7 дней по разделам (или ручной оверрайд) */}
         {picks.length > 0 && (
         <section>

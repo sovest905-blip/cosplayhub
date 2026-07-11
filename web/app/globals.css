@@ -388,6 +388,9 @@ h2.title {
 .cur-battle { background: linear-gradient(135deg,#241033,#120720); border: 1px solid rgba(157,124,255,.35); }
 .cur-team   { background: linear-gradient(135deg,#0e2a24,#03150f); border: 1px solid rgba(93,202,165,.32); }
 .cur-shoot  { background: linear-gradient(135deg,#2a1810,#160a04); border: 1px solid rgba(255,140,74,.3); }
+.cur-guide  { background: linear-gradient(135deg,#2a260e,#1a1503); border: 1px solid rgba(255,210,74,.28); }
+.cur-rent   { background: linear-gradient(135deg,#0e2a2a,#031616); border: 1px solid rgba(124,249,255,.28); }
+.cur-shop   { background: linear-gradient(135deg,#2a0e26,#180314); border: 1px solid rgba(255,45,111,.28); }
 .cur-tag {
   font-family: var(--font-mono), monospace;
   font-size: 10px;
@@ -404,6 +407,9 @@ h2.title {
 .cur-battle .cur-tag { color: var(--accent-4); }
 .cur-team .cur-tag   { color: #5dcaa5; }
 .cur-shoot .cur-tag  { color: #ff8c4a; }
+.cur-guide .cur-tag  { color: var(--accent-3); }
+.cur-rent .cur-tag   { color: var(--accent-2); }
+.cur-shop .cur-tag   { color: var(--accent); }
 .cur-img {
   position: absolute;
   right: -15%; top: 50%;

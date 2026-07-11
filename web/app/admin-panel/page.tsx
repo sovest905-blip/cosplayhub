@@ -2,7 +2,7 @@
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
-import { getLooks, getWorkshops, getEvents, getProfiles } from "../../lib/api";
+import { getLooks, getWorkshops, getEvents, getProfiles, getShoots, getTeams, getGuides, getCostumes, getBattles } from "../../lib/api";
 
 const ROLE_LIST: { slug: string; name: string }[] = [
   { slug: "cosplayer", name: "Косплеер" }, { slug: "photographer", name: "Фотограф" },
@@ -23,7 +23,7 @@ type Sub = { target_id: number; username: string; avatar: string | null; since: 
 type TabId = "dashboard" | "curated" | "categories" | "partners" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "rentals" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
-  ["curated", "★ Выбор редакции"],
+  ["curated", "★ Выбор недели"],
   ["categories", "✦ Категории"],
   ["partners", "🤝 Партнёры"],
   ["news", "◆ Новости и события"],
@@ -248,12 +248,14 @@ function NewsAdmin() {
 
 // ─────────────────────────── ВЫБОР РЕДАКЦИИ ───────────────────────────
 type CuratedItem = {
-  id: number; style: "look" | "workshop" | "event"; tag: string; title: string;
+  id: number; style: string; tag: string; title: string;
   meta: string; link: string; image: string | null; image_url: string;
   order: number; is_active: boolean;
 };
 const CURATED_STYLE_RU: Record<string, string> = {
-  look: "Образ (розовый, крупный)", workshop: "Мастерская (голубой)", event: "Событие (жёлтый)",
+  look: "Образ (розовый)", workshop: "Мастерская (голубой)", event: "Событие (жёлтый)",
+  battle: "Баттл (фиолетовый)", team: "Команда (зелёный)", shoot: "Съёмка (оранжевый)",
+  guide: "Гайд (жёлтый)", rent: "Прокат (голубой)", shop: "Магазин/товар (розовый)",
 };
 
 // Пикер «выбрать с сайта»: тип → поиск по существующим записям → автозаполнение карточки.
@@ -312,6 +314,55 @@ const PICK_SOURCES: {
       title: x.display_name,
       meta: `${x.city && x.city !== "—" ? x.city : ""}${x.followers ? ` · ${x.followers} подп.` : ""}`.trim().replace(/^· /, ""),
       link: `/people/${x.id}`, image_url: abs(x.photo || x.cover) }),
+  },
+  {
+    key: "shoot", label: "Съёмка",
+    fetch: async () => (await getShoots("")) || [],
+    name: (x) => x.title, sub: (x) => x.city || "",
+    img: (x) => abs(x.cover),
+    map: (x) => ({ style: "shoot", tag: "★ Съёмка недели", title: x.title,
+      meta: x.city || "Сбор команды", link: `/shoots/${x.id}`, image_url: abs(x.cover) }),
+  },
+  {
+    key: "team", label: "Команда",
+    fetch: async () => (await getTeams()) || [],
+    name: (x) => x.name, sub: (x) => x.city || "",
+    img: (x) => abs(x.cover || x.avatar),
+    map: (x) => ({ style: "team", tag: "★ Команда недели", title: x.name,
+      meta: x.city || "Косплей-команда", link: `/teams/${x.id}`, image_url: abs(x.cover || x.avatar) }),
+  },
+  {
+    key: "guide", label: "Гайд",
+    fetch: async () => (await getGuides()) || [],
+    name: (x) => x.title, sub: (x) => x.category || "",
+    img: (x) => abs(x.cover),
+    map: (x) => ({ style: "guide", tag: "★ Гайд недели", title: x.title,
+      meta: x.category || x.summary || "Гайд по крафту", link: `/guides/${x.id}`, image_url: abs(x.cover) }),
+  },
+  {
+    key: "rent", label: "Прокат",
+    fetch: async () => (await getCostumes("")) || [],
+    name: (x) => x.title, sub: (x) => x.city || "",
+    img: (x) => abs(x.image),
+    map: (x) => ({ style: "rent", tag: "★ Прокат недели", title: x.title,
+      meta: `${x.city || ""}${x.price_day ? ` · ${x.price_day} ₸/сут` : ""}`.trim().replace(/^· /, "") || "Костюм в аренду",
+      link: `/rent/${x.id}`, image_url: abs(x.image) }),
+  },
+  {
+    key: "battle", label: "Баттл",
+    fetch: async () => (await getBattles("")) || [],
+    name: (x) => x.title, sub: (x) => x.theme || "",
+    img: (x) => abs(x.cover),
+    map: (x) => ({ style: "battle", tag: "★ Баттл недели", title: x.title,
+      meta: x.theme || "Голосование", link: `/battles/${x.id}`, image_url: abs(x.cover) }),
+  },
+  {
+    key: "shop", label: "Товар магазина",
+    fetch: async () => { const r = await fetch("/api/v1/products/"); const d = await r.json().catch(() => []); return d.results ?? d; },
+    name: (x) => x.title, sub: (x) => (x.price ? `${x.price} ₸` : "по запросу"),
+    img: (x) => abs(x.image || x.image_url),
+    map: (x) => ({ style: "shop", tag: "★ Товар недели", title: x.title,
+      meta: x.price ? `${x.price} ₸` : "по запросу", link: `/products/${x.id}`, image_url: abs(x.image || x.image_url) }),
   },
 ];
 
@@ -435,14 +486,14 @@ function CuratedAdmin() {
   return (
     <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Выбор редакции</h2>
+        <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Выбор недели</h2>
         <button className="btn btn-primary btn-sm" onClick={() => { if (show) { resetForm(); setShow(false); } else { resetForm(); setShow(true); } }}>
           {show ? "Отмена" : "+ Добавить карточку"}
         </button>
       </div>
       <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>
-        Блок «Выбор редакции» на главной. Порядок задаёт «Порядок» (меньше — левее/выше). Первая карточка — крупная.
-        Если ничего не добавлено — на главной показывается стандартный набор.
+        Ручной оверрайд блока «Выбор недели» на главной. Если добавить карточки — они заменят автоподбор (топ за 7 дней по разделам).
+        Порядок задаёт «Порядок» (меньше — левее/выше). Если ничего не добавлено — работает автоподбор.
       </p>
 
       {show && (

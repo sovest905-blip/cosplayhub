@@ -7,9 +7,15 @@ class CuratedPick(models.Model):
     """Карточка блока «Выбор редакции» на главной.
     style задаёт цвет/размер карточки (совпадает с CSS-классами cur-look/cur-ws/cur-ev)."""
     STYLE_CHOICES = [
-        ("look", "Образ (розовый, крупный)"),
+        ("look", "Образ (розовый)"),
         ("workshop", "Мастерская (голубой)"),
         ("event", "Событие (жёлтый)"),
+        ("battle", "Баттл (фиолетовый)"),
+        ("team", "Команда (зелёный)"),
+        ("shoot", "Съёмка (оранжевый)"),
+        ("guide", "Гайд (жёлтый)"),
+        ("rent", "Прокат (голубой)"),
+        ("shop", "Магазин/товар (розовый)"),
     ]
     style = models.CharField("стиль карточки", max_length=20, choices=STYLE_CHOICES, default="look")
     tag = models.CharField("метка", max_length=60, blank=True, help_text="Напр. ★ Образ недели")
