@@ -102,4 +102,38 @@ class WeeklyPicksView(APIView):
         except Exception:
             pass
 
+        # Гайды — свежий опубликованный
+        try:
+            from apps.guides.models import Guide
+            top = Guide.objects.filter(is_published=True).order_by("-created_at").first()
+            if top:
+                picks.append(_card("guides", "guide", "★ Гайд недели", top, top.title,
+                                   top.category or top.summary or "Гайд по крафту", _img(top.cover), f"/guides/{top.id}"))
+        except Exception:
+            pass
+
+        # Прокат — свежий активный костюм
+        try:
+            from apps.rentals.models import Costume
+            top = Costume.objects.filter(is_active=True).order_by("-id").first()
+            if top:
+                meta = top.city or "Костюм в аренду"
+                if top.price_day:
+                    meta = f"{meta} · {top.price_day} ₸/сут"
+                picks.append(_card("rentals", "rent", "★ Прокат недели", top, top.title,
+                                   meta, _img(top.image), f"/rent/{top.id}"))
+        except Exception:
+            pass
+
+        # Магазины — свежий активный товар
+        try:
+            from apps.products.models import Product
+            top = Product.objects.filter(is_active=True).order_by("-created_at").first()
+            if top:
+                meta = f"{top.price} ₸" if top.price else "по запросу"
+                picks.append(_card("products", "shop", "★ Товар недели", top, top.title,
+                                   meta, _img(top.image), f"/products/{top.id}"))
+        except Exception:
+            pass
+
         return Response(picks)

@@ -5,7 +5,7 @@ import { getPartners, type Partner } from "../../lib/api";
 
 /** Лого-полоса «Партнёры» над футером. Генеральный — цветной, остальные приглушены
  *  и оживают при наведении. Если партнёров-полосы нет — ничего не рисуем. */
-export default function PartnerStrip() {
+export default function PartnerStrip({ variant = "footer" }: { variant?: "footer" | "top" }) {
   const [items, setItems] = useState<Partner[]>([]);
   useEffect(() => {
     getPartners().then((list) => setItems(list.filter((p) => p.show_strip))).catch(() => {});
@@ -13,8 +13,12 @@ export default function PartnerStrip() {
 
   if (items.length === 0) return null;
 
+  const wrapStyle = variant === "top"
+    ? { border: "1px solid var(--line)", borderRadius: 16, background: "var(--bg-2)", padding: "18px 20px", margin: "8px 0 4px" }
+    : { borderTop: "1px solid var(--line)", padding: "22px 0 8px" };
+
   return (
-    <div style={{ borderTop: "1px solid var(--line)", padding: "22px 0 8px" }}>
+    <div style={wrapStyle}>
       <div style={{ fontSize: 10, letterSpacing: "0.18em", color: "var(--ink-dim)", textAlign: "center", marginBottom: 16 }}>
         ПАРТНЁРЫ
       </div>
