@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { SOCIAL_META, DONATION_KINDS, DONATION_KIND_META } from "../../lib/api";
+import { SOCIAL_META, DONATION_KINDS, DONATION_KIND_META, getMascots, type MascotOption } from "../../lib/api";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
 import MessagesPanel from "../components/MessagesPanel";
 import CryptoPayButton from "../components/CryptoPayButton";
@@ -172,6 +172,8 @@ export default function CabinetPage() {
   const [custAccent, setCustAccent] = useState("#ff2d6f");
   const [custHide, setCustHide] = useState(false);
   const [custMascot, setCustMascot] = useState("");
+  const [mascotLib, setMascotLib] = useState<MascotOption[]>([]);
+  useEffect(() => { getMascots().then(setMascotLib).catch(() => {}); }, []);
   const [pinnedIds, setPinnedIds] = useState<number[]>([]);
   const [donMethods, setDonMethods] = useState<{ kind: string; address: string }[]>([]);
   const [donDraft, setDonDraft] = useState({ kind: "usdt_trc20", address: "" });
@@ -2576,15 +2578,15 @@ export default function CabinetPage() {
                   <div className="field"><label>Маскот-компаньон (Pro)</label>
                     <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "0 0 8px" }}>Появляется уголком на аватаре твоего профиля.</p>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {["", "chameleon", "kitsune", "robot", "octopus", "owl", "slime"].map((m) => {
-                        const on = custMascot === m;
+                      {[{ slug: "", name: "Без маскота", image: "" }, ...mascotLib].map((m) => {
+                        const on = custMascot === m.slug;
                         return (
-                          <button key={m || "none"} type="button" onClick={() => setCustMascot(m)}
-                            title={m || "Без маскота"}
+                          <button key={m.slug || "none"} type="button" onClick={() => setCustMascot(m.slug)}
+                            title={m.name}
                             style={{ width: 48, height: 48, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                               border: `2px solid ${on ? "var(--accent)" : "var(--line)"}`, background: on ? "rgba(255,45,111,.1)" : "var(--bg-3)" }}>
-                            {m
-                              ? <img src={`/mascots/${m}.png`} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+                            {m.slug
+                              ? <img src={m.image} alt={m.name} style={{ width: 34, height: 34, objectFit: "contain" }} />
                               : <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>нет</span>}
                           </button>
                         );

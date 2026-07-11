@@ -34,6 +34,33 @@ class Profile(models.Model):
     def __str__(self):
         return self.display_name
 
+class Mascot(models.Model):
+    """Библиотека маскотов-компаньонов (Pro). Админ загружает картинки,
+    Pro-пользователь выбирает из активных. Profile.mascot хранит slug."""
+    name = models.CharField("название", max_length=60)
+    slug = models.SlugField("код", max_length=40, unique=True)
+    image = models.ImageField("картинка", upload_to="mascots/", blank=True, null=True)
+    image_url = models.CharField("картинка по ссылке", max_length=300, blank=True)  # для стартового набора /mascots/*.png
+    is_active = models.BooleanField("активен", default=True)
+    order = models.PositiveIntegerField("порядок", default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "маскот"
+        verbose_name_plural = "маскоты"
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def img(self):
+        try:
+            return self.image.url if self.image else (self.image_url or "")
+        except ValueError:
+            return self.image_url or ""
+
+
 class RoleMedia(models.Model):
     """Отдельные логотип и обложка под конкретную роль профиля.
 

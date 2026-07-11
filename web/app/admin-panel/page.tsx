@@ -2,7 +2,7 @@
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
-import { getLooks, getWorkshops, getEvents, getProfiles, getShoots, getTeams, getGuides, getCostumes, getBattles } from "../../lib/api";
+import { getLooks, getWorkshops, getEvents, getProfiles, getProfilesByRole, getShoots, getTeams, getGuides, getCostumes, getBattles, getMascots, type MascotOption } from "../../lib/api";
 
 const ROLE_LIST: { slug: string; name: string }[] = [
   { slug: "cosplayer", name: "Косплеер" }, { slug: "photographer", name: "Фотограф" },
@@ -20,12 +20,13 @@ type AdminUser = {
 type NewsItem = { id: number; title: string; body: string; image: string | null; is_pinned: boolean; is_published: boolean; created_at: string };
 type Sub = { target_id: number; username: string; avatar: string | null; since: string };
 
-type TabId = "dashboard" | "curated" | "categories" | "partners" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "rentals" | "orders" | "subscriptions";
+type TabId = "dashboard" | "curated" | "categories" | "partners" | "mascots" | "news" | "guides" | "looks" | "teams" | "users" | "admins" | "invites" | "locations" | "workshops" | "shops" | "products" | "listings" | "rentals" | "orders" | "subscriptions";
 const TABS: [TabId, string][] = [
   ["dashboard", "▤ Дашборд"],
   ["curated", "★ Выбор недели"],
   ["categories", "✦ Категории"],
   ["partners", "🤝 Партнёры"],
+  ["mascots", "🐣 Маскоты"],
   ["news", "◆ Новости и события"],
   ["guides", "❖ Гайды"],
   ["looks", "✧ Образы"],
@@ -110,6 +111,7 @@ export default function AdminPanelPage() {
           {tab === "curated" && <CuratedAdmin />}
           {tab === "categories" && <CategoriesAdmin />}
           {tab === "partners" && <PartnersAdmin />}
+          {tab === "mascots" && <MascotsAdmin />}
           {tab === "news" && <><NewsAdmin /><div style={{ height: 22 }} /><EventsAdmin /></>}
           {tab === "guides" && <GuidesAdmin />}
           {tab === "looks" && <LooksAdmin />}
@@ -363,6 +365,14 @@ const PICK_SOURCES: {
     img: (x) => abs(x.image || x.image_url),
     map: (x) => ({ style: "shop", tag: "★ Товар недели", title: x.title,
       meta: x.price ? `${x.price} ₸` : "по запросу", link: `/products/${x.id}`, image_url: abs(x.image || x.image_url) }),
+  },
+  {
+    key: "shopprofile", label: "Магазин (витрина)",
+    fetch: async () => (await getProfilesByRole("shop")) || [],
+    name: (x) => x.display_name, sub: (x) => (x.city && x.city !== "—" ? x.city : ""),
+    img: (x) => abs(x.photo || x.cover),
+    map: (x) => ({ style: "shop", tag: "★ Магазин недели", title: x.display_name,
+      meta: (x.city && x.city !== "—" ? x.city : "") || "Магазин", link: `/people/${x.id}`, image_url: abs(x.photo || x.cover) }),
   },
 ];
 
@@ -761,6 +771,84 @@ function PartnersAdmin() {
   );
 }
 
+// ─────────────────────────── МАСКОТЫ ───────────────────────────
+type MascotRow = { id: number; name: string; slug: string; image: string | null; is_active: boolean; order: number };
+
+function MascotsAdmin() {
+  const [items, setItems] = useState<MascotRow[]>([]);
+  const [name, setName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  function load() {
+    api("/admin-panel/mascots/").then((r) => (r.ok ? r.json() : [])).then((d) => setItems(Array.isArray(d) ? d : []));
+  }
+  useEffect(load, []);
+
+  async function add() {
+    if (!name.trim()) { setErr("Введите название"); return; }
+    if (!file) { setErr("Загрузите картинку"); return; }
+    setSaving(true); setErr("");
+    try {
+      const b = new FormData();
+      b.append("name", name.trim());
+      b.append("image", file);
+      b.append("order", String(items.length));
+      const res = await api("/admin-panel/mascots/", { method: "POST", body: b });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || e.image?.[0] || e.slug?.[0] || "Не удалось"); }
+      setName(""); setFile(null); load();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Ошибка"); }
+    finally { setSaving(false); }
+  }
+  async function patch(id: number, body: Partial<MascotRow>) {
+    const res = await api(`/admin-panel/mascots/${id}/`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    });
+    if (res.ok) { const d = await res.json(); setItems((p) => p.map((x) => (x.id === d.id ? d : x))); }
+  }
+  async function remove(id: number) {
+    if (!confirm("Удалить маскота? У кого он выбран — покажется пусто.")) return;
+    const res = await api(`/admin-panel/mascots/${id}/`, { method: "DELETE" });
+    if (res.ok || res.status === 204) setItems((p) => p.filter((x) => x.id !== id));
+  }
+
+  return (
+    <div className="acc-card" style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 18, padding: 24 }}>
+      <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: 0 }}>Маскоты</h2>
+      <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "6px 0 16px" }}>
+        Библиотека маскотов-компаньонов. Загружай сюда картинки — Pro-пользователи выбирают из активных в кабинете (уголок на аватаре). Прозрачный PNG, квадрат.
+      </p>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 8, alignItems: "flex-end" }}>
+        <div className="field" style={{ flex: "1 1 160px", marginBottom: 0 }}><label>Название</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Дракончик" /></div>
+        <div className="field" style={{ flex: "1 1 160px", marginBottom: 0 }}><label>Картинка (PNG)</label>
+          <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} /></div>
+        <button className="btn btn-primary btn-sm" onClick={add} disabled={saving}>{saving ? "…" : "+ Загрузить"}</button>
+      </div>
+      {err && <p style={{ color: "var(--red)", fontSize: 12, marginTop: 6, marginBottom: 12 }}>{err}</p>}
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 14 }}>
+        {items.length === 0 && <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Маскотов пока нет.</p>}
+        {items.map((m) => (
+          <div key={m.id} style={{ width: 150, border: "1px solid var(--line)", borderRadius: 12, padding: 10, background: "var(--bg-3)", opacity: m.is_active ? 1 : 0.5 }}>
+            <div style={{ height: 70, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 8 }}>
+              {m.image && <img src={m.image} alt={m.name} style={{ maxHeight: 70, maxWidth: "100%", objectFit: "contain" }} />}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, textAlign: "center", marginBottom: 2 }}>{m.name}</div>
+            <div style={{ fontSize: 10, color: "var(--ink-dim)", textAlign: "center", marginBottom: 8 }}>{m.slug}</div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => patch(m.id, { is_active: !m.is_active })}>{m.is_active ? "Скрыть" : "Показать"}</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => remove(m.id)}>✕</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────── ИНВАЙТЫ ───────────────────────────
 type InviteItem = {
   id: number; code: string; note: string; max_uses: number; used_count: number;
@@ -1049,6 +1137,8 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
   const [roles, setRoles] = useState<string[]>(user.roles);
   const [details, setDetails] = useState<Record<string, any>>(user.role_details || {});
   const [mascot, setMascot] = useState(user.mascot || "");
+  const [mascotLib, setMascotLib] = useState<MascotOption[]>([]);
+  useEffect(() => { getMascots().then(setMascotLib).catch(() => {}); }, []);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   function toggle(slug: string) { setRoles((p) => (p.includes(slug) ? p.filter((r) => r !== slug) : [...p, slug])); }
@@ -1103,14 +1193,14 @@ function RolesEditor({ user, onSaved }: { user: AdminUser; onSaved: (u: AdminUse
           Уголок-стикер на аватаре профиля. Публично виден только у Pro-пользователей{user.is_pro ? "" : " — сейчас этот юзер НЕ Pro, маскот не покажется до активации Pro"}.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {["", "chameleon", "kitsune", "robot", "octopus", "owl", "slime"].map((m) => {
-            const on = mascot === m;
+          {[{ slug: "", name: "Без маскота", image: "" }, ...mascotLib].map((m) => {
+            const on = mascot === m.slug;
             return (
-              <button key={m || "none"} type="button" onClick={() => setMascot(m)} title={m || "Без маскота"}
+              <button key={m.slug || "none"} type="button" onClick={() => setMascot(m.slug)} title={m.name}
                 style={{ width: 48, height: 48, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
                   border: `2px solid ${on ? "var(--accent)" : "var(--line)"}`, background: on ? "rgba(255,45,111,.1)" : "var(--bg-3)" }}>
-                {m
-                  ? <img src={`/mascots/${m}.png`} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+                {m.slug
+                  ? <img src={m.image} alt={m.name} style={{ width: 34, height: 34, objectFit: "contain" }} />
                   : <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>нет</span>}
               </button>
             );
