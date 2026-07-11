@@ -34,6 +34,7 @@ from common.admin_homepage import (
     AdminCategoriesView, AdminCategoryUpdateView,
 )
 from common.admin_partners import AdminPartnersView, AdminPartnerUpdateView
+from common.admin_mascots import AdminMascotsView, AdminMascotUpdateView
 
 api_v1 = [
     path("stats/", StatsView.as_view(), name="stats"),
@@ -110,6 +111,8 @@ api_v1 = [
     path("admin-panel/categories/<int:pk>/", AdminCategoryUpdateView.as_view(), name="ap-category-update"),
     path("admin-panel/partners/", AdminPartnersView.as_view(), name="ap-partners"),
     path("admin-panel/partners/<int:pk>/", AdminPartnerUpdateView.as_view(), name="ap-partner-update"),
+    path("admin-panel/mascots/", AdminMascotsView.as_view(), name="ap-mascots"),
+    path("admin-panel/mascots/<int:pk>/", AdminMascotUpdateView.as_view(), name="ap-mascot-update"),
     # документация API — только для staff (раскрывает всю карту API)
     path("schema/", SpectacularAPIView.as_view(permission_classes=[IsAdminUser]), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema", permission_classes=[IsAdminUser]), name="docs"),

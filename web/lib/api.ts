@@ -28,6 +28,7 @@ export type Person = {
   photos: { id: number; url: string }[];
   accent_color?: string;
   mascot?: string;
+  mascot_image?: string;
   pinned_looks?: { id: number; title: string; character: string; image: string | null }[];
   donations?: { kind: string; address: string }[];
 };
@@ -159,6 +160,7 @@ export function normalizeProfile(p: any): Person {
       : [],
     accent_color: p.accent_color || undefined,
     mascot: p.mascot || undefined,
+    mascot_image: p.mascot_image || undefined,
     pinned_looks: Array.isArray(p.pinned_looks) ? p.pinned_looks : [],
     donations: Array.isArray(p.donations) ? p.donations : [],
   };
@@ -481,6 +483,15 @@ export type WeeklyPick = {
 
 export async function getWeeklyPicks(): Promise<WeeklyPick[]> {
   const data = await get(`/weekly-picks/`);
+  const list = data?.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+// Библиотека маскотов-компаньонов (Pro): админ грузит, юзер выбирает.
+export type MascotOption = { slug: string; name: string; image: string };
+
+export async function getMascots(): Promise<MascotOption[]> {
+  const data = await get(`/mascots/`);
   const list = data?.results ?? data;
   return Array.isArray(list) ? list : [];
 }

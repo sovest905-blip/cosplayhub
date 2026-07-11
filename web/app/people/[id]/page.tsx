@@ -97,7 +97,7 @@ export default async function ProfilePage({ params, searchParams }: {
       <div className="profile-head">
         <div className="avatar" style={{ position: "relative", backgroundImage: `url('${heroLogo}')` }}>
           {person.mascot && (
-            <img src={`/mascots/${person.mascot}.png`} alt="" aria-hidden="true" title="Pro-маскот"
+            <img src={person.mascot_image || `/mascots/${person.mascot}.png`} alt="" aria-hidden="true" title="Pro-маскот"
               style={{ position: "absolute", bottom: -6, right: -6, width: 40, height: 40, borderRadius: "50%",
                 background: "#fff", padding: 3, objectFit: "contain", boxShadow: "0 4px 14px rgba(0,0,0,.4)" }} />
           )}

@@ -1,5 +1,19 @@
 from rest_framework import serializers
-from .models import Profile, SocialLink, ProfilePhoto
+from .models import Profile, SocialLink, ProfilePhoto, Mascot
+
+
+class MascotSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = Mascot
+        fields = ["id", "name", "slug", "image", "image_url", "is_active", "order", "created_at"]
+        read_only_fields = ["created_at"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["image"] = instance.img or None
+        return data
 
 class SocialLinkSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,12 +43,13 @@ class ProfileSerializer(serializers.ModelSerializer):
     pinned_looks = serializers.SerializerMethodField()
     donations = serializers.SerializerMethodField()
     mascot = serializers.SerializerMethodField()
+    mascot_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "user_id", "display_name", "username", "bio", "roles", "role_details",
                   "avatar", "cover", "available_for_work", "experience", "rating", "accent_color",
-                  "slug", "pinned_looks", "donations", "mascot", "city", "is_verified", "socials", "photos",
+                  "slug", "pinned_looks", "donations", "mascot", "mascot_image", "city", "is_verified", "socials", "photos",
                   "followers_count", "looks_count", "is_following", "created_at"]
         read_only_fields = ["rating", "slug", "created_at"]
 
@@ -47,14 +62,26 @@ class ProfileSerializer(serializers.ModelSerializer):
             pro = obj.user.is_pro
         return (obj.donation_methods or []) if pro else []
 
-    def get_mascot(self, obj):
-        # Маскот-компаньон — только у активного Pro (Pro-льгота).
+    def _mascot_if_pro(self, obj):
         if not obj.user_id:
             return ""
         pro = getattr(obj, "pro_active", None)
         if pro is None:
             pro = obj.user.is_pro
         return (obj.mascot or "") if pro else ""
+
+    def get_mascot(self, obj):
+        # Маскот-компаньон — только у активного Pro (Pro-льгота).
+        return self._mascot_if_pro(obj)
+
+    def get_mascot_image(self, obj):
+        # Картинка маскота из библиотеки по slug (для показа на профиле).
+        slug = self._mascot_if_pro(obj)
+        if not slug:
+            return ""
+        from .models import Mascot
+        m = Mascot.objects.filter(slug=slug, is_active=True).first()
+        return m.img if m else ""
 
     def get_pinned_looks(self, obj):
         ids = obj.pinned_look_ids or []

@@ -136,4 +136,14 @@ class WeeklyPicksView(APIView):
         except Exception:
             pass
 
+        # Магазин — витрина (профиль с ролью shop)
+        try:
+            from apps.profiles.models import Profile
+            top = Profile.objects.filter(roles__contains=["shop"]).order_by("-created_at").first()
+            if top:
+                picks.append(_card("shops", "shop", "★ Магазин недели", top, top.display_name,
+                                   top.city or "Магазин", _img(top.avatar), f"/people/{top.id}"))
+        except Exception:
+            pass
+
         return Response(picks)

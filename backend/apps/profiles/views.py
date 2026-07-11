@@ -5,8 +5,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from apps.users.backends import CsrfExemptSessionAuthentication
 from common.permissions import IsOwnerOrReadOnly
-from .models import Profile, Follow, Favorite, ProfilePhoto, ProfileView, RoleMedia, gallery_limit
+from .models import Profile, Follow, Favorite, ProfilePhoto, ProfileView, RoleMedia, Mascot, gallery_limit
 from .serializers import ProfileSerializer, ProfilePhotoSerializer
+
+
+class MascotListView(APIView):
+    """GET /api/v1/mascots/ — активные маскоты для выбора (кабинет/админка)."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        data = [{"slug": m.slug, "name": m.name, "image": m.img}
+                for m in Mascot.objects.filter(is_active=True)]
+        return Response(data)
 
 MAX_PHOTO_SIZE = 5 * 1024 * 1024  # 5 МБ
 

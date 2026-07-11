@@ -3,12 +3,13 @@ from rest_framework.routers import DefaultRouter
 from .views import (ProfileViewSet, FollowDetailView, FollowingListView, FollowersListView,
                     FavoriteDetailView, FavoriteListView, MyPhotosView, MyPhotoDeleteView,
                     FanMatchesView, MyViewersView, ProfileBySlugView, MyMediaKitView,
-                    MyRoleMediaView)
+                    MyRoleMediaView, MascotListView)
 
 router = DefaultRouter()
 router.register("profiles", ProfileViewSet, basename="profile")
 
 urlpatterns = [
+    path("mascots/", MascotListView.as_view(), name="mascots"),
     path("profiles/fan-matches/", FanMatchesView.as_view(), name="fan-matches"),
     path("profiles/me/viewers/", MyViewersView.as_view(), name="my-viewers"),
     path("profiles/me/media-kit/", MyMediaKitView.as_view(), name="my-media-kit"),
