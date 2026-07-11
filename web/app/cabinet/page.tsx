@@ -65,7 +65,7 @@ const LISTING_SECTION: Record<string, { name: string; href: string }> = {
 };
 
 const WORKSHOP_TYPES: Record<string, string> = {
-  print3d: "3D-печать", eva: "EVA-броня", sewing: "Пошив", wigs: "Парики",
+  print3d: "3D-печать", eva: "EVA-пена", sewing: "Пошив", wigs: "Парики",
 };
 
 // Анкеты ролей: появляются под сеткой ролей при выборе роли.
@@ -171,6 +171,7 @@ export default function CabinetPage() {
   const [custSlug, setCustSlug] = useState("");
   const [custAccent, setCustAccent] = useState("#ff2d6f");
   const [custHide, setCustHide] = useState(false);
+  const [custMascot, setCustMascot] = useState("");
   const [pinnedIds, setPinnedIds] = useState<number[]>([]);
   const [donMethods, setDonMethods] = useState<{ kind: string; address: string }[]>([]);
   const [donDraft, setDonDraft] = useState({ kind: "usdt_trc20", address: "" });
@@ -273,6 +274,7 @@ export default function CabinetPage() {
         setCustSlug(data.slug || "");
         setCustAccent(data.accent_color || "#ff2d6f");
         setCustHide(!!data.hide_from_catalog);
+        setCustMascot(data.mascot || "");
         setPinnedIds(Array.isArray(data.pinned_look_ids) ? data.pinned_look_ids : []);
         setDonMethods(Array.isArray(data.donation_methods) ? data.donation_methods : []);
         setAuthed(true);
@@ -508,7 +510,7 @@ export default function CabinetPage() {
     setCustMsg("");
     const res = await fetch(`/api/v1/auth/me/`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
-      body: JSON.stringify({ slug: custSlug, accent_color: custAccent, hide_from_catalog: custHide, pinned_look_ids: pinnedIds, donation_methods: donMethods }),
+      body: JSON.stringify({ slug: custSlug, accent_color: custAccent, hide_from_catalog: custHide, mascot: custMascot, pinned_look_ids: pinnedIds, donation_methods: donMethods }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok) { setMe(data); setCustSlug(data.slug || ""); setDonMethods(Array.isArray(data.donation_methods) ? data.donation_methods : []); setCustMsg("Сохранено ✓"); setTimeout(() => setCustMsg(""), 2500); }
@@ -719,6 +721,27 @@ export default function CabinetPage() {
   async function delProduct(id: number) {
     const res = await fetch(`/api/v1/products/${id}/`, { method: "DELETE", credentials: "include" });
     if (res.ok || res.status === 204) setMyProducts((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  // Доп. фото товара (галерея): до 3, у Pro до 10.
+  async function addProductPhoto(productId: number, file: File) {
+    if (file.size > 5 * 1024 * 1024) { alert("Фото максимум 5 МБ"); return; }
+    const fd = new FormData();
+    fd.append("image", file);
+    const res = await fetch(`/api/v1/products/${productId}/photos/`, { method: "POST", credentials: "include", body: fd });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setMyProducts((prev) => prev.map((p) => p.id === productId
+        ? { ...p, photos: [...(p.photos || []), { id: data.id, url: data.url }] } : p));
+    } else alert(data.detail || "Не удалось загрузить фото");
+  }
+
+  async function delProductPhoto(productId: number, photoId: number) {
+    const res = await fetch(`/api/v1/products/${productId}/photos/${photoId}/`, { method: "DELETE", credentials: "include" });
+    if (res.ok || res.status === 204) {
+      setMyProducts((prev) => prev.map((p) => p.id === productId
+        ? { ...p, photos: (p.photos || []).filter((ph: any) => ph.id !== photoId) } : p));
+    }
   }
 
   async function addSlot() {
@@ -1175,27 +1198,56 @@ export default function CabinetPage() {
           </div>
         </div>
         <div className="field"><label>Описание</label><textarea rows={2} value={prodForm.description} onChange={(e) => setProdForm({ ...prodForm, description: e.target.value })} placeholder="Материал, размер, состояние…" /></div>
-        <div className="field"><label>Фото товара</label><input type="file" accept="image/*" onChange={(e) => setProdImg(e.target.files?.[0] || null)} /></div>
+        <div className="field"><label>Обложка (главное фото)</label><input type="file" accept="image/*" onChange={(e) => setProdImg(e.target.files?.[0] || null)} /></div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
           <button className="btn btn-primary btn-sm" onClick={addProduct} disabled={prodUp}>{prodUp ? "Сохраняем…" : "+ Добавить товар"}</button>
           {prodErr && <span style={{ color: "var(--red)", fontSize: 12 }}>{prodErr}</span>}
         </div>
-        {myProducts.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 10 }}>
-            {myProducts.map((p) => (
-              <div key={p.id} style={{ position: "relative", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
-                <div style={{ aspectRatio: "1", backgroundSize: "cover", backgroundPosition: "center",
-                  backgroundImage: `url('${p.image || p.image_url || "https://images.unsplash.com/photo-1513094735237-8f2714d57c13?w=300&q=80"}')` }} />
-                <div style={{ fontSize: 10, padding: "4px 6px", color: "var(--ink-dim)" }}>
-                  {p.title}<br />{p.price ? `${Number(p.price).toLocaleString("ru-RU")} ₸` : "по запросу"} · {p.status_display}
+        {myProducts.length > 0 && (() => {
+          const photoLimit = user.is_pro ? 10 : 3;
+          return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {myProducts.map((p) => {
+              const cover = p.image || p.image_url || "https://images.unsplash.com/photo-1513094735237-8f2714d57c13?w=300&q=80";
+              const count = (p.photos || []).length;
+              return (
+              <div key={p.id} style={{ border: "1px solid var(--line)", borderRadius: 12, padding: 10, display: "flex", gap: 12 }}>
+                <div style={{ width: 74, height: 74, flex: "0 0 auto", borderRadius: 8, backgroundSize: "cover", backgroundPosition: "center",
+                  backgroundImage: `url('${cover}')` }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{p.title}</div>
+                    <button onClick={() => delProduct(p.id)} className="btn btn-ghost btn-sm">Удалить</button>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-dim)", marginBottom: 8 }}>
+                    {p.price ? `${Number(p.price).toLocaleString("ru-RU")} ₸` : "по запросу"} · {p.status_display}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                    {(p.photos || []).map((ph: any) => (
+                      <div key={ph.id} style={{ position: "relative", width: 44, height: 44, borderRadius: 6, backgroundSize: "cover", backgroundPosition: "center", backgroundImage: `url('${ph.url}')` }}>
+                        <button onClick={() => delProductPhoto(p.id, ph.id)} title="Удалить фото"
+                          style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", border: "none",
+                            background: "rgba(0,0,0,.75)", color: "#fff", cursor: "pointer", fontSize: 11, lineHeight: 1 }}>×</button>
+                      </div>
+                    ))}
+                    {count < photoLimit ? (
+                      <label style={{ width: 44, height: 44, borderRadius: 6, border: "1px dashed var(--line)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 18, color: "var(--ink-dim)" }}>
+                        +
+                        <input type="file" accept="image/*" style={{ display: "none" }}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) addProductPhoto(p.id, f); e.currentTarget.value = ""; }} />
+                      </label>
+                    ) : null}
+                    <span style={{ fontSize: 11, color: "var(--ink-dim)", marginLeft: 4 }}>
+                      Фото {count}/{photoLimit}{!user.is_pro && count >= photoLimit ? " · Pro поднимает до 10" : ""}
+                    </span>
+                  </div>
                 </div>
-                <button onClick={() => delProduct(p.id)} title="Удалить"
-                  style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none",
-                    background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
               </div>
-            ))}
+              );
+            })}
           </div>
-        )}
+          );
+        })()}
       </div>
     );
   }
@@ -2520,6 +2572,24 @@ export default function CabinetPage() {
                       <button className="btn btn-ghost btn-sm" onClick={() => { if (donDraft.address.trim()) { setDonMethods((p) => [...p, { kind: donDraft.kind, address: donDraft.address.trim() }]); setDonDraft({ ...donDraft, address: "" }); } }}>+ Добавить</button>
                     </div>
                     <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "6px 0 0" }}>Перевод идёт напрямую вам. Указывайте правильную сеть (напр. USDT — только TRC-20).</p>
+                  </div>
+                  <div className="field"><label>Маскот-компаньон (Pro)</label>
+                    <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "0 0 8px" }}>Появляется уголком на аватаре твоего профиля.</p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {["", "chameleon", "kitsune", "robot", "octopus", "owl", "slime"].map((m) => {
+                        const on = custMascot === m;
+                        return (
+                          <button key={m || "none"} type="button" onClick={() => setCustMascot(m)}
+                            title={m || "Без маскота"}
+                            style={{ width: 48, height: 48, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                              border: `2px solid ${on ? "var(--accent)" : "var(--line)"}`, background: on ? "rgba(255,45,111,.1)" : "var(--bg-3)" }}>
+                            {m
+                              ? <img src={`/mascots/${m}.png`} alt="" style={{ width: 34, height: 34, objectFit: "contain" }} />
+                              : <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>нет</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
                     <button className="btn btn-primary btn-sm" onClick={saveCustomization}>Сохранить</button>

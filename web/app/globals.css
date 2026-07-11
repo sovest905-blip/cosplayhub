@@ -368,7 +368,7 @@ h2.title {
 .section-link:hover { color: var(--ink); }
 
 /* ── CURATED ── */
-.curated { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 14px; }
+.curated { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 14px; }
 .curated > * {
   border-radius: 18px;
   padding: 24px;
@@ -382,9 +382,12 @@ h2.title {
   transition: .3s;
 }
 .curated > *:hover { transform: translateY(-3px); }
-.cur-look { background: linear-gradient(135deg,#2a0e1f,#180312); border: 1px solid rgba(255,45,111,.3); }
-.cur-ws   { background: linear-gradient(135deg,#0e1f2a,#03121a); border: 1px solid rgba(124,249,255,.3); }
-.cur-ev   { background: linear-gradient(135deg,#2a200e,#1a1303); border: 1px solid rgba(255,210,74,.3); }
+.cur-look   { background: linear-gradient(135deg,#2a0e1f,#180312); border: 1px solid rgba(255,45,111,.3); }
+.cur-ws     { background: linear-gradient(135deg,#0e1f2a,#03121a); border: 1px solid rgba(124,249,255,.3); }
+.cur-ev     { background: linear-gradient(135deg,#2a200e,#1a1303); border: 1px solid rgba(255,210,74,.3); }
+.cur-battle { background: linear-gradient(135deg,#241033,#120720); border: 1px solid rgba(157,124,255,.35); }
+.cur-team   { background: linear-gradient(135deg,#0e2a24,#03150f); border: 1px solid rgba(93,202,165,.32); }
+.cur-shoot  { background: linear-gradient(135deg,#2a1810,#160a04); border: 1px solid rgba(255,140,74,.3); }
 .cur-tag {
   font-family: var(--font-mono), monospace;
   font-size: 10px;
@@ -395,9 +398,12 @@ h2.title {
   width: fit-content;
   border: 1px solid currentColor;
 }
-.cur-look .cur-tag { color: var(--accent); }
-.cur-ws .cur-tag   { color: var(--accent-2); }
-.cur-ev .cur-tag   { color: var(--accent-3); }
+.cur-look .cur-tag   { color: var(--accent); }
+.cur-ws .cur-tag     { color: var(--accent-2); }
+.cur-ev .cur-tag     { color: var(--accent-3); }
+.cur-battle .cur-tag { color: var(--accent-4); }
+.cur-team .cur-tag   { color: #5dcaa5; }
+.cur-shoot .cur-tag  { color: #ff8c4a; }
 .cur-img {
   position: absolute;
   right: -15%; top: 50%;
@@ -1471,3 +1477,7 @@ input[type="date"], input[type="time"], input[type="datetime-local"] { color-sch
 .legal th, .legal td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
 .legal th { color: var(--ink-dim); font-weight: 600; }
 .legal .updated { color: var(--ink-dim); font-size: 13px; margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); }
+
+.partner-logo { transition: opacity .2s; }
+.partner-logo:hover { opacity: 1 !important; }
+.partner-logo:hover img { filter: none !important; }

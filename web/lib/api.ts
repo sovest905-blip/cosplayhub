@@ -14,7 +14,7 @@ const ROLE_RU: Record<string, string> = {
   shop: "Магазин", location: "Локация", fan: "Фанат",
 };
 const WS_TYPE_RU: Record<string, string> = {
-  print3d: "3D-печать", eva: "EVA", sewing: "Швейная", wigs: "Парики",
+  print3d: "3D-печать", eva: "EVA-пена", sewing: "Швейная", wigs: "Парики",
 };
 
 export type Social = { platform: string; handle: string };
@@ -27,6 +27,7 @@ export type Person = {
   role_media: Record<string, { logo: string | null; cover: string | null }>;
   photos: { id: number; url: string }[];
   accent_color?: string;
+  mascot?: string;
   pinned_looks?: { id: number; title: string; character: string; image: string | null }[];
   donations?: { kind: string; address: string }[];
 };
@@ -157,6 +158,7 @@ export function normalizeProfile(p: any): Person {
       ? p.photos.filter((ph: any) => ph && ph.url).map((ph: any) => ({ id: ph.id, url: ph.url }))
       : [],
     accent_color: p.accent_color || undefined,
+    mascot: p.mascot || undefined,
     pinned_looks: Array.isArray(p.pinned_looks) ? p.pinned_looks : [],
     donations: Array.isArray(p.donations) ? p.donations : [],
   };
@@ -409,11 +411,12 @@ export async function getBattle(id: string | number): Promise<any | null> {
 }
 
 // ── Товары магазина (витрина продавца) ──
+export type ProductPhoto = { id: number; url: string };
 export type Product = {
   id: number; title: string; description: string; price: number | null;
   image: string | null; image_url: string; category: string;
   status: string; status_display: string; is_active: boolean;
-  owner_name: string; owner_id: number; created_at: string;
+  owner_name: string; owner_id: number; photos: ProductPhoto[]; created_at: string;
 };
 
 export async function getProductsByOwner(userId: number): Promise<Product[]> {
@@ -468,6 +471,31 @@ export async function getCurated(): Promise<CuratedPick[] | null> {
   const data = await get(`/curated/`);
   const list = data?.results ?? data;
   return Array.isArray(list) ? list : null;
+}
+
+// «Выбор недели по разделам» — автоподбор топа за 7 дней (по одной карточке на раздел).
+export type WeeklyPick = {
+  section: string; style: string; tag: string; title: string;
+  meta: string; image: string | null; link: string;
+};
+
+export async function getWeeklyPicks(): Promise<WeeklyPick[]> {
+  const data = await get(`/weekly-picks/`);
+  const list = data?.results ?? data;
+  return Array.isArray(list) ? list : [];
+}
+
+// Партнёры/спонсоры — лого-полоса над футером + карточка в ленте.
+export type Partner = {
+  id: number; name: string; url: string; logo: string | null; logo_url: string;
+  tier: "general" | "partner"; card_text: string;
+  show_strip: boolean; show_feed: boolean; is_active: boolean; order: number;
+};
+
+export async function getPartners(): Promise<Partner[]> {
+  const data = await get(`/partners/`);
+  const list = data?.results ?? data;
+  return Array.isArray(list) ? list : [];
 }
 
 export type Category = { id: number; label: string; link: string; order: number; is_active: boolean };

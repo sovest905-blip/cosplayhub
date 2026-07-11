@@ -4,7 +4,7 @@ from django.db import models
 class Workshop(models.Model):
     """Мастерская: 3D-печать, EVA, пошив, парики."""
     TYPE_CHOICES = [
-        ("print3d", "3D-печать"), ("eva", "EVA"),
+        ("print3d", "3D-печать"), ("eva", "EVA-пена"),
         ("sewing", "Швейная"), ("wigs", "Парики"),
     ]
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,

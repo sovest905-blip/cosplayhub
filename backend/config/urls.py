@@ -33,6 +33,7 @@ from common.admin_homepage import (
     AdminCuratedView, AdminCuratedUpdateView,
     AdminCategoriesView, AdminCategoryUpdateView,
 )
+from common.admin_partners import AdminPartnersView, AdminPartnerUpdateView
 
 api_v1 = [
     path("stats/", StatsView.as_view(), name="stats"),
@@ -59,6 +60,7 @@ api_v1 = [
     path("", include("apps.battles.urls")),
     path("", include("apps.homepage.urls")),
     path("", include("apps.analytics.urls")),
+    path("", include("apps.partners.urls")),
     # ── Веб админ-панель (только staff) ──
     path("admin-panel/users/", AdminUsersView.as_view(), name="ap-users"),
     path("admin-panel/users/<int:pk>/set-roles/", AdminUserRolesView.as_view(), name="ap-roles"),
@@ -106,6 +108,8 @@ api_v1 = [
     path("admin-panel/curated/<int:pk>/", AdminCuratedUpdateView.as_view(), name="ap-curated-update"),
     path("admin-panel/categories/", AdminCategoriesView.as_view(), name="ap-categories"),
     path("admin-panel/categories/<int:pk>/", AdminCategoryUpdateView.as_view(), name="ap-category-update"),
+    path("admin-panel/partners/", AdminPartnersView.as_view(), name="ap-partners"),
+    path("admin-panel/partners/<int:pk>/", AdminPartnerUpdateView.as_view(), name="ap-partner-update"),
     # документация API — только для staff (раскрывает всю карту API)
     path("schema/", SpectacularAPIView.as_view(permission_classes=[IsAdminUser]), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema", permission_classes=[IsAdminUser]), name="docs"),

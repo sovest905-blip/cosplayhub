@@ -2,6 +2,7 @@ import { getPublicListings } from "../../lib/api";
 import EmptyState from "../components/EmptyState";
 import PostListingButton from "../components/PostListingButton";
 import MarketListings from "../components/MarketListings";
+import PartnerFeedCard from "../components/PartnerFeedCard";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function MarketPage() {
         <PostListingButton />
       </div>
 
+      <PartnerFeedCard />
       <MarketListings items={items} />
     </div>
   );

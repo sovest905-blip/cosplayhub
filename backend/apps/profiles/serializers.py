@@ -28,12 +28,13 @@ class ProfileSerializer(serializers.ModelSerializer):
     is_following = serializers.SerializerMethodField()
     pinned_looks = serializers.SerializerMethodField()
     donations = serializers.SerializerMethodField()
+    mascot = serializers.SerializerMethodField()
 
     class Meta:
         model = Profile
         fields = ["id", "user_id", "display_name", "username", "bio", "roles", "role_details",
                   "avatar", "cover", "available_for_work", "experience", "rating", "accent_color",
-                  "slug", "pinned_looks", "donations", "city", "is_verified", "socials", "photos",
+                  "slug", "pinned_looks", "donations", "mascot", "city", "is_verified", "socials", "photos",
                   "followers_count", "looks_count", "is_following", "created_at"]
         read_only_fields = ["rating", "slug", "created_at"]
 
@@ -45,6 +46,15 @@ class ProfileSerializer(serializers.ModelSerializer):
         if pro is None:
             pro = obj.user.is_pro
         return (obj.donation_methods or []) if pro else []
+
+    def get_mascot(self, obj):
+        # Маскот-компаньон — только у активного Pro (Pro-льгота).
+        if not obj.user_id:
+            return ""
+        pro = getattr(obj, "pro_active", None)
+        if pro is None:
+            pro = obj.user.is_pro
+        return (obj.mascot or "") if pro else ""
 
     def get_pinned_looks(self, obj):
         ids = obj.pinned_look_ids or []
