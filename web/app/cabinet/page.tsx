@@ -1007,9 +1007,9 @@ export default function CabinetPage() {
     { id: "profile",   icon: "◉", label: "Профиль" },
     { id: "roles",     icon: "★", label: "Роли и услуги" },
     { id: "subs",      icon: "♛", label: "Подписки и доход" },
-    { id: "analytics", icon: "📊", label: "Аналитика" },
+    { id: "analytics", icon: "◔", label: "Аналитика" },
     { id: "socials",   icon: "⌘", label: "Соцсети" },
-    ...(user.is_pro ? [{ id: "custom", icon: "✨", label: "Оформление" }] : []),
+    ...(user.is_pro ? [{ id: "custom", icon: "✧", label: "Оформление" }] : []),
     // Фотогалерея — только если роль даёт к ней доступ (косплеер/фотограф/локация).
     ...(galleryLimit(roles, user.is_pro) > 0 ? [{ id: "gallery", icon: "▦", label: "Фотогалерея" }] : []),
     { id: "orders",    icon: "⚒", label: "Заказы",     num: ordersCount || undefined },
