@@ -27,7 +27,7 @@ export default function AnalyticsTab({ analytics, viewers, orderLabels }: Props)
           background: "linear-gradient(135deg,rgba(255,45,111,.12),rgba(124,249,255,.06))",
           border: "1px solid rgba(255,45,111,.3)", textAlign: "center", padding: "28px 24px",
         }}>
-          <div style={{ fontSize: 30, marginBottom: 8 }}>📊</div>
+          <div style={{ fontSize: 30, marginBottom: 8 }}>◔</div>
           <h3 style={{ margin: "0 0 6px" }}>Аналитика доступна в Pro</h3>
           <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 16px" }}>
             Подписчики, лайки образов, заказы по статусам, рейтинг и отзывы мастерских — в одном месте.
