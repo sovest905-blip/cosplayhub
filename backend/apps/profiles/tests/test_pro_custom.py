@@ -74,6 +74,36 @@ def test_hidden_excluded_from_catalog_but_direct_ok(api, make_user):
 
 
 @pytest.mark.django_db
+def test_empty_profile_excluded_from_catalog_but_direct_ok(api, make_user):
+    """Пустая анкета (без аватара и образов) не видна в каталоге, но по прямой ссылке — ок."""
+    empty = make_user(username="empty")
+    prof = Profile.objects.create(user=empty, display_name="Empty", roles=["cosplayer"])
+    results = api.get(PROFILES).data
+    results = results["results"] if isinstance(results, dict) else results
+    assert prof.id not in [p["id"] for p in results]
+    assert api.get(f"{PROFILES}{prof.id}/").status_code == 200
+
+
+@pytest.mark.django_db
+def test_profile_with_avatar_shown_in_catalog(api, make_user):
+    user = make_user(username="withava")
+    prof = Profile.objects.create(user=user, display_name="Ava", roles=["cosplayer"], avatar="a.jpg")
+    results = api.get(PROFILES).data
+    results = results["results"] if isinstance(results, dict) else results
+    assert prof.id in [p["id"] for p in results]
+
+
+@pytest.mark.django_db
+def test_profile_with_look_shown_in_catalog(api, make_user):
+    user = make_user(username="withlook")
+    prof = Profile.objects.create(user=user, display_name="Looker", roles=["cosplayer"])
+    Look.objects.create(author=user, title="Образ", is_published=True)
+    results = api.get(PROFILES).data
+    results = results["results"] if isinstance(results, dict) else results
+    assert prof.id in [p["id"] for p in results]
+
+
+@pytest.mark.django_db
 def test_pinned_looks_in_serializer(api, make_user):
     user = make_user(); _profile(user); _pro(user)
     look = Look.objects.create(author=user, title="Закреп", is_published=True)

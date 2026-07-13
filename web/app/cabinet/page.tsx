@@ -981,6 +981,7 @@ export default function CabinetPage() {
     photo: avatarUrl || null,
     is_pro: me.is_pro ?? false,
     pro_active_until: me.pro_active_until ?? null,
+    mascot_image: me.mascot_image || null,
     city: me.city || "—",
     specialization: roles.length > 0 ? roles.map((r) => ROLE_MAP[r] || r).join(" · ") : "Фанат",
     experience: me.experience || "—",
@@ -1102,6 +1103,20 @@ export default function CabinetPage() {
           </span>
         </div>
         <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 14px" }}>{cfg.hint}</p>
+
+        {role === "cosplayer" && (
+          <div style={{
+            display: "flex", gap: 10, alignItems: "flex-start",
+            padding: "10px 12px", marginBottom: 14, borderRadius: 10,
+            background: "rgba(255,210,74,.08)", border: "1px solid rgba(255,210,74,.3)",
+          }}>
+            <span style={{ fontSize: 15, lineHeight: 1.2 }}>ℹ️</span>
+            <p style={{ fontSize: 12.5, color: "var(--ink)", margin: 0, lineHeight: 1.5 }}>
+              Чтобы попасть в каталог косплееров и на главную, добавь <b>аватар</b> и
+              <b> один образ</b>. Пустые анкеты (без фото и образов) в списках не показываются.
+            </p>
+          </div>
+        )}
 
         {roleMediaBlock(role)}
 
@@ -2669,8 +2684,12 @@ export default function CabinetPage() {
                   <div style={{ fontFamily: "var(--font-mono),monospace", fontSize: 10, color: "var(--accent-2)", textTransform: "uppercase", letterSpacing: ".15em", marginBottom: 6 }}>
                     Добро пожаловать
                   </div>
-                  <h2 style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 24, margin: "0 0 6px", letterSpacing: "-.02em" }}>
+                  <h2 style={{ fontFamily: "var(--font-display),sans-serif", fontWeight: 800, fontSize: 24, margin: "0 0 6px", letterSpacing: "-.02em", display: "flex", alignItems: "center", gap: 10 }}>
                     {user.display_name} ✓
+                    {user.mascot_image && (
+                      <img src={user.mascot_image} alt="Pro-маскот" title="Твой Pro-маскот"
+                        style={{ width: 40, height: 40, borderRadius: "50%", background: "#fff", padding: 3, objectFit: "contain", boxShadow: "0 3px 12px rgba(0,0,0,.35)" }} />
+                    )}
                   </h2>
                   <p style={{ color: "var(--ink-dim)", fontSize: 13, margin: 0 }}>
                     {user.specialization} · {user.city} · {user.experience} опыта

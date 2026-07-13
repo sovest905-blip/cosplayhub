@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-type Me = { id: number; username?: string; email?: string | null; is_staff?: boolean } | null;
+type Me = { id: number; username?: string; email?: string | null; is_staff?: boolean; mascot_image?: string } | null;
 
 export default function AuthNav() {
   const router = useRouter();
@@ -82,7 +82,13 @@ export default function AuthNav() {
         {unreadNotif > 0 && <Badge n={unreadNotif} />}
       </a>
       <a href="/cabinet" className="me-btn" title="Кабинет">
-        <div className="me-av avail">{initial}</div>
+        <div className="me-av avail">
+          {initial}
+          {me.mascot_image && (
+            <img src={me.mascot_image} alt="" aria-hidden="true"
+              style={{ position: "absolute", bottom: -4, right: -4, width: 18, height: 18, borderRadius: "50%", background: "#fff", padding: 1, objectFit: "contain", boxShadow: "0 1px 4px rgba(0,0,0,.4)" }} />
+          )}
+        </div>
         <div className="me-name">Кабинет</div>
       </a>
       <button

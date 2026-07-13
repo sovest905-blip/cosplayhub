@@ -37,9 +37,9 @@ def test_non_pro_no_check_without_manual(api, make_user):
 def test_pro_profile_ranks_first_in_catalog(api, make_user):
     """Pro-профиль выше не-Pro в каталоге, даже если создан раньше."""
     old_pro = make_user(username="oldpro")
-    Profile.objects.create(user=old_pro, display_name="Old Pro", roles=["cosplayer"])
+    Profile.objects.create(user=old_pro, display_name="Old Pro", roles=["cosplayer"], avatar="a.jpg")
     new_plain = make_user(username="newplain")
-    Profile.objects.create(user=new_plain, display_name="New Plain", roles=["cosplayer"])
+    Profile.objects.create(user=new_plain, display_name="New Plain", roles=["cosplayer"], avatar="b.jpg")
     _pro(old_pro)  # старый, но Pro
 
     resp = api.get(PROFILES)
