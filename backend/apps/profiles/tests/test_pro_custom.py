@@ -3,7 +3,7 @@ import pytest
 
 from apps.billing.models import Subscription
 from apps.looks.models import Look
-from apps.profiles.models import Profile
+from apps.profiles.models import Profile, ProfilePhoto
 
 ME = "/api/v1/auth/me/"
 PROFILES = "/api/v1/profiles/"
@@ -111,6 +111,15 @@ def test_profile_with_avatar_and_look_shown_in_catalog(api, make_user):
     user = make_user(username="full")
     prof = Profile.objects.create(user=user, display_name="Full", roles=["cosplayer"], avatar="a.jpg")
     Look.objects.create(author=user, title="Образ", is_published=True)
+    assert prof.id in _catalog_ids(api)
+
+
+@pytest.mark.django_db
+def test_profile_with_avatar_and_gallery_photo_shown_in_catalog(api, make_user):
+    """Фото галереи засчитывается как контент: аватар + фото в галерее (0 образов) — показываем."""
+    user = make_user(username="gallery")
+    prof = Profile.objects.create(user=user, display_name="Gallery", roles=["cosplayer"], avatar="a.jpg")
+    ProfilePhoto.objects.create(profile=prof, image="gallery/g.jpg")
     assert prof.id in _catalog_ids(api)
 
 
