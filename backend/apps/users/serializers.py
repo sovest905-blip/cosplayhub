@@ -149,6 +149,13 @@ class MeSerializer(serializers.ModelSerializer):
         data["pinned_look_ids"] = (prof.pinned_look_ids or []) if prof else []
         data["donation_methods"] = (prof.donation_methods or []) if prof else []
         data["mascot"] = (prof.mascot or "") if prof else ""
+        # Картинка маскота из библиотеки (только при активном Pro — показ в шапке/кабинете).
+        data["mascot_image"] = ""
+        _slug = (prof.mascot or "") if prof else ""
+        if _slug and instance.is_pro:
+            from apps.profiles.models import Mascot
+            _m = Mascot.objects.filter(slug=_slug, is_active=True).first()
+            data["mascot_image"] = _m.img if _m else ""
         # Pro-статус из billing (вычисляется по сроку)
         pro_sub = instance.subscriptions.filter(plan="pro", workshop__isnull=True).first()
         data["is_pro"] = bool(pro_sub and pro_sub.is_active)
