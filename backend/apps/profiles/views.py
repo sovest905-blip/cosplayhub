@@ -50,13 +50,13 @@ class ProfileViewSet(viewsets.ModelViewSet):
             user = self.request.user
             if not (user.is_authenticated and user.is_staff):
                 qs = qs.exclude(hide_from_catalog=True)
-            # Пустые анкеты не показываем в каталоге: нужен аватар ИЛИ хотя бы один
-            # опубликованный образ (образ = фото). Прямая ссылка /people/<id> работает.
+            # Пустые анкеты не показываем в каталоге: нужен аватар И хотя бы один
+            # опубликованный образ. Прямая ссылка /people/<id> (retrieve) работает.
             from django.db.models import Q, Exists, OuterRef
             from apps.looks.models import Look
             has_look = Look.objects.filter(author_id=OuterRef("user_id"), is_published=True)
             qs = qs.annotate(_has_look=Exists(has_look)).filter(
-                Q(_has_look=True) | (Q(avatar__isnull=False) & ~Q(avatar=""))
+                Q(_has_look=True) & Q(avatar__isnull=False) & ~Q(avatar="")
             )
         # Pro-профили выше в каталоге (льгота подписки «приоритет в каталоге»).
         from apps.billing.models import active_pro_subquery

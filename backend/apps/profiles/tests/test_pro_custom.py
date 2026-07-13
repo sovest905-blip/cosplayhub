@@ -73,34 +73,45 @@ def test_hidden_excluded_from_catalog_but_direct_ok(api, make_user):
     assert api.get(f"{PROFILES}{prof.id}/").status_code == 200
 
 
+def _catalog_ids(api):
+    data = api.get(PROFILES).data
+    results = data["results"] if isinstance(data, dict) else data
+    return [p["id"] for p in results]
+
+
 @pytest.mark.django_db
 def test_empty_profile_excluded_from_catalog_but_direct_ok(api, make_user):
     """Пустая анкета (без аватара и образов) не видна в каталоге, но по прямой ссылке — ок."""
     empty = make_user(username="empty")
     prof = Profile.objects.create(user=empty, display_name="Empty", roles=["cosplayer"])
-    results = api.get(PROFILES).data
-    results = results["results"] if isinstance(results, dict) else results
-    assert prof.id not in [p["id"] for p in results]
+    assert prof.id not in _catalog_ids(api)
     assert api.get(f"{PROFILES}{prof.id}/").status_code == 200
 
 
 @pytest.mark.django_db
-def test_profile_with_avatar_shown_in_catalog(api, make_user):
-    user = make_user(username="withava")
+def test_profile_with_only_avatar_excluded_from_catalog(api, make_user):
+    """Правило AND: только аватар без образа — в каталоге не показываем."""
+    user = make_user(username="onlyava")
     prof = Profile.objects.create(user=user, display_name="Ava", roles=["cosplayer"], avatar="a.jpg")
-    results = api.get(PROFILES).data
-    results = results["results"] if isinstance(results, dict) else results
-    assert prof.id in [p["id"] for p in results]
+    assert prof.id not in _catalog_ids(api)
 
 
 @pytest.mark.django_db
-def test_profile_with_look_shown_in_catalog(api, make_user):
-    user = make_user(username="withlook")
+def test_profile_with_only_look_excluded_from_catalog(api, make_user):
+    """Правило AND: только образ без аватара — в каталоге не показываем."""
+    user = make_user(username="onlylook")
     prof = Profile.objects.create(user=user, display_name="Looker", roles=["cosplayer"])
     Look.objects.create(author=user, title="Образ", is_published=True)
-    results = api.get(PROFILES).data
-    results = results["results"] if isinstance(results, dict) else results
-    assert prof.id in [p["id"] for p in results]
+    assert prof.id not in _catalog_ids(api)
+
+
+@pytest.mark.django_db
+def test_profile_with_avatar_and_look_shown_in_catalog(api, make_user):
+    """Правило AND: аватар И опубликованный образ — показываем."""
+    user = make_user(username="full")
+    prof = Profile.objects.create(user=user, display_name="Full", roles=["cosplayer"], avatar="a.jpg")
+    Look.objects.create(author=user, title="Образ", is_published=True)
+    assert prof.id in _catalog_ids(api)
 
 
 @pytest.mark.django_db
