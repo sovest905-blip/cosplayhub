@@ -1,10 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SOCIAL_META, getMascots, type MascotOption } from "../../lib/api";
+import { getMascots, type MascotOption } from "../../lib/api";
 import { galleryLimit } from "../../lib/roleForms";
 import MessagesPanel from "../components/MessagesPanel";
-import CryptoPayButton from "../components/CryptoPayButton";
 import AnalyticsTab from "./AnalyticsTab";
 import EmptyBlock from "./EmptyBlock";
 import MatchesTab from "./MatchesTab";
@@ -17,6 +16,12 @@ import ListingsTab from "./ListingsTab";
 import ProfileTab from "./ProfileTab";
 import RolesTab from "./RolesTab";
 import SettingsTab from "./SettingsTab";
+import SubsTab from "./SubsTab";
+import SocialsTab from "./SocialsTab";
+import GalleryTab from "./GalleryTab";
+import ShootsTab from "./ShootsTab";
+import RentTab from "./RentTab";
+import GuidesTab from "./GuidesTab";
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -998,46 +1003,6 @@ export default function CabinetPage() {
     }
   }
 
-  // Блок фотогалереи ВНУТРИ анкеты роли (привязан к своей форме). title/hint зависят от роли.
-  function galleryBlock(title: string, hint: string) {
-    const limit = galleryLimit(roles, user.is_pro);
-    return (
-      <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-          <h4 style={{ margin: 0, fontSize: 14 }}>{title}</h4>
-          <span style={{ fontSize: 12, color: photos.length >= limit ? "var(--accent-3)" : "var(--ink-dim)" }}>
-            {photos.length} / {limit}
-          </span>
-        </div>
-        <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 12px" }}>{hint} До {limit} фото, каждое ≤5 МБ.</p>
-        {!user.is_pro && photos.length >= limit && (
-          <p style={{ fontSize: 12, color: "var(--accent-3)", margin: "0 0 12px" }}>
-            Лимит достигнут. <a href="/pro" style={{ color: "var(--accent-2)", fontWeight: 600 }}>Pro</a> поднимает галерею до {limit * 4} фото.
-          </p>
-        )}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(110px,1fr))", gap: 10 }}>
-          {photos.map((p) => (
-            <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1px solid var(--line)" }}>
-              <div style={{ width: "100%", height: "100%", backgroundImage: `url('${p.url}')`, backgroundSize: "cover", backgroundPosition: "center" }} />
-              <button onClick={() => deleteGalleryPhoto(p.id)} title="Удалить"
-                style={{ position: "absolute", top: 4, right: 4, width: 24, height: 24, borderRadius: "50%",
-                  border: "none", background: "rgba(0,0,0,.6)", color: "#fff", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>×</button>
-            </div>
-          ))}
-          {photos.length < limit && (
-            <label style={{ aspectRatio: "1", borderRadius: 10, border: "1px dashed var(--line)", display: "flex",
-              alignItems: "center", justifyContent: "center", cursor: photoUp ? "wait" : "pointer", color: "var(--ink-dim)", fontSize: 26 }}>
-              {photoUp ? "…" : "+"}
-              <input type="file" accept="image/*" style={{ display: "none" }} disabled={photoUp}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadGalleryPhoto(f); e.target.value = ""; }} />
-            </label>
-          )}
-        </div>
-        {photoErr && <p style={{ color: "var(--red)", fontSize: 12, marginTop: 8 }}>{photoErr}</p>}
-      </div>
-    );
-  }
-
   function renderContent() {
     switch (tab) {
       case "custom":
@@ -1139,293 +1104,44 @@ export default function CabinetPage() {
       case "favs":
         return <FavoritesTab favorites={favorites} removeFavorite={removeFavorite} />;
 
-      case "subs": {
-        const fmt = (s: string | null) => { try { return s ? new Date(s).toLocaleDateString("ru-RU") : ""; } catch { return ""; } };
+      case "subs":
         return (
-          <>
-          <div className="acc-card" style={{ marginBottom: 18 }}>
-            <h3 style={{ margin: "0 0 4px" }}>Pro</h3>
-            <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 16px" }}>
-              Единый тариф: один Pro покрывает профиль и все ваши мастерские.
-              Первые 6 месяцев бесплатно, дальше — оплата криптой (USDT / TON / BTC), зачисление автоматически.
-            </p>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
-              padding: "13px 16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
-              <div>
-                <b style={{ fontSize: 14 }}>Pro · профиль и мастерские</b>
-                <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-                  {user.is_pro
-                    ? <span style={{ color: "var(--green)" }}>Активен{user.pro_active_until ? ` до ${fmt(user.pro_active_until)}` : " · бессрочно"}</span>
-                    : "Синяя галочка, приоритет в каталоге и поиске, аналитика, boost мастерских"}
-                </div>
-              </div>
-              {user.is_pro
-                ? <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, padding: "5px 12px", borderRadius: 20, background: "rgba(124,249,255,.12)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.3)" }}>✓ Pro</span>
-                    <CryptoPayButton purpose="pro" months={1} label="Продлить криптой" className="btn btn-ghost btn-sm" nextPath="/cabinet?tab=subs" />
-                  </div>
-                : <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <button className="btn btn-primary btn-sm" disabled={activating === "pro"} onClick={() => activatePlan()}>
-                      {activating === "pro" ? "..." : "Активировать · 6 мес бесплатно"}
-                    </button>
-                    <CryptoPayButton purpose="pro" months={1} label="Оплатить криптой" className="btn btn-ghost btn-sm" nextPath="/cabinet?tab=subs" />
-                  </div>}
-            </div>
-          </div>
-
-          <div className="acc-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-              <h3 style={{ margin: 0 }}>Мои подписки{following.length > 0 ? ` (${following.length})` : ""}</h3>
-              <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>Подписчиков: {followersCount}</span>
-            </div>
-            <p style={{ fontSize: 12, color: "var(--ink-dim)", margin: "0 0 16px" }}>
-              Косплееры, фотографы, мастерские и магазины, на которых ты подписан.
-            </p>
-            {following.length === 0 ? (
-              <EmptyBlock icon="♛" title="Пока нет подписок"
-                sub="Подпишись на косплееров, фотографов и мастерские — они появятся здесь, а ты не пропустишь их новинки."
-                cta={{ label: "Смотреть косплееров", href: "/people" }} />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {following.map((p) => (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12,
-                    padding: "10px 12px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 11 }}>
-                    <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                      background: p.avatar ? `url('${p.avatar}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
-                      border: "1px solid var(--line)" }} />
-                    <a href={`/people/${p.id}`} style={{ flex: 1, color: "var(--ink)" }}>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{p.display_name}{p.is_verified && <span className="verified" style={{ marginLeft: 4 }}>✓</span>}</div>
-                      <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-                        {(p.roles || []).map((r: string) => ROLE_MAP[r] || r).join(" · ") || "Фанат"}{p.city ? ` · ${p.city}` : ""}
-                      </div>
-                    </a>
-                    <button onClick={() => unfollow(p.user_id)}
-                      style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer", flexShrink: 0,
-                        background: "var(--bg)", border: "1px solid var(--line)", color: "var(--ink-dim)" }}>
-                      Отписаться
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          </>
+          <SubsTab
+            isPro={user.is_pro} proActiveUntil={user.pro_active_until}
+            activating={activating} activatePlan={activatePlan}
+            following={following} followersCount={followersCount} unfollow={unfollow}
+          />
         );
-      }
 
       case "analytics":
         return <AnalyticsTab analytics={analytics} viewers={viewers} orderLabels={ORDER_STATUS_LABELS} />;
 
       case "socials":
         return (
-          <div className="acc-card">
-            <h2 style={{ margin: "0 0 4px" }}>Соцсети</h2>
-            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
-              Добавь ссылки или ники — покажем их на твоём профиле. Можно вставить полную ссылку или просто ник.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "0 16px" }}>
-              {Object.entries(SOCIAL_META).map(([slug, meta]) => (
-                <div className="field" key={slug}>
-                  <label>
-                    <span style={{ color: "var(--accent-2)", marginRight: 6 }}>{meta.icon}</span>
-                    {meta.label}
-                  </label>
-                  <input
-                    value={socials[slug] || ""}
-                    placeholder={meta.base ? `${meta.base}ник или ник` : "ник / ссылка"}
-                    onChange={(e) => setSocials((prev) => ({ ...prev, [slug]: e.target.value }))}
-                  />
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
-              <button className="btn btn-primary" onClick={saveSocials} disabled={socialsSaving}>
-                {socialsSaving ? "Сохраняем..." : "Сохранить"}
-              </button>
-              <span style={{ fontSize: 12, color: "var(--green)", opacity: socialsSaved ? 1 : 0, transition: "opacity .3s" }}>
-                ✓ Сохранено
-              </span>
-            </div>
-          </div>
+          <SocialsTab
+            socials={socials} setSocials={setSocials}
+            saveSocials={saveSocials} socialsSaving={socialsSaving} socialsSaved={socialsSaved}
+          />
         );
 
-      case "gallery": {
-        const gLimit = galleryLimit(roles, user.is_pro);
+      case "gallery":
         return (
-          <div className="acc-card">
-            <h2 style={{ margin: "0 0 4px" }}>Фотогалерея</h2>
-            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
-              Общая галерея профиля — образы, портреты, работы. Видна на твоей странице.
-            </p>
-            {gLimit > 0 ? (
-              galleryBlock("Мои фото", "Загрузи лучшие кадры.")
-            ) : (
-              <div style={{ padding: "18px 16px", background: "var(--bg-3)", border: "1px solid var(--line)", borderRadius: 12 }}>
-                <p style={{ fontSize: 14, margin: "0 0 12px" }}>
-                  Фотогалерея доступна для ролей <b>Косплеер</b>, <b>Фотограф</b> или <b>Локация</b>.
-                  Добавь роль — и сможешь загружать фото.
-                </p>
-                <button className="btn btn-primary btn-sm" onClick={() => setTab("roles")}>Перейти к ролям →</button>
-              </div>
-            )}
-          </div>
+          <GalleryTab
+            roles={roles} isPro={user.is_pro}
+            photos={photos} photoUp={photoUp} photoErr={photoErr}
+            uploadGalleryPhoto={uploadGalleryPhoto} deleteGalleryPhoto={deleteGalleryPhoto}
+            goToRoles={() => setTab("roles")}
+          />
         );
-      }
 
-      case "shoots": {
-        const renderShootRow = (sh: any) => (
-          <a key={sh.id} href={`/shoots/${sh.id}`} className="info-row" style={{ alignItems: "center" }}>
-            <span style={{ display: "flex", flexDirection: "column" }}>
-              <b style={{ fontSize: 14 }}>{sh.title}</b>
-              <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-                📍 {sh.city || "—"}{sh.date ? ` · ${new Date(sh.date).toLocaleDateString("ru-RU")}` : ""} · {sh.confirmed_count} в команде
-              </span>
-            </span>
-            <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              {sh.my_participation?.status === "invited" && <span style={{ fontSize: 11, color: "var(--accent-3)", border: "1px solid rgba(255,210,74,.3)", borderRadius: 20, padding: "2px 9px" }}>приглашение</span>}
-              <span style={{ fontSize: 11, color: sh.status === "open" ? "var(--green)" : "var(--ink-dim)" }}>{sh.status_display}</span>
-            </span>
-          </a>
-        );
-        const org = myShoots?.organized || [];
-        const part = myShoots?.participating || [];
-        return (
-          <div className="acc-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
-              <h2 style={{ margin: 0 }}>Мои съёмки</h2>
-              <a href="/shoots/new" className="btn btn-primary btn-sm">+ Собрать команду</a>
-            </div>
-            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
-              Собирайте команду на съёмку: косплееры, фотограф, локация, костюм от мастерской.
-            </p>
+      case "shoots":
+        return <ShootsTab myShoots={myShoots} />;
 
-            <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 8px" }}>Я организую ({org.length})</h3>
-            {org.length > 0 ? org.map(renderShootRow)
-              : <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 16px" }}>Вы пока не создавали съёмок.</p>}
+      case "rent":
+        return <RentTab myCostumes={myCostumes} setMyCostumes={setMyCostumes} myRentals={myRentals} />;
 
-            <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "18px 0 8px" }}>Я участвую ({part.length})</h3>
-            {part.length > 0 ? part.map(renderShootRow)
-              : <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>Откликнитесь на съёмку в <a href="/shoots">каталоге</a>.</p>}
-          </div>
-        );
-      }
-
-      case "rent": {
-        const refetchCostumes = () => fetch("/api/v1/costumes/?mine=1", { credentials: "include" })
-          .then((r) => r.ok ? r.json() : null).then((d) => { const l = d?.results ?? d; if (Array.isArray(l)) setMyCostumes(l); });
-        const decideRental = async (reqId: number, st: string) => {
-          await fetch(`/api/v1/rentals/${reqId}/`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: st }) });
-          refetchCostumes();
-        };
-        const costumes = myCostumes || [];
-        const rentals = myRentals || [];
-        const RENT_RU: Record<string, string> = { pending: "Заявка", approved: "Подтверждена", declined: "Отклонена", cancelled: "Отменена" };
-        return (
-          <div className="acc-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
-              <h2 style={{ margin: 0 }}>Прокат костюмов</h2>
-              <a href="/rent/new" className="btn btn-primary btn-sm">+ Сдать костюм</a>
-            </div>
-            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
-              Сдавайте свои костюмы и берите чужие. Оплата и залог — напрямую с второй стороной.
-            </p>
-
-            <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "0 0 8px" }}>Мои костюмы ({costumes.length})</h3>
-            {costumes.length === 0 && <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 16px" }}>Вы пока не выставляли костюмы.</p>}
-            {costumes.map((c) => {
-              const pend = (c.requests || []).filter((r: any) => r.status === "pending");
-              return (
-                <div key={c.id} style={{ background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, padding: "12px 14px", marginBottom: 10 }}>
-                  <div className="info-row" style={{ alignItems: "center", border: "none", padding: 0 }}>
-                    <a href={`/rent/${c.id}`} style={{ fontWeight: 700, fontSize: 14 }}>{c.title}</a>
-                    <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>
-                      {c.price_day != null ? `${Number(c.price_day).toLocaleString("ru-RU")} ₸/сут` : "договорная"} · {c.status_display}
-                    </span>
-                  </div>
-                  {pend.length > 0 && (
-                    <div style={{ marginTop: 8, borderTop: "1px solid var(--line)", paddingTop: 8 }}>
-                      {pend.map((r: any) => (
-                        <div key={r.id} className="info-row" style={{ alignItems: "center" }}>
-                          <span style={{ fontSize: 13 }}>@{r.username}{(r.date_from || r.date_to) && <span style={{ color: "var(--ink-dim)" }}> · {r.date_from || "?"}–{r.date_to || "?"}</span>}</span>
-                          <span style={{ display: "flex", gap: 6 }}>
-                            <button className="btn btn-primary btn-sm" style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => decideRental(r.id, "approved")}>принять</button>
-                            <button className="btn btn-ghost btn-sm" style={{ padding: "3px 8px", fontSize: 11 }} onClick={() => decideRental(r.id, "declined")}>откл.</button>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            <h3 style={{ fontSize: 13, color: "var(--ink-dim)", textTransform: "uppercase", letterSpacing: ".1em", margin: "18px 0 8px" }}>Мои аренды ({rentals.length})</h3>
-            {rentals.length > 0 ? rentals.map((r) => (
-              <a key={r.id} href={`/rent/${r.costume.id}`} className="info-row" style={{ alignItems: "center" }}>
-                <span style={{ fontSize: 14 }}>{r.costume.title}</span>
-                <span style={{ fontSize: 12, color: r.status === "approved" ? "var(--green)" : "var(--ink-dim)" }}>{RENT_RU[r.status] || r.status}</span>
-              </a>
-            )) : <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>Вы ничего не арендовали. <a href="/rent">Каталог проката</a>.</p>}
-          </div>
-        );
-      }
-
-      case "guides": {
-        const G_RU: Record<string, string> = { pending: "На модерации", published: "Опубликован", rejected: "Отклонён" };
-        const G_COLOR: Record<string, string> = { pending: "var(--accent-3)", published: "var(--green)", rejected: "var(--red)" };
-        const guides = myGuides || [];
-        const delGuide = async (id: number) => {
-          if (!confirm("Удалить гайд?")) return;
-          await fetch(`/api/v1/guides/${id}/`, { method: "DELETE", credentials: "include" });
-          setMyGuides((p) => (p || []).filter((g: any) => g.id !== id));
-        };
-        return (
-          <div className="acc-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 4 }}>
-              <h2 style={{ margin: 0 }}>Мои гайды</h2>
-              <a href="/guides/new" className="btn btn-primary btn-sm">+ Написать гайд</a>
-            </div>
-            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
-              Ваши туториалы по крафту. После отправки гайд проходит модерацию — здесь виден его статус. Опубликованные видны всем на <a href="/guides">/guides</a>.
-            </p>
-            {guides.length === 0 ? (
-              <EmptyBlock icon="✎" title="Гайдов пока нет"
-                sub="Поделитесь опытом крафта — EVA, термоформовка, покраска, парики, грим. Нажмите «Написать гайд»." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {guides.map((g: any) => (
-                  <div key={g.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px",
-                    background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12 }}>
-                    <div style={{
-                      width: 46, height: 46, borderRadius: 8, flexShrink: 0, border: "1px solid var(--line)",
-                      background: g.cover ? `center/cover url('${g.cover}')` : "var(--bg-3)",
-                    }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <b style={{ fontSize: 14 }}>
-                        {g.status === "published"
-                          ? <a href={`/guides/${g.id}`} style={{ color: "inherit" }}>{g.title}</a>
-                          : g.title}
-                      </b>
-                      <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 2 }}>
-                        {g.category ? `${g.category} · ` : ""}{g.created_at ? new Date(g.created_at).toLocaleDateString("ru-RU") : ""}
-                      </div>
-                      {g.status === "rejected" && g.moderation_note && (
-                        <div style={{ fontSize: 12, color: "var(--red)", marginTop: 2 }}>Причина: {g.moderation_note}</div>
-                      )}
-                    </div>
-                    <span style={{ fontSize: 11, whiteSpace: "nowrap", padding: "2px 9px", borderRadius: 20,
-                      color: G_COLOR[g.status] || "var(--ink)", border: `1px solid ${G_COLOR[g.status] || "var(--line)"}55` }}>
-                      {G_RU[g.status] || g.status}
-                    </span>
-                    <button className="btn btn-ghost btn-sm" style={{ color: "var(--red)" }} onClick={() => delGuide(g.id)}>Удалить</button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      }
+      case "guides":
+        return <GuidesTab myGuides={myGuides} setMyGuides={setMyGuides} />;
 
       case "matches":
         return <MatchesTab matches={matches} matchesReady={matchesReady} followMatch={followMatch} />;
