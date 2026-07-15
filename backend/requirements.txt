@@ -1,18 +1,18 @@
 # Ядро
-Django==5.1.8                   # 5.1.5–5.1.8: security-фиксы (DoS в валидации/шаблонах)
-djangorestframework==3.15.2
+Django==5.2.16                  # LTS (поддержка до 04/2028); 5.1 умер 31.12.2025
+djangorestframework==3.17.1
 psycopg[binary]==3.2.3          # драйвер PostgreSQL
 redis==5.2.1
-django-redis==5.4.0             # кеш в Redis
+django-redis==7.0.0             # кеш в Redis
 
 # Безопасность
 argon2-cffi==23.1.0             # хеширование паролей Argon2id
-django-cors-headers==4.6.0      # CORS для фронта
+django-cors-headers==4.9.0      # CORS для фронта
 django-ratelimit==4.1.0         # rate-limit на эндпоинты
 
 # API
-drf-spectacular==0.28.0         # автодокументация OpenAPI/Swagger
-django-filter==24.3             # фильтрация в каталогах
+drf-spectacular==0.30.0         # автодокументация OpenAPI/Swagger
+django-filter==26.1             # фильтрация в каталогах
 
 # Медиа
 Pillow==11.1.0                  # обработка/ресайз фото (11.1: фикс безопасности декодера)
