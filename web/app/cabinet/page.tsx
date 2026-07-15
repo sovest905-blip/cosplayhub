@@ -10,42 +10,16 @@ import EmptyBlock from "./EmptyBlock";
 import MatchesTab from "./MatchesTab";
 import FavoritesTab from "./FavoritesTab";
 import CustomizationTab from "./CustomizationTab";
+import CitySelect from "./CitySelect";
+import OrdersTab from "./OrdersTab";
+import ResponsesTab from "./ResponsesTab";
+import ListingsTab from "./ListingsTab";
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
   shop: "Магазин", location: "Локация", fan: "Фанат",
 };
 
-const CITIES = ["Алматы", "Астана", "Шымкент", "Караганда", "Бишкек", "Ташкент", "Москва", "Другой"];
-
-// Селект города с поддержкой «Другой» → текстовое поле для ручного ввода.
-// value — реальное название города (для «Другой» хранится введённый текст, а не слово «Другой»).
-function CitySelect({ value, onChange, emptyLabel = "Не выбран" }: {
-  value: string; onChange: (v: string) => void; emptyLabel?: string;
-}) {
-  const [other, setOther] = useState(!!value && !CITIES.includes(value));
-  // город подгрузился извне и его нет в списке → включаем ручной ввод
-  useEffect(() => { if (value && !CITIES.includes(value)) setOther(true); }, [value]);
-  return (
-    <>
-      <select
-        value={other ? "Другой" : value}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v === "Другой") { setOther(true); onChange(""); }
-          else { setOther(false); onChange(v); }
-        }}
-      >
-        <option value="">{emptyLabel}</option>
-        {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-      </select>
-      {other && (
-        <input style={{ marginTop: 8 }} value={value} placeholder="Введите название города"
-          onChange={(e) => onChange(e.target.value)} />
-      )}
-    </>
-  );
-}
 
 const ALL_ROLES = [
   { slug: "cosplayer",    icon: "◉", name: "Косплеер",   desc: "Создаёшь образы"  },
@@ -55,18 +29,6 @@ const ALL_ROLES = [
   { slug: "location",     icon: "⌖", name: "Локация",    desc: "Сдаёшь студию"    },
   { slug: "fan",          icon: "♥", name: "Фанат",      desc: "Смотришь"          },
 ];
-
-const LISTING_TYPES: Record<string, string> = {
-  job: "Ищу специалиста", collab: "Коллаборация", sell: "Продаю", buy: "Куплю",
-};
-
-// Куда попадёт объявление в зависимости от типа (для подсказок юзеру).
-const LISTING_SECTION: Record<string, { name: string; href: string }> = {
-  sell:   { name: "Барахолка", href: "/market" },
-  buy:    { name: "Барахолка", href: "/market" },
-  job:    { name: "Слоты", href: "/jobs" },
-  collab: { name: "Слоты", href: "/jobs" },
-};
 
 const WORKSHOP_TYPES: Record<string, string> = {
   print3d: "3D-печать", eva: "EVA-пена", sewing: "Пошив", wigs: "Парики",
@@ -84,11 +46,6 @@ type Workshop = {
   phone: string; telegram: string; instagram: string; site: string;
   services: { id: number; name: string; description: string; price_from: number }[];
   photos: { id: number; url: string }[];
-};
-
-const ORDER_STATUS_COLORS: Record<string, string> = {
-  request: "var(--accent-2)", accepted: "var(--green)", in_work: "var(--accent-3)",
-  shipped: "#7cf9ff", done: "var(--green)", cancelled: "var(--ink-dim)",
 };
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -1774,142 +1731,17 @@ export default function CabinetPage() {
 
       case "orders":
         return (
-          <div className="acc-card">
-            <h3 style={{ marginBottom: 14 }}>Мои заказы{ordersCount > 0 ? ` (${ordersCount})` : ""}</h3>
-            {myOrders.length === 0 ? (
-              <EmptyBlock icon="⚒" title="Заказов пока нет"
-                sub="Когда ты сделаешь заказ в мастерскую — он появится здесь." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {myOrders.map((o) => (
-                  <div key={o.id} style={{
-                    padding: "14px 16px", background: "var(--bg-2)",
-                    border: "1px solid var(--line)", borderRadius: 12,
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, marginBottom: 8 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>→ {o.workshop_name}</div>
-                      <span style={{
-                        fontSize: 11, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap",
-                        background: "rgba(0,0,0,.3)",
-                        color: ORDER_STATUS_COLORS[o.status] || "var(--ink)",
-                        border: `1px solid ${ORDER_STATUS_COLORS[o.status] || "var(--line)"}33`,
-                      }}>
-                        {ORDER_STATUS_LABELS[o.status] || o.status}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 10px", lineHeight: 1.5 }}>
-                      {o.description}
-                    </p>
-                    <div style={{ display: "flex", gap: 14, fontSize: 12, color: "var(--ink-dim)", flexWrap: "wrap", alignItems: "center" }}>
-                      {o.budget ? <span>Бюджет: <b style={{ color: "var(--accent-3)" }}>{o.budget.toLocaleString()} ₸</b></span> : null}
-                      {o.deadline ? <span>Дедлайн: {o.deadline}</span> : null}
-                      <span>{new Date(o.created_at).toLocaleDateString("ru-RU")}</span>
-                      {o.status === "done" && (o.has_review
-                        ? <span style={{ color: "var(--green)" }}>✓ Отзыв оставлен</span>
-                        : <button className="btn btn-ghost btn-sm" onClick={() => { setReviewFor(reviewFor === o.id ? null : o.id); setRevRating(5); setRevText(""); }}>
-                            Оставить отзыв
-                          </button>)}
-                    </div>
-                    {reviewFor === o.id && (
-                      <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
-                        <div style={{ marginBottom: 8 }}>
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <span key={n} onClick={() => setRevRating(n)} style={{
-                              cursor: "pointer", fontSize: 22, marginRight: 2,
-                              color: n <= revRating ? "var(--accent-3)" : "var(--line)",
-                            }}>★</span>
-                          ))}
-                        </div>
-                        <div className="field" style={{ marginBottom: 10 }}>
-                          <textarea placeholder="Как прошёл заказ? (необязательно)" value={revText}
-                            onChange={(e) => setRevText(e.target.value)} />
-                        </div>
-                        <button className="btn btn-primary btn-sm" disabled={revBusy} onClick={() => submitReview(o.id)}>
-                          {revBusy ? "..." : "Отправить отзыв"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <OrdersTab
+            myOrders={myOrders} ordersCount={ordersCount}
+            reviewFor={reviewFor} setReviewFor={setReviewFor}
+            revRating={revRating} setRevRating={setRevRating}
+            revText={revText} setRevText={setRevText}
+            revBusy={revBusy} submitReview={submitReview}
+          />
         );
 
       case "responses":
-        return (
-          <div className="acc-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0 }}>Входящие заказы{incomingOrders.length > 0 ? ` (${incomingOrders.length})` : ""}</h3>
-              {newIncoming > 0 && (
-                <span style={{ fontSize: 12, padding: "3px 10px", background: "rgba(124,249,255,.15)", color: "var(--accent-2)", border: "1px solid rgba(124,249,255,.3)", borderRadius: 20 }}>
-                  {newIncoming} новых
-                </span>
-              )}
-            </div>
-            {incomingOrders.length === 0 ? (
-              <EmptyBlock icon="↗" title="Откликов пока нет"
-                sub="Когда косплееры оставят заявку в вашу мастерскую — они появятся здесь." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {incomingOrders.map((order) => (
-                  <div key={order.id} style={{
-                    padding: "14px 16px", background: "var(--bg-2)",
-                    border: "1px solid var(--line)", borderRadius: 12,
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 12, marginBottom: 8 }}>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 14 }}>@{order.customer_username}</div>
-                        <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>→ {order.workshop_name}</div>
-                      </div>
-                      <span style={{
-                        fontSize: 11, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap",
-                        background: "rgba(0,0,0,.3)",
-                        color: ORDER_STATUS_COLORS[order.status] || "var(--ink)",
-                        border: `1px solid ${ORDER_STATUS_COLORS[order.status] || "var(--line)"}33`,
-                      }}>
-                        {order.status_display}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 10px", lineHeight: 1.5 }}>
-                      {order.description}
-                    </p>
-                    {order.budget && (
-                      <div style={{ fontSize: 12, color: "var(--accent-3)", marginBottom: 10 }}>
-                        Бюджет: {order.budget.toLocaleString()} ₸
-                      </div>
-                    )}
-                    {order.status === "request" && (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button className="btn btn-primary btn-sm"
-                          onClick={() => updateIncomingStatus(order.id, "accepted")}>
-                          Принять
-                        </button>
-                        <button className="btn btn-ghost btn-sm"
-                          onClick={() => updateIncomingStatus(order.id, "cancelled")}
-                          style={{ color: "var(--ink-dim)" }}>
-                          Отклонить
-                        </button>
-                      </div>
-                    )}
-                    {order.status === "accepted" && (
-                      <button className="btn btn-ghost btn-sm"
-                        onClick={() => updateIncomingStatus(order.id, "in_work")}>
-                        Взять в работу
-                      </button>
-                    )}
-                    {order.status === "in_work" && (
-                      <button className="btn btn-ghost btn-sm"
-                        onClick={() => updateIncomingStatus(order.id, "shipped")}>
-                        Отметить как отправлено
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
+        return <ResponsesTab incomingOrders={incomingOrders} newIncoming={newIncoming} updateIncomingStatus={updateIncomingStatus} />;
 
       case "messages":
         return (
@@ -1925,183 +1757,16 @@ export default function CabinetPage() {
 
       case "listings":
         return (
-          <div className="acc-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <h3 style={{ margin: 0 }}>Объявления</h3>
-              {listingScope === "mine" && (
-                <button className="btn btn-primary btn-sm"
-                  onClick={() => showListingForm ? cancelListingForm() : setShowListingForm(true)}>
-                  {showListingForm ? "Отмена" : "+ Создать"}
-                </button>
-              )}
-            </div>
-
-            <p style={{ color: "var(--ink-dim)", fontSize: 12, margin: "0 0 14px", lineHeight: 1.5 }}>
-              «Продаю / Куплю» попадают в <a href="/market" style={{ color: "var(--accent-2)" }}>Барахолку</a>,
-              «Ищу спеца / Коллаб» — в <a href="/jobs" style={{ color: "var(--accent-2)" }}>Слоты</a>.
-            </p>
-
-            {/* Под-вкладки: мои / общие */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <button onClick={() => switchListingScope("mine")}
-                className={`chip${listingScope === "mine" ? " on" : ""}`}>
-                Мои{listings.length > 0 ? ` · ${listings.length}` : ""}
-              </button>
-              <button onClick={() => switchListingScope("all")}
-                className={`chip${listingScope === "all" ? " on" : ""}`}>
-                Общие{publicListings ? ` · ${publicListings.length}` : ""}
-              </button>
-            </div>
-
-            {listingScope === "all" ? (
-              publicListings === null ? (
-                <div style={{ color: "var(--ink-dim)", fontSize: 13, padding: "8px 0" }}>Загрузка…</div>
-              ) : publicListings.length === 0 ? (
-                <EmptyBlock icon="⌂" title="Объявлений пока нет"
-                  sub="Здесь появляются все активные объявления платформы — слоты, коллабы, барахолка." />
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  {publicListings.map((l) => (
-                    <div key={l.id} style={{
-                      padding: "12px 14px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 11,
-                    }}>
-                      <div>
-                        <span style={{
-                          fontSize: 10, padding: "2px 8px", borderRadius: 20, marginRight: 8,
-                          background: "rgba(157,124,255,.15)", color: "var(--accent-4)", border: "1px solid rgba(157,124,255,.25)",
-                        }}>
-                          {l.type_display || LISTING_TYPES[l.type] || l.type}
-                        </span>
-                        {l.city && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>📍 {l.city}</span>}
-                        {me.id && l.owner_id === me.id && (
-                          <span style={{ fontSize: 10, color: "var(--accent-2)", marginLeft: 8 }}>· моё</span>
-                        )}
-                        <div style={{ fontWeight: 600, fontSize: 14, marginTop: 6 }}>{l.title}</div>
-                        {l.description && <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>{l.description}</div>}
-                        <div style={{ display: "flex", gap: 12, marginTop: 6, alignItems: "center" }}>
-                          {l.price && <span style={{ fontSize: 12, color: "var(--accent-3)" }}>{Number(l.price).toLocaleString()} ₸</span>}
-                          {l.owner && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>@{l.owner}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : (
-            <>
-            {showListingForm && (
-              <div style={{ padding: "16px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12, marginBottom: 16 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>Тип <span style={{ color: "var(--accent)" }}>*</span></label>
-                    <select value={listingForm.type} onChange={(e) => setListingForm({ ...listingForm, type: e.target.value })}>
-                      <option value="">— выберите тип —</option>
-                      {Object.entries(LISTING_TYPES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                    {LISTING_SECTION[listingForm.type] ? (
-                      <small style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--ink-dim)" }}>
-                        Появится в разделе «<b style={{ color: "var(--accent-2)" }}>{LISTING_SECTION[listingForm.type].name}</b>»
-                      </small>
-                    ) : (
-                      <small style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--ink-dim)" }}>
-                        Определяет раздел: Продаю/Куплю → Барахолка, Ищу спеца/Коллаб → Слоты
-                      </small>
-                    )}
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label>Город <span style={{ color: "var(--accent)" }}>*</span></label>
-                    <CitySelect value={listingForm.city} onChange={(v) => setListingForm({ ...listingForm, city: v })} emptyLabel="— выберите город —" />
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Заголовок</label>
-                  <input value={listingForm.title} placeholder="Ищу фотографа для съёмки в Алматы"
-                    onChange={(e) => setListingForm({ ...listingForm, title: e.target.value })} />
-                </div>
-                <div className="field">
-                  <label>Описание</label>
-                  <textarea rows={2} value={listingForm.description} placeholder="Подробнее о проекте..."
-                    onChange={(e) => setListingForm({ ...listingForm, description: e.target.value })} />
-                </div>
-                <div className="field">
-                  <label>Бюджет ₸ (необязательно)</label>
-                  <input type="number" value={listingForm.price} placeholder="15000"
-                    onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })} />
-                </div>
-                <div className="field">
-                  <label>Контакты для связи (необязательно)</label>
-                  <input value={listingForm.contact} placeholder="@telegram, +7 700 000 00 00, почта"
-                    onChange={(e) => setListingForm({ ...listingForm, contact: e.target.value })} />
-                </div>
-                <button className="btn btn-primary" onClick={createListing}
-                  disabled={listingSaving || !listingForm.title.trim() || !listingForm.type || !listingForm.city}>
-                  {listingSaving ? "Сохраняем..." : editingListingId !== null ? "Сохранить" : "Опубликовать"}
-                </button>
-              </div>
-            )}
-
-            {listings.length === 0 && !showListingForm ? (
-              <EmptyBlock icon="⌂" title="Объявлений пока нет"
-                sub="Ищешь фотографа, продаёшь реквизит или зовёшь на коллаборацию — создай объявление." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {listings.map((listing) => (
-                  <div key={listing.id} style={{
-                    padding: "12px 14px", background: "var(--bg-2)",
-                    border: `1px solid ${listing.is_active ? "var(--line)" : "rgba(255,255,255,.05)"}`,
-                    borderRadius: 11, opacity: listing.is_active ? 1 : 0.55,
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 8 }}>
-                      <div style={{ flex: 1 }}>
-                        <span style={{
-                          fontSize: 10, padding: "2px 8px", borderRadius: 20, marginRight: 8,
-                          background: "rgba(157,124,255,.15)", color: "var(--accent-4)",
-                          border: "1px solid rgba(157,124,255,.25)",
-                        }}>
-                          {LISTING_TYPES[listing.type] || listing.type}
-                        </span>
-                        {LISTING_SECTION[listing.type] && (
-                          <a href={LISTING_SECTION[listing.type].href} style={{ fontSize: 11, color: "var(--accent-2)", marginRight: 8 }}>
-                            → {LISTING_SECTION[listing.type].name}
-                          </a>
-                        )}
-                        {listing.city && <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>📍 {listing.city}</span>}
-                        <div style={{ fontWeight: 600, fontSize: 14, marginTop: 6 }}>{listing.title}</div>
-                        {listing.description && (
-                          <div style={{ fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>{listing.description}</div>
-                        )}
-                        {listing.price && (
-                          <div style={{ fontSize: 12, color: "var(--accent-3)", marginTop: 4 }}>
-                            {listing.price.toLocaleString()} ₸
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                        <button onClick={() => toggleListingActive(listing.id, listing.is_active)}
-                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
-                            background: listing.is_active ? "rgba(124,249,255,.1)" : "rgba(255,255,255,.05)",
-                            border: "1px solid var(--line)", color: listing.is_active ? "var(--accent-2)" : "var(--ink-dim)" }}>
-                          {listing.is_active ? "Активно" : "Закрыто"}
-                        </button>
-                        <button onClick={() => startEditListing(listing)}
-                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
-                            background: "rgba(157,124,255,.1)", border: "1px solid rgba(157,124,255,.25)", color: "var(--accent-4)" }}>
-                          Изменить
-                        </button>
-                        <button onClick={() => deleteListing(listing.id)}
-                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
-                            background: "rgba(255,45,111,.1)", border: "1px solid rgba(255,45,111,.2)", color: "var(--accent)" }}>
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            </>
-            )}
-          </div>
+          <ListingsTab
+            meId={me.id ?? null}
+            listingScope={listingScope} switchListingScope={switchListingScope}
+            showListingForm={showListingForm} setShowListingForm={setShowListingForm} cancelListingForm={cancelListingForm}
+            listings={listings} publicListings={publicListings}
+            listingForm={listingForm} setListingForm={setListingForm}
+            listingSaving={listingSaving} editingListingId={editingListingId}
+            createListing={createListing} startEditListing={startEditListing}
+            toggleListingActive={toggleListingActive} deleteListing={deleteListing}
+          />
         );
 
       case "favs":
