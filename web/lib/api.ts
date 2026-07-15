@@ -72,6 +72,7 @@ export const ROLE_DETAIL_FIELDS: Record<string, { title: string; icon: string; f
       { key: "fandoms", label: "Фандомы" },
       { key: "level", label: "Уровень" },
       { key: "open_collab", label: "Открыт к коллабам" },
+      { key: "contact", label: "Контакт" },
     ],
   },
   photographer: {
@@ -80,6 +81,7 @@ export const ROLE_DETAIL_FIELDS: Record<string, { title: string; icon: string; f
       { key: "price_hour", label: "Стоимость", suffix: " ₸/час" },
       { key: "gear", label: "Оборудование" },
       { key: "portfolio_url", label: "Портфолио" },
+      { key: "contact", label: "Контакт" },
     ],
   },
   shop: {
@@ -106,6 +108,7 @@ export const ROLE_DETAIL_FIELDS: Record<string, { title: string; icon: string; f
     title: "Фанат", icon: "♥", fields: [
       { key: "fandoms", label: "Любимые фандомы" },
       { key: "hobbies", label: "Хобби" },
+      { key: "contact", label: "Контакт" },
     ],
   },
 };

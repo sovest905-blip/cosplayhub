@@ -26,6 +26,7 @@ export const ROLE_FORMS: Record<string, { title: string; icon: string; hint: str
       { key: "fandoms", label: "Фандомы", type: "text", placeholder: "Genshin, Naruto, Marvel" },
       { key: "level", label: "Уровень", type: "select", options: ["Новичок", "Любитель", "Продвинутый", "Профи"] },
       { key: "open_collab", label: "Открыт к коллаборациям", type: "toggle" },
+      { key: "contact", label: "Контакт для связи", type: "text", placeholder: "@nickname, ссылка на соцсеть или мессенджер" },
     ],
   },
   photographer: {
@@ -36,6 +37,7 @@ export const ROLE_FORMS: Record<string, { title: string; icon: string; hint: str
       { key: "price_hour", label: "Стоимость, ₸/час от", type: "number", placeholder: "10000" },
       { key: "gear", label: "Оборудование", type: "text", placeholder: "Sony A7 IV, выездной свет" },
       { key: "portfolio_url", label: "Ссылка на портфолио", type: "text", placeholder: "https://..." },
+      { key: "contact", label: "Контакт для связи", type: "text", placeholder: "@nickname, ссылка на соцсеть или мессенджер" },
     ],
   },
   shop: {
@@ -69,6 +71,7 @@ export const ROLE_FORMS: Record<string, { title: string; icon: string; hint: str
     fields: [
       { key: "fandoms", label: "Любимые фандомы", type: "text", placeholder: "Genshin, Naruto, Marvel" },
       { key: "hobbies", label: "Хобби", type: "multi", options: ["Аниме", "Манга", "Игры", "Настолки", "Рисование", "Музыка", "Фигурки", "K-pop", "Комиксы", "Фэнтези"] },
+      { key: "contact", label: "Контакт для связи", type: "text", placeholder: "@nickname, ссылка на соцсеть или мессенджер" },
     ],
   },
 };
