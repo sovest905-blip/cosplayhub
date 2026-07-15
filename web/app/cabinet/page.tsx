@@ -1,11 +1,15 @@
 "use client";
 import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { SOCIAL_META, DONATION_KINDS, DONATION_KIND_META, getMascots, type MascotOption } from "../../lib/api";
+import { SOCIAL_META, getMascots, type MascotOption } from "../../lib/api";
 import { ROLE_FORMS, RoleFields, galleryLimit } from "../../lib/roleForms";
 import MessagesPanel from "../components/MessagesPanel";
 import CryptoPayButton from "../components/CryptoPayButton";
 import AnalyticsTab from "./AnalyticsTab";
+import EmptyBlock from "./EmptyBlock";
+import MatchesTab from "./MatchesTab";
+import FavoritesTab from "./FavoritesTab";
+import CustomizationTab from "./CustomizationTab";
 
 const ROLE_MAP: Record<string, string> = {
   cosplayer: "Косплеер", photographer: "Фотограф", workshop: "Мастерская",
@@ -1386,108 +1390,24 @@ export default function CabinetPage() {
     );
   }
 
-  // Блок Pro-кастомизации (оформление профиля + маскот). Используется во вкладках «Оформление» и «Настройки».
-  function proCustomizationCard() {
-    return (
-            <div className="acc-card">
-              <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 4px" }}>Pro-кастомизация</h2>
-              {!user.is_pro ? (
-                <div style={{ fontSize: 13, color: "var(--ink-dim)" }}>
-                  Свой адрес профиля, акцентный цвет, маскот-компаньон, закреплённые образы и скрытие из каталога — фишки{" "}
-                  <a href="/pro" style={{ color: "var(--accent-2)" }}>Pro</a>.
-                </div>
-              ) : (
-                <>
-                  <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 14px" }}>Персонализируйте профиль — это видят гости.</p>
-                  <div className="field"><label>Свой адрес профиля</label>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 13, color: "var(--ink-dim)" }}>/u/</span>
-                      <input value={custSlug} onChange={(e) => setCustSlug(e.target.value)} placeholder="nick" style={{ flex: 1 }} />
-                    </div>
-                  </div>
-                  <div className="field"><label>Акцентный цвет</label>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <input type="color" value={custAccent} onChange={(e) => setCustAccent(e.target.value)} style={{ width: 48, height: 34, padding: 2, background: "none", border: "1px solid var(--line)", borderRadius: 8, cursor: "pointer" }} />
-                      <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>{custAccent}</span>
-                    </div>
-                  </div>
-                  <div className="toggle-row" style={{ padding: "8px 0" }}>
-                    <div><strong style={{ fontSize: 13 }}>Скрыть из каталога</strong><div style={{ fontSize: 12, color: "var(--ink-dim)" }}>Профиль не показывается в списках, но доступен по прямой ссылке</div></div>
-                    <div className={`toggle${custHide ? " on" : ""}`} style={{ cursor: "pointer" }} onClick={() => setCustHide((v) => !v)} />
-                  </div>
-                  {myLooks.length > 0 && (
-                    <div className="field"><label>Закреплённые образы (до 3)</label>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                        {myLooks.map((l) => {
-                          const on = pinnedIds.includes(l.id);
-                          return (
-                            <button key={l.id} type="button" onClick={() => togglePin(l.id)}
-                              style={{ fontSize: 12, padding: "5px 11px", borderRadius: 16, cursor: "pointer",
-                                border: `1px solid ${on ? "var(--accent)" : "var(--line)"}`,
-                                background: on ? "rgba(255,45,111,.12)" : "transparent", color: on ? "var(--accent)" : "var(--ink-dim)" }}>
-                              {on ? "📌 " : ""}{l.title}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  <div className="field"><label>Приём донатов (крипта · без комиссии платформы)</label>
-                    {donMethods.map((dm, i) => {
-                      const meta = DONATION_KIND_META[dm.kind] || { label: dm.kind, network: "" };
-                      return (
-                        <div key={i} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                          <span style={{ fontSize: 11, color: "var(--accent-2)", whiteSpace: "nowrap" }}>{meta.label} · {meta.network}</span>
-                          <code style={{ flex: 1, fontSize: 11, wordBreak: "break-all", background: "var(--bg-3)", padding: "4px 8px", borderRadius: 6 }}>{dm.address}</code>
-                          <button onClick={() => setDonMethods((p) => p.filter((_, j) => j !== i))} style={{ background: "none", border: "none", color: "var(--red)", cursor: "pointer", fontSize: 16 }}>×</button>
-                        </div>
-                      );
-                    })}
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <select value={donDraft.kind} onChange={(e) => setDonDraft({ ...donDraft, kind: e.target.value })} style={{ maxWidth: 120 }}>
-                        {DONATION_KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}
-                      </select>
-                      <input value={donDraft.address} onChange={(e) => setDonDraft({ ...donDraft, address: e.target.value })} placeholder="адрес кошелька" style={{ flex: 1 }} />
-                      <button className="btn btn-ghost btn-sm" onClick={() => { if (donDraft.address.trim()) { setDonMethods((p) => [...p, { kind: donDraft.kind, address: donDraft.address.trim() }]); setDonDraft({ ...donDraft, address: "" }); } }}>+ Добавить</button>
-                    </div>
-                    <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "6px 0 0" }}>Перевод идёт напрямую вам. Указывайте правильную сеть (напр. USDT — только TRC-20).</p>
-                  </div>
-                  <div className="field"><label>Маскот-компаньон (Pro)</label>
-                    <p style={{ fontSize: 11, color: "var(--ink-dim)", margin: "0 0 8px" }}>Появляется уголком на аватаре твоего профиля.</p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                      {[{ slug: "", name: "Без маскота", image: "" }, ...mascotLib].map((m) => {
-                        const on = custMascot === m.slug;
-                        return (
-                          <button key={m.slug || "none"} type="button" onClick={() => setCustMascot(m.slug)}
-                            title={m.name}
-                            style={{ width: 48, height: 48, borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                              border: `2px solid ${on ? "var(--accent)" : "var(--line)"}`, background: on ? "rgba(255,45,111,.1)" : "var(--bg-3)" }}>
-                            {m.slug
-                              ? <img src={m.image} alt={m.name} style={{ width: 34, height: 34, objectFit: "contain" }} />
-                              : <span style={{ fontSize: 11, color: "var(--ink-dim)" }}>нет</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
-                    <button className="btn btn-primary btn-sm" onClick={saveCustomization}>Сохранить</button>
-                    {custMsg && <span style={{ fontSize: 12, color: custMsg.includes("✓") ? "var(--green)" : "var(--red)" }}>{custMsg}</span>}
-                  </div>
-                </>
-              )}
-            </div>
-    );
-  }
-
   function renderContent() {
     switch (tab) {
       case "custom":
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <div style={{ fontSize: 13, color: "var(--ink-dim)", marginBottom: 2 }}>Оформление профиля — адрес, цвет, маскот-компаньон, закреплённые образы, донаты.</div>
-            {proCustomizationCard()}
-          </div>
+          <CustomizationTab
+            isPro={user.is_pro}
+            custSlug={custSlug} setCustSlug={setCustSlug}
+            custAccent={custAccent} setCustAccent={setCustAccent}
+            custHide={custHide} setCustHide={setCustHide}
+            custMascot={custMascot} setCustMascot={setCustMascot}
+            mascotLib={mascotLib}
+            myLooks={myLooks}
+            pinnedIds={pinnedIds} togglePin={togglePin}
+            donMethods={donMethods} setDonMethods={setDonMethods}
+            donDraft={donDraft} setDonDraft={setDonDraft}
+            custMsg={custMsg}
+            saveCustomization={saveCustomization}
+          />
         );
       case "profile":
         return (
@@ -2185,54 +2105,7 @@ export default function CabinetPage() {
         );
 
       case "favs":
-        return (
-          <div className="acc-card">
-            <h3>Избранное{favorites.length > 0 ? ` (${favorites.length})` : ""}</h3>
-            {favorites.length === 0 ? (
-              <EmptyBlock icon="♥" title="Список пуст"
-                sub="Сохраняй косплееров, фотографов и мастерские — кнопкой «♡ Сохранить» на их странице."
-                cta={{ label: "Смотреть косплееров", href: "/people" }} />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
-                {favorites.map((f) => {
-                  const it = f.item;
-                  const isWs = f.kind === "workshop";
-                  const href = isWs ? `/workshops/${it.id}` : `/people/${it.id}`;
-                  const title = isWs ? it.name : it.display_name;
-                  const img = isWs ? it.cover : it.avatar;
-                  const sub = isWs
-                    ? `Мастерская · 📍 ${it.city || "—"}`
-                    : `${(it.roles || []).map((r: string) => ROLE_MAP[r] || r).join(" · ") || "Косплеер"}${it.city ? ` · ${it.city}` : ""}`;
-                  return (
-                    <div key={`${f.kind}-${it.id}`} style={{ display: "flex", alignItems: "center", gap: 12,
-                      padding: "10px 12px", background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 11 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-                        background: img ? `url('${img}') center/cover` : "linear-gradient(135deg,var(--accent),var(--accent-4))",
-                        border: "1px solid var(--line)" }} />
-                      <a href={href} style={{ flex: 1, color: "var(--ink)" }}>
-                        <div style={{ fontWeight: 700, fontSize: 14 }}>
-                          {title}
-                          <span style={{ fontSize: 10, marginLeft: 8, padding: "2px 7px", borderRadius: 20,
-                            background: isWs ? "rgba(124,249,255,.12)" : "rgba(157,124,255,.12)",
-                            color: isWs ? "var(--accent-2)" : "var(--accent-4)",
-                            border: `1px solid ${isWs ? "rgba(124,249,255,.25)" : "rgba(157,124,255,.25)"}` }}>
-                            {isWs ? "Мастерская" : "Профиль"}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--ink-dim)" }}>{sub}</div>
-                      </a>
-                      <button onClick={() => removeFavorite(f.kind, it.id)}
-                        style={{ fontSize: 12, padding: "6px 12px", borderRadius: 8, cursor: "pointer", flexShrink: 0,
-                          background: "rgba(255,45,111,.1)", border: "1px solid rgba(255,45,111,.2)", color: "var(--accent)" }}>
-                        ✕ Убрать
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
+        return <FavoritesTab favorites={favorites} removeFavorite={removeFavorite} />;
 
       case "subs": {
         const fmt = (s: string | null) => { try { return s ? new Date(s).toLocaleDateString("ru-RU") : ""; } catch { return ""; } };
@@ -2523,52 +2396,7 @@ export default function CabinetPage() {
       }
 
       case "matches":
-        return (
-          <div className="acc-card">
-            <h2 style={{ fontFamily: "var(--font-display),sans-serif", margin: "0 0 4px" }}>Единомышленники</h2>
-            <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: "0 0 18px" }}>
-              Косплееры и фанаты с общими фандомами и хобби. Чем больше совпадений — тем выше в списке.
-            </p>
-            {matches === null ? (
-              <p style={{ color: "var(--ink-dim)", fontSize: 14 }}>Загрузка…</p>
-            ) : !matchesReady ? (
-              <EmptyBlock icon="♥" title="Заполни анкету фаната"
-                sub="Укажи любимые фандомы и хобби во вкладке «Роли и услуги» — и мы найдём похожих на тебя." />
-            ) : matches.length === 0 ? (
-              <EmptyBlock icon="♥" title="Пока никого"
-                sub="Совпадений по твоим фандомам и хобби ещё нет. Загляни позже — сообщество растёт." />
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {matches.map((m) => (
-                  <div key={m.user_id} style={{
-                    display: "flex", alignItems: "center", gap: 14, padding: "12px 14px",
-                    background: "var(--bg-2)", border: "1px solid var(--line)", borderRadius: 12,
-                  }}>
-                    <a href={`/people/${m.profile_id}`} style={{
-                      width: 48, height: 48, borderRadius: 12, flexShrink: 0, backgroundSize: "cover", backgroundPosition: "center",
-                      backgroundImage: m.avatar ? `url('${m.avatar}')` : "linear-gradient(135deg,rgba(255,45,111,.3),rgba(124,249,255,.15))",
-                    }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <a href={`/people/${m.profile_id}`} style={{ fontWeight: 700, fontSize: 14 }}>{m.display_name}</a>
-                      {m.city && <span style={{ color: "var(--ink-dim)", fontSize: 12 }}> · {m.city}</span>}
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-                        {[...m.shared_fandoms, ...m.shared_hobbies].slice(0, 6).map((t: string) => (
-                          <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 20,
-                            background: "rgba(124,249,255,.1)", border: "1px solid rgba(124,249,255,.25)", color: "var(--accent-2)" }}>{t}</span>
-                        ))}
-                      </div>
-                    </div>
-                    {m.is_following ? (
-                      <span style={{ fontSize: 12, color: "var(--green)", flexShrink: 0 }}>✓ Вы подписаны</span>
-                    ) : (
-                      <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0 }} onClick={() => followMatch(m.user_id)}>Подписаться</button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
+        return <MatchesTab matches={matches} matchesReady={matchesReady} followMatch={followMatch} />;
 
       case "settings":
         return (
@@ -2628,9 +2456,6 @@ export default function CabinetPage() {
                   onClick={() => { const v = !acceptMessages; setAcceptMessages(v); patchProfile({ accept_messages: v }); }} />
               </div>
             </div>
-
-            {/* Pro-кастомизация — вынесена в функцию, дублируется во вкладке «Оформление» */}
-            {proCustomizationCard()}
 
             {/* Смена пароля */}
             <div className="acc-card">
@@ -2873,19 +2698,6 @@ export default function CabinetPage() {
 
         <div>{renderContent()}</div>
       </div>
-    </div>
-  );
-}
-
-function EmptyBlock({ icon, title, sub, cta }: {
-  icon: string; title: string; sub: string; cta?: { label: string; href: string };
-}) {
-  return (
-    <div className="empty-state">
-      <div className="empty-glyph">{icon}</div>
-      <p className="empty-title">{title}</p>
-      <p className="empty-sub">{sub}</p>
-      {cta && <a href={cta.href} className="btn btn-ghost" style={{ marginTop: 8 }}>{cta.label} →</a>}
     </div>
   );
 }
