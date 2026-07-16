@@ -259,7 +259,7 @@ export default async function ProfilePage({ params, searchParams }: {
               <h3>Образы <span style={{ color: "var(--ink-dim)", fontWeight: 400, fontSize: 13 }}>· {looks.length}</span></h3>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6 }}>
                 {looks.map((l) => (
-                  <a key={l.id} href="/looks" title={l.title} style={{
+                  <a key={l.id} href={`/looks/${l.id}`} title={l.title} style={{
                     aspectRatio: "1", borderRadius: 10, display: "block", position: "relative",
                     backgroundImage: `url('${l.image || person.photo}')`, backgroundSize: "cover", backgroundPosition: "center",
                   }} />
