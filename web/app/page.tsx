@@ -1,9 +1,10 @@
 import {
   getProfiles, getWorkshops, getEvents, fmtCount,
-  getCurated, getWeeklyPicks, getCategories, getNews, getProfilesByRole,
+  getCurated, getWeeklyPicks, getCategories, getNews, getProfilesByRole, getLooks,
   ROLE_DETAIL_FIELDS, fmtDetailValue, type Category, type NewsItem,
 } from "../lib/api";
 import PartnerStrip from "./components/PartnerStrip";
+import LooksGrid from "./components/LooksGrid";
 
 // Категории — декоративная лента тем. Если админ не задал свои — показываем базовый набор.
 const FALLBACK_CATEGORIES = ["3D-печать", "EVA-пена", "Пошив", "Парики", "Линзы", "Фотосеты", "Барахолка", "Команды"];
@@ -41,7 +42,7 @@ async function fetchStats(): Promise<Stats> {
 }
 
 export default async function HomePage() {
-  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiWeekly, apiCategories, apiNews, apiShops] = await Promise.all([
+  const [stats, apiPeople, apiWs, apiEvents, apiCurated, apiWeekly, apiCategories, apiNews, apiShops, apiLooks] = await Promise.all([
     fetchStats(),
     getProfiles("?role=cosplayer").catch(() => null),
     getWorkshops().catch(() => null),
@@ -51,6 +52,7 @@ export default async function HomePage() {
     getCategories().catch(() => null),
     getNews().catch(() => null),
     getProfilesByRole("shop").catch(() => null),
+    getLooks().catch(() => null),
   ]);
   // Новости — из админки; блок на главной показываем только если есть хотя бы одна.
   const newsList: NewsItem[] = apiNews || [];
@@ -59,6 +61,7 @@ export default async function HomePage() {
   const wsList: any[] = apiWs || [];
   const evList: any[] = apiEvents || [];
   const shopList: any[] = apiShops || [];
+  const looksList: any[] = apiLooks || [];
   // «Выбор недели» — авто-топ за 7 дней по разделам. Ручной оверрайд: если админ завёл
   // активные карточки CuratedPick — показываем их вместо авто. Иначе — автоподбор.
   const manual = apiCurated || [];
@@ -221,6 +224,21 @@ export default async function HomePage() {
           )}
         </section>
         )}
+
+        {/* LOOKS */}
+        <section>
+          <div className="section-head">
+            <h2 className="title">Образы.</h2>
+            <a href="/looks" className="section-link">Все →</a>
+          </div>
+          {looksList.length === 0 ? (
+            <FirstCta glyph="✧" title="Добавь первый образ"
+              sub="Образов пока нет — добавь свой косплей-образ и покажи процесс работы."
+              href="/cabinet?tab=roles" label="Добавить образ →" />
+          ) : (
+            <LooksGrid looks={looksList.slice(0, 4)} promoSection="" />
+          )}
+        </section>
 
         {/* PEOPLE */}
         <section>
