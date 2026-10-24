@@ -1,0 +1,106 @@
+---
+- name: Каталоги стека
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ stack_dir }}", mode: "0750" }
+    - { path: "{{ stack_dir }}/certs", mode: "0700" }
+    - { path: "{{ stack_dir }}/hf-cache", mode: "0755" }
+
+- name: TLS — свой сертификат
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ stack_dir }}/certs/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: "{{ tls_cert_file }}", dest: fullchain.pem }
+    - { src: "{{ tls_key_file }}", dest: privkey.pem }
+  when: tls_cert_file | length > 0 and tls_key_file | length > 0
+  notify: Restart stack
+
+- name: TLS — самоподписанный сертификат (если своего нет)
+  ansible.builtin.command: >
+    openssl req -x509 -newkey rsa:4096 -nodes -days 825
+    -keyout {{ stack_dir }}/certs/privkey.pem
+    -out {{ stack_dir }}/certs/fullchain.pem
+    -subj "/CN={{ api_hostname }}"
+    -addext "subjectAltName={{ 'IP:' if api_hostname is match('^[0-9.]+$') else 'DNS:' }}{{ api_hostname }}"
+  args:
+    creates: "{{ stack_dir }}/certs/fullchain.pem"
+  when: tls_cert_file | length == 0
+  notify: Restart stack
+
+- name: Секреты (env-файл, права 0600)
+  ansible.builtin.template:
+    src: llm.env.j2
+    dest: "{{ stack_dir }}/llm.env"
+    mode: "0600"
+  no_log: true
+  notify: Restart stack
+
+- name: Конфиг nginx
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ stack_dir }}/nginx.conf"
+    mode: "0644"
+  notify: Restart stack
+
+- name: Compose-файл
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ stack_dir }}/docker-compose.yml"
+    mode: "0644"
+  notify: Restart stack
+
+- name: Запуск стека (автостарт после ребута - restart unless-stopped и docker enabled)
+  community.docker.docker_compose_v2:
+    project_src: "{{ stack_dir }}"
+    state: present
+    pull: missing
+
+- name: Ждём готовности модели (первая загрузка весов может занять 10+ минут)
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ api_port }}/v1/models"
+    headers:
+      Authorization: "Bearer {{ vault_llm_api_key }}"
+    validate_certs: false
+    return_content: true
+  register: llm_stack_models
+  until: llm_stack_models.status == 200
+  retries: 90
+  delay: 20
+  no_log: true
+
+- name: Smoke-test — без ключа должно быть 401
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ api_port }}/v1/models"
+    validate_certs: false
+    status_code: 401
+
+- name: Smoke-test — служебные пути закрыты (404)
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ api_port }}/metrics"
+    validate_certs: false
+    status_code: 404
+
+- name: Smoke-test — реальный запрос к модели
+  ansible.builtin.uri:
+    url: "https://127.0.0.1:{{ api_port }}/v1/chat/completions"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ vault_llm_api_key }}"
+    body_format: json
+    body:
+      model: "{{ llm_served_name }}"
+      messages: [{ role: user, content: "Скажи 'ok'" }]
+      max_tokens: 8
+    validate_certs: false
+    timeout: 120
+  register: llm_stack_chat
+  no_log: true
+
+- name: Результат
+  ansible.builtin.debug:
+    msg: "Модель отвечает: {{ llm_stack_chat.json.choices[0].message.content }}"

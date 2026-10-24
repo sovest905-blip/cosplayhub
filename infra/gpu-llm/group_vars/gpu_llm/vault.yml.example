@@ -1,0 +1,3 @@
+# cp vault.yml.example vault.yml && ansible-vault encrypt vault.yml
+vault_llm_api_key: "СГЕНЕРИРУЙТЕ: openssl rand -hex 32"
+vault_hf_token: ""   # нужен только для gated-моделей (Llama и т.п.)

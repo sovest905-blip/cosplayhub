@@ -1,0 +1,37 @@
+worker_processes auto;
+events { worker_connections 1024; }
+http {
+  server_tokens off;
+  limit_req_zone $binary_remote_addr zone=api:10m rate={{ api_rate_limit_rps }}r/s;
+  limit_req_status 429;
+
+  server {
+    listen 443 ssl;
+    http2 on;
+    ssl_certificate     /certs/fullchain.pem;
+    ssl_certificate_key /certs/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    client_max_body_size 2m;
+{% for cidr in api_allowed_cidrs %}
+    allow {{ cidr }};
+{% endfor %}
+{% if api_allowed_cidrs | length > 0 %}
+    deny all;
+{% endif %}
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+
+    # Только OpenAI-совместимый API. Ключ проверяет vLLM (--api-key / VLLM_API_KEY).
+    location /v1/ {
+      limit_req zone=api burst=20 nodelay;
+      proxy_pass http://vllm:8000;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_buffering off;          # SSE-стриминг токенов
+      proxy_read_timeout 600s;
+    }
+    # /metrics, /docs, /openapi.json, /tokenize и пр. — наружу не отдаём
+    location / { return 404; }
+  }
+}

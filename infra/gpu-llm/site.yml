@@ -1,0 +1,22 @@
+---
+- name: GPU-сервер с LLM (vLLM + защищённый OpenAI-совместимый API)
+  hosts: gpu_llm
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Проверка платформы и секретов
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+          - ansible_distribution_version in ['22.04', '24.04']
+          - ansible_architecture == 'x86_64'
+          - vault_llm_api_key is defined
+          - vault_llm_api_key | length >= 32
+          - "'СГЕНЕРИРУЙТЕ' not in vault_llm_api_key"
+        fail_msg: "Нужна Ubuntu 22.04/24.04 x86_64 и vault_llm_api_key (>=32 симв.) в vault.yml"
+      no_log: true
+  roles:
+    - { role: base, tags: [base] }
+    - { role: nvidia, tags: [nvidia] }
+    - { role: docker, tags: [docker] }
+    - { role: llm_stack, tags: [stack] }

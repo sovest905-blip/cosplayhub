@@ -1,0 +1,56 @@
+---
+- name: Репозиторий Docker
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/ubuntu
+    suites: "{{ ansible_distribution_release }}"
+    components: stable
+    architectures: amd64
+    signed_by: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Репозиторий NVIDIA Container Toolkit
+  ansible.builtin.deb822_repository:
+    name: nvidia-container-toolkit
+    types: deb
+    uris: https://nvidia.github.io/libnvidia-container/stable/deb/amd64
+    suites: /
+    signed_by: https://nvidia.github.io/libnvidia-container/gpgkey
+    state: present
+
+- name: Docker, compose-плагин и NVIDIA Container Toolkit
+  ansible.builtin.apt:
+    name: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin, nvidia-container-toolkit]
+    state: present
+    update_cache: true
+
+- name: Docker daemon.json (ротация логов, nvidia runtime)
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "50m", "max-file": "5" },
+        "live-restore": true,
+        "runtimes": { "nvidia": { "path": "nvidia-container-runtime", "runtimeArgs": [] } }
+      }
+    mode: "0644"
+  notify: Restart docker
+
+- name: Docker включён и запущен
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Применить handlers до запуска контейнеров
+  ansible.builtin.meta: flush_handlers
+
+- name: Тест доступа к GPU из контейнера
+  ansible.builtin.command: >
+    docker run --rm --gpus all --pull=missing
+    nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi -L
+  register: docker_gpu
+  changed_when: false
+  failed_when: docker_gpu.rc != 0

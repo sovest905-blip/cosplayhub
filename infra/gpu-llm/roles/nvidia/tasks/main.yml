@@ -1,0 +1,22 @@
+---
+- name: Драйвер NVIDIA (server-ветка, предсобранные модули ядра)
+  ansible.builtin.apt:
+    name: "{{ nvidia_driver_package }}"
+    state: present
+    update_cache: true
+  register: nvidia_pkg
+
+- name: Перезагрузка после первой установки драйвера
+  ansible.builtin.reboot:
+    reboot_timeout: 900
+  when: nvidia_pkg.changed and nvidia_allow_reboot | bool
+
+- name: Проверка nvidia-smi
+  ansible.builtin.command: nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+  register: nvidia_smi
+  changed_when: false
+  failed_when: nvidia_smi.rc != 0
+
+- name: Найденные GPU
+  ansible.builtin.debug:
+    var: nvidia_smi.stdout_lines

@@ -1,0 +1,30 @@
+---
+# ---- Модель / vLLM ----
+# Версию образа фиксируем (не latest): обновление = осознанное решение.
+# Перед использованием проверьте, что тег существует: https://hub.docker.com/r/vllm/vllm-openai/tags
+vllm_image: "vllm/vllm-openai:v0.9.1"
+llm_model: "Qwen/Qwen2.5-7B-Instruct"        # открытая, не gated-модель
+llm_served_name: "qwen2.5-7b-instruct"       # имя модели в API
+llm_max_model_len: 8192
+llm_gpu_memory_utilization: 0.90
+llm_tensor_parallel_size: 1                  # = числу GPU, если модель не влезает в одну
+llm_extra_args: []                           # доп. флаги vLLM, напр. ["--quantization", "awq"]
+
+# ---- Сеть / защита API ----
+api_bind_address: "0.0.0.0"                  # на каком интерфейсе слушает 443
+api_port: 443
+api_allowed_cidrs: []                        # [] = любой; лучше ограничить: ["10.0.0.0/8", "198.51.100.7/32"]
+api_rate_limit_rps: 5                        # на IP; burst=20
+api_hostname: "{{ ansible_host }}"           # CN/SAN самоподписанного сертификата
+tls_cert_file: ""                            # путь НА УПРАВЛЯЮЩЕЙ машине к fullchain.pem (иначе самоподписанный)
+tls_key_file: ""
+
+# ---- Хост ----
+stack_dir: /opt/llm-stack
+nvidia_driver_package: "nvidia-driver-570-server"
+nvidia_allow_reboot: true                    # драйвер требует перезагрузки при первой установке
+ssh_port: 22
+ssh_harden: true                             # отключить вход по паролю и root-логин (нужен рабочий ключ!)
+admin_cidrs: []                              # откуда разрешён SSH; [] = отовсюду (хуже)
+dcgm_exporter_image: "nvcr.io/nvidia/k8s/dcgm-exporter:3.3.9-3.6.1-ubuntu22.04"
+dcgm_metrics_bind: "127.0.0.1"               # метрики GPU не выставляем наружу

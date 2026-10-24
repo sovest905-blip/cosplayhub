@@ -1,0 +1,65 @@
+name: llm-stack
+services:
+  vllm:
+    image: {{ vllm_image }}
+    restart: unless-stopped
+    env_file: ./llm.env
+    ipc: host
+    # порт НЕ публикуется: доступен только nginx внутри сети compose
+    command:
+      - --model={{ llm_model }}
+      - --served-model-name={{ llm_served_name }}
+      - --max-model-len={{ llm_max_model_len }}
+      - --gpu-memory-utilization={{ llm_gpu_memory_utilization }}
+      - --tensor-parallel-size={{ llm_tensor_parallel_size }}
+      - --host=0.0.0.0
+      - --port=8000
+{% for arg in llm_extra_args %}
+      - {{ arg }}
+{% endfor %}
+    volumes:
+      - ./hf-cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 900s   # загрузка весов
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      vllm:
+        condition: service_started
+    ports:
+      - "{{ api_bind_address }}:{{ api_port }}:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/certs:ro
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run, /tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID]
+    security_opt: ["no-new-privileges:true"]
+
+  dcgm-exporter:
+    image: {{ dcgm_exporter_image }}
+    restart: unless-stopped
+    cap_add: [SYS_ADMIN]
+    ports:
+      - "{{ dcgm_metrics_bind }}:9400:9400"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
